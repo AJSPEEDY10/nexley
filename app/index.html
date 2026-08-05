@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- user-scalable=no: this is a pen/touch writing surface — pinch-zoom fights the canvas
+     and double-tap-to-zoom adds a 300ms delay to every tap. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1E4D3E">
+<title>Summit Education</title>
+<link rel="manifest" href="manifest.webmanifest">
+
+<!-- iPad: added to the Home Screen from Safari. iOS ignores the manifest for this and
+     needs its own tags plus a PNG touch icon. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Summit">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ============ SIGN IN ============ -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <svg class="glyph lg" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+      <circle cx="13" cy="13" r="11"></circle>
+    </svg>
+    <h1>Summit Education</h1>
+    <p class="gate-sub" id="gateSub">Create your account. Everything stays on this computer.</p>
+
+    <form id="gateForm" autocomplete="off">
+      <label class="field" id="nameField">
+        <span>Your name</span>
+        <input type="text" id="fName" maxlength="40" placeholder="Alec" autocomplete="off">
+      </label>
+      <label class="field">
+        <span id="passLabel">Passcode <em>(optional)</em></span>
+        <input type="password" id="fPass" maxlength="64" placeholder="leave blank for none" autocomplete="new-password">
+      </label>
+      <p class="gate-err" id="gateErr" hidden></p>
+      <button type="submit" class="btn primary" id="gateBtn">Create account</button>
+    </form>
+
+    <p class="gate-foot" id="gateFoot">
+      Local build · nothing is uploaded anywhere
+    </p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app" hidden>
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+        <circle cx="13" cy="13" r="11"></circle>
+      </svg>
+      <b>Summit</b>
+      <span class="phase" id="appVersion">v…</span>
+    </div>
+
+    <div class="rail-search">
+      <input type="search" id="search" placeholder="Search notes…" autocomplete="off">
+    </div>
+
+    <nav class="rail-nav" id="subjectList" aria-label="Subjects"></nav>
+
+    <button class="add-subject" id="addSubject" type="button">+ Add subject</button>
+
+    <div class="rail-foot">
+      <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
+      <button class="linkbtn" id="exportBtn" type="button">Export all</button>
+      <button class="linkbtn" id="importBtn" type="button">Import</button>
+      <button class="linkbtn" id="lockBtn" type="button">Lock</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+  </aside>
+
+  <section class="list">
+    <header class="list-head">
+      <div>
+        <span class="eyebrow" id="listContext">All notes</span>
+        <h2 id="listTitle">All notes</h2>
+      </div>
+      <button class="btn" id="newNote" type="button">New note</button>
+    </header>
+    <div class="notes" id="noteList"></div>
+  </section>
+
+  <main class="editor" id="editor" hidden>
+    <header class="ed-head">
+      <button class="backbtn" id="backBtn" type="button" title="Back to notes">‹ Notes</button>
+      <div class="crumb" id="crumb"></div>
+      <div class="ed-actions">
+        <span class="saved" id="savedState">Saved</span>
+        <button class="iconbtn" id="deleteNote" type="button" title="Delete note">Delete</button>
+      </div>
+    </header>
+
+    <input type="text" class="ed-title" id="noteTitle" placeholder="Untitled note" maxlength="140">
+
+    <div class="ed-meta">
+      <label class="sel">
+        <span>Subject</span>
+        <select id="noteSubject"></select>
+      </label>
+      <span class="stamp" id="noteStamp"></span>
+    </div>
+
+    <div class="toolbar" role="toolbar" aria-label="Formatting">
+      <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button type="button" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      <span class="tsep"></span>
+      <button type="button" data-block="h3" title="Heading">H</button>
+      <button type="button" data-cmd="insertUnorderedList" title="Bullet list">•</button>
+      <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+      <span class="tsep"></span>
+      <button type="button" data-mark="1" title="Highlight">Highlight</button>
+      <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+      <span class="tsep"></span>
+      <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
+    </div>
+
+    <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
+         aria-label="Note body"></div>
+
+    <footer class="ed-foot">
+      <span id="wordCount">0 words</span>
+      <span class="hint">Autosaves as you type · Ctrl+S to save now</span>
+    </footer>
+  </main>
+
+  <div class="empty" id="emptyState">
+    <svg class="glyph xl" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+      <circle cx="13" cy="13" r="11"></circle>
+    </svg>
+    <h3>Pick a note, or start a new one</h3>
+    <p>Phase 1: accounts, subjects and personal notes. Syllabus filing, linking and handwriting
+      come next.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<!-- A new version is downloaded and waiting. It is NOT applied until the current note is
+     saved and a snapshot taken — updating must never cost work in progress. -->
+<div class="updatebar" id="updateBar" hidden>
+  <span>A new version is ready. Your notes are untouched by updating.</span>
+  <button type="button" class="btn primary" id="updateNow">Update now</button>
+  <button type="button" class="btn ghost" id="updateLater">Later</button>
+</div>
+
+<!-- ============ SNAPSHOTS ============ -->
+<dialog id="snapDialog">
+  <div class="dlgbody">
+    <h3>Snapshots</h3>
+    <p class="dlgnote">Taken automatically about once a day, and always before an import,
+      a restore or an update. Restoring takes a snapshot of right now first, so it is
+      reversible.</p>
+    <div class="snaplist" id="snapList"></div>
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="snapClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SUBJECT DIALOG ============ -->
+<dialog id="subjDialog">
+  <form method="dialog" id="subjForm">
+    <h3 id="subjHeading">Add subject</h3>
+    <label class="field">
+      <span>Subject name</span>
+      <input type="text" id="subjName" maxlength="60" placeholder="Health &amp; Movement Science" required>
+    </label>
+    <label class="field">
+      <span>Short code <em>(optional)</em></span>
+      <input type="text" id="subjCode" maxlength="8" placeholder="HMS">
+    </label>
+    <div class="field">
+      <span>Colour</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="subjDelete" hidden>Delete subject</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="subjCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="subjSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
