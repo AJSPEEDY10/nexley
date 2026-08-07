@@ -31,7 +31,7 @@
       <circle cx="13" cy="13" r="11"></circle>
     </svg>
     <h1>Summit Education</h1>
-    <p class="gate-sub" id="gateSub">Create your account. Everything stays on this computer.</p>
+    <p class="gate-sub" id="gateSub">Create your account. Everything stays on this device.</p>
 
     <form id="gateForm" autocomplete="off">
       <label class="field" id="nameField">
@@ -46,9 +46,7 @@
       <button type="submit" class="btn primary" id="gateBtn">Create account</button>
     </form>
 
-    <p class="gate-foot" id="gateFoot">
-      Local build · nothing is uploaded anywhere
-    </p>
+    <p class="gate-foot">Local build · nothing is uploaded anywhere</p>
   </div>
 </div>
 
@@ -82,18 +80,30 @@
     </div>
   </aside>
 
-  <section class="list">
-    <header class="list-head">
-      <div>
-        <span class="eyebrow" id="listContext">All notes</span>
+  <!-- middle column: syllabus tree for a subject, or a flat list for search / all notes -->
+  <section class="browser">
+    <header class="browser-head">
+      <div class="bh-text">
+        <span class="eyebrow" id="listContext">Everything</span>
         <h2 id="listTitle">All notes</h2>
       </div>
-      <button class="btn" id="newNote" type="button">New note</button>
+      <div class="bh-actions">
+        <button class="iconbtn ghost" id="syllabusBtn" type="button" title="Edit this subject's syllabus">Syllabus</button>
+        <button class="btn" id="newNote" type="button">New note</button>
+      </div>
     </header>
-    <div class="notes" id="noteList"></div>
+
+    <div class="coverage" id="coverage" hidden>
+      <div class="cov-track"><i id="covFill"></i></div>
+      <span class="cov-label" id="covLabel"></span>
+    </div>
+
+    <div class="browser-body" id="browserBody"></div>
   </section>
 
   <main class="editor" id="editor" hidden>
+    <div class="tabs" id="tabStrip" hidden></div>
+
     <header class="ed-head">
       <button class="backbtn" id="backBtn" type="button" title="Back to notes">‹ Notes</button>
       <div class="crumb" id="crumb"></div>
@@ -110,6 +120,14 @@
         <span>Subject</span>
         <select id="noteSubject"></select>
       </label>
+      <label class="sel">
+        <span>Syllabus</span>
+        <select id="noteSyllabus"></select>
+      </label>
+      <div class="kindtoggle" role="group" aria-label="Note kind">
+        <button type="button" data-kind="personal" id="kindPersonal">Mine</button>
+        <button type="button" data-kind="syllabus" id="kindSyllabus">Syllabus</button>
+      </div>
       <span class="stamp" id="noteStamp"></span>
     </div>
 
@@ -143,8 +161,8 @@
       <circle cx="13" cy="13" r="11"></circle>
     </svg>
     <h3>Pick a note, or start a new one</h3>
-    <p>Phase 1: accounts, subjects and personal notes. Syllabus filing, linking and handwriting
-      come next.</p>
+    <p>Notes filed against syllabus areas. Add a syllabus to a subject and every note has
+      somewhere to belong.</p>
   </div>
 </div>
 
@@ -158,22 +176,7 @@
   <button type="button" class="btn ghost" id="updateLater">Later</button>
 </div>
 
-<!-- ============ SNAPSHOTS ============ -->
-<dialog id="snapDialog">
-  <div class="dlgbody">
-    <h3>Snapshots</h3>
-    <p class="dlgnote">Taken automatically about once a day, and always before an import,
-      a restore or an update. Restoring takes a snapshot of right now first, so it is
-      reversible.</p>
-    <div class="snaplist" id="snapList"></div>
-    <div class="dlg-actions">
-      <span style="flex:1"></span>
-      <button type="button" class="btn" id="snapClose">Close</button>
-    </div>
-  </div>
-</dialog>
-
-<!-- ============ SUBJECT DIALOG ============ -->
+<!-- ============ SUBJECT ============ -->
 <dialog id="subjDialog">
   <form method="dialog" id="subjForm">
     <h3 id="subjHeading">Add subject</h3>
@@ -193,9 +196,67 @@
       <button type="button" class="btn ghost danger" id="subjDelete" hidden>Delete subject</button>
       <span style="flex:1"></span>
       <button type="button" class="btn ghost" id="subjCancel">Cancel</button>
-      <button type="submit" class="btn primary" id="subjSave">Save</button>
+      <button type="submit" class="btn primary">Save</button>
     </div>
   </form>
+</dialog>
+
+<!-- ============ SYLLABUS NODE ============ -->
+<dialog id="nodeDialog">
+  <form method="dialog" id="nodeForm">
+    <h3 id="nodeHeading">Add topic</h3>
+    <label class="field">
+      <span>Code <em>(optional)</em></span>
+      <input type="text" id="nodeCode" maxlength="20" placeholder="HM-11-05">
+    </label>
+    <label class="field">
+      <span id="nodeTitleLabel">Title</span>
+      <input type="text" id="nodeTitle" maxlength="200" placeholder="Energy systems" required>
+    </label>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="nodeDelete" hidden>Delete</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="nodeCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ SYLLABUS IMPORT ============ -->
+<dialog id="sylDialog">
+  <div class="dlgbody">
+    <h3>Syllabus — <span id="sylSubject"></span></h3>
+    <p class="dlgnote">Paste the structure. <b>Topics at the left margin, dot points
+      indented</b> beneath them. A leading code is picked up automatically.</p>
+    <textarea id="sylPaste" class="paste" spellcheck="false" placeholder="Module 1: Health for individuals and communities
+  HM-11-01 Meanings of health
+  HM-11-02 Determinants of health
+Module 2: Body systems and movement
+  HM-11-04 Skeletal and muscular systems
+  HM-11-05 Energy systems"></textarea>
+    <p class="dlgnote" id="sylPreview"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="sylAddTopic">+ Topic by hand</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="sylClose">Close</button>
+      <button type="button" class="btn primary" id="sylImport">Add to syllabus</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SNAPSHOTS ============ -->
+<dialog id="snapDialog">
+  <div class="dlgbody">
+    <h3>Snapshots</h3>
+    <p class="dlgnote">Taken automatically about once a day, and always before an import,
+      a restore or an update. Restoring takes a snapshot of right now first, so it is
+      reversible.</p>
+    <div class="snaplist" id="snapList"></div>
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="snapClose">Close</button>
+    </div>
+  </div>
 </dialog>
 
 <script src="app.js"></script>

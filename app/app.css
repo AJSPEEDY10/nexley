@@ -125,13 +125,100 @@ button,input,select,textarea{font:inherit;color:inherit}
 .storage-note.ok{color:var(--muted)}
 .storage-note.warn{color:var(--danger)}
 
-/* list */
-.list{background:var(--paper);border-right:1px solid var(--line);
+/* browser column — syllabus tree, or flat list when searching / viewing all */
+.browser{background:var(--paper);border-right:1px solid var(--line);
   display:flex;flex-direction:column;overflow:hidden}
-.list-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
-  padding:18px 18px 14px;border-bottom:1px solid var(--line)}
-.list-head h2{font-family:var(--serif);font-weight:400;font-size:1.2rem;margin-top:3px;
+.browser-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+  padding:18px 16px 14px;border-bottom:1px solid var(--line)}
+.bh-text{min-width:0}
+.browser-head h2{font-family:var(--serif);font-weight:400;font-size:1.2rem;margin-top:3px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bh-actions{display:flex;align-items:center;gap:7px;flex:none}
+.iconbtn.ghost{border-color:var(--line);color:var(--ink-2)}
+.iconbtn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.browser-body{overflow-y:auto;flex:1;padding:8px}
+
+/* coverage bar — how much of the syllabus you have written something for */
+.coverage{display:flex;align-items:center;gap:10px;padding:9px 16px;
+  border-bottom:1px solid var(--line-soft);background:var(--surface)}
+.cov-track{flex:1;height:5px;border-radius:3px;background:var(--sunk);overflow:hidden}
+.cov-track i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.cov-label{font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* syllabus tree */
+.topic{margin-bottom:4px}
+.topic-head{display:flex;align-items:center;gap:8px;width:100%;background:none;
+  border:1px solid transparent;border-radius:7px;padding:8px 8px;cursor:pointer;text-align:left}
+.topic-head:hover{background:var(--raised)}
+.topic-head .tw{flex:1;min-width:0}
+.topic-head .code{font-family:var(--mono);font-size:.5625rem;letter-spacing:.08em;
+  color:var(--muted);display:block}
+.topic-head .nm{font-size:.8125rem;font-weight:700;display:block;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.chev{font-family:var(--mono);font-size:.6875rem;color:var(--muted);width:12px;flex:none;
+  transition:transform .14s}
+.topic.closed .chev{transform:rotate(-90deg)}
+.topic.closed .topic-body{display:none}
+.topic-body{padding-left:10px;border-left:1px solid var(--line-soft);margin-left:11px}
+.node-add{background:none;border:0;color:var(--muted);font-size:.6875rem;cursor:pointer;
+  padding:5px 8px;font-family:var(--mono);letter-spacing:.06em}
+.node-add:hover{color:var(--accent)}
+
+.dp{display:flex;align-items:center;gap:8px;width:100%;background:none;
+  border:1px solid transparent;border-radius:7px;padding:7px 8px;cursor:pointer;text-align:left}
+.dp:hover{background:var(--raised)}
+.dp.on{background:var(--accent-soft);border-color:var(--line-soft)}
+.pip{width:9px;height:9px;border-radius:50%;flex:none;border:1.5px solid var(--line)}
+.pip.has{background:var(--accent);border-color:var(--accent)}
+.pip.given{background:var(--line);border-color:var(--muted)}
+.dp .tw{flex:1;min-width:0}
+.dp .code{font-family:var(--mono);font-size:.5625rem;color:var(--muted);display:block}
+.dp .nm{font-size:.8125rem;display:block;line-height:1.35}
+.dp .ct{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex:none}
+.dp .edit,.topic-head .edit{opacity:0;font-size:.625rem;color:var(--muted);background:none;
+  border:0;cursor:pointer;padding:2px 4px;flex:none}
+.dp:hover .edit,.topic-head:hover .edit{opacity:1}
+
+.notes-under{padding-left:18px;display:flex;flex-direction:column;gap:1px;
+  margin:2px 0 6px}
+.nrow{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
+  border-radius:6px;padding:6px 8px;cursor:pointer;text-align:left}
+.nrow:hover{background:var(--raised)}
+.nrow.on{background:var(--raised);box-shadow:inset 2px 0 0 var(--accent)}
+.nrow .kind{font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;padding:2px 5px;
+  border-radius:3px;flex:none;text-transform:uppercase}
+.nrow .kind.mine{background:var(--accent-soft);color:var(--accent)}
+.nrow .kind.given{background:var(--sunk);color:var(--muted)}
+.nrow .t{flex:1;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nrow .dt{font-family:var(--mono);font-size:.5625rem;color:var(--muted);flex:none}
+
+.emptytree{padding:22px 14px;color:var(--muted);font-size:.8125rem;line-height:1.6;
+  display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+
+/* tabs */
+.tabs{display:flex;gap:2px;overflow-x:auto;padding:7px 10px 0;border-bottom:1px solid var(--line);
+  background:var(--surface);scrollbar-width:thin}
+.tab{display:flex;align-items:center;gap:7px;flex:none;max-width:190px;
+  border:1px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;
+  background:var(--paper);padding:7px 10px;cursor:pointer;font-size:.75rem;color:var(--ink-2)}
+.tab.on{background:var(--raised);color:var(--ink);font-weight:600}
+.tab .tl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:.8125rem;
+  line-height:1;padding:2px 3px;border-radius:4px;flex:none}
+.tab .x:hover{color:var(--danger);background:var(--sunk)}
+
+/* kind toggle */
+.kindtoggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.kindtoggle button{background:none;border:0;padding:5px 11px;font-size:.75rem;
+  color:var(--ink-2);cursor:pointer}
+.kindtoggle button.on{background:var(--accent-bg);color:var(--accent-on);font-weight:600}
+
+/* paste box */
+.paste{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line);
+  border-radius:8px;padding:12px;background:var(--surface);font-family:var(--mono);
+  font-size:.75rem;line-height:1.6;color:var(--ink)}
+.paste:focus{outline:none;border-color:var(--accent)}
 .notes{overflow-y:auto;flex:1;padding:8px}
 .ncard{display:flex;flex-direction:column;gap:4px;padding:12px 13px;border-radius:9px;
   cursor:pointer;border:1px solid transparent;background:none;width:100%;text-align:left}
@@ -288,17 +375,27 @@ dialog h3{font-family:var(--serif);font-weight:400;font-size:1.3rem}
    ============================================================ */
 @media (max-width:1080px){
   .app{grid-template-columns:190px 1fr}
-  .list{grid-column:2;grid-row:1}
+  .browser{grid-column:2;grid-row:1}
   .editor,.empty{grid-column:2;grid-row:1}
   /* editor takes over the working area while a note is open */
-  .app.editing .list{display:none}
+  .app.editing .browser{display:none}
 }
 @media (max-width:680px){
   body{overflow:auto}
   .app{grid-template-columns:1fr;height:auto}
   .rail{border-right:0;border-bottom:1px solid var(--line)}
   .rail-nav{max-height:210px}
-  .list,.editor,.empty{grid-column:1;grid-row:auto}
+  .browser,.editor,.empty{grid-column:1;grid-row:auto}
   .editor{min-height:70vh}
+  .ed-meta{gap:10px}
+}
+@media (pointer:coarse){
+  .dp{padding:11px 8px;min-height:44px}
+  .topic-head{padding:12px 8px;min-height:46px}
+  .nrow{padding:10px 8px;min-height:42px}
+  .dp .edit,.topic-head .edit{opacity:1}
+  .tab{padding:10px 12px;min-height:42px}
+  .kindtoggle button{padding:9px 14px;min-height:42px}
+  .paste{font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

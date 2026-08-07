@@ -9,28 +9,26 @@
  *   3. DELETES ARE TOMBSTONES. Records are flagged deleted, not removed, so a future
  *      sync can propagate a deletion instead of resurrecting it.
  *   4. EVERY RECORD IS SYNC-SHAPED FROM DAY ONE — stable id, updated, rev, device.
- *      Retrofitting those later would mean touching every note ever written.
- *   5. BACKUPS ARE AUTOMATIC. A rolling snapshot means a bad update or a mis-tap is
- *      recoverable without relying on the user having exported.
+ *   5. BACKUPS ARE AUTOMATIC. A bad update or a mis-tap is recoverable.
+ *   6. A NOTE BELONGS TO A SYLLABUS POINT, not to a pile. Everything later — questions by
+ *      topic, revision targeting, mastery — reads from that link, so it exists from here on.
  */
 
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.2.0';
+  var APP_VERSION = '0.3.0';
   var DB_NAME = 'summit-edu';
-  var DB_VER = 2;            // bump + extend migrate() for any schema change
+  var DB_VER = 3;
   var BACKUP_KEEP = 7;
-  var BACKUP_EVERY = 20 * 60 * 60 * 1000;   // ~daily
+  var BACKUP_EVERY = 20 * 60 * 60 * 1000;
+  var MAX_TABS = 8;
 
   var db = null;
 
   /* ============================================================
      1 · storage
      ============================================================ */
-
-  /* Additive only. Each block runs for anyone coming from a lower version, in order,
-     so a user on v1 gets v2 cleanly and a brand-new user gets both in one pass. */
   function migrate(d, txn, from) {
     if (from < 1) {
       d.createObjectStore('meta', { keyPath: 'key' });
@@ -41,15 +39,10 @@
     }
 
     if (from < 2) {
-      // rolling local snapshots
-      if (!d.objectStoreNames.contains('backups')) {
-        d.createObjectStore('backups', { keyPath: 'id' });
-      }
-      // sync-shaped fields on everything that already exists
+      if (!d.objectStoreNames.contains('backups')) d.createObjectStore('backups', { keyPath: 'id' });
       ['notes', 'subjects'].forEach(function (name) {
         if (!d.objectStoreNames.contains(name)) return;
-        var store = txn.objectStore(name);
-        store.openCursor().onsuccess = function (e) {
+        txn.objectStore(name).openCursor().onsuccess = function (e) {
           var cur = e.target.result;
           if (!cur) return;
           var v = cur.value;
@@ -62,14 +55,32 @@
         };
       });
     }
+
+    if (from < 3) {
+      // syllabus: one flat store, parentId gives the hierarchy (topic -> dot point)
+      if (!d.objectStoreNames.contains('syllabus')) {
+        var s = d.createObjectStore('syllabus', { keyPath: 'id' });
+        s.createIndex('subjectId', 'subjectId', { unique: false });
+      }
+      // existing notes become unfiled personal notes — nothing is lost, nothing is guessed
+      if (d.objectStoreNames.contains('notes')) {
+        txn.objectStore('notes').openCursor().onsuccess = function (e) {
+          var cur = e.target.result;
+          if (!cur) return;
+          var v = cur.value;
+          if (v.syllabusId === undefined) v.syllabusId = null;
+          if (v.kind === undefined) v.kind = 'personal';
+          cur.update(v);
+          cur.continue();
+        };
+      }
+    }
   }
 
   function open() {
     return new Promise(function (res, rej) {
       var req = indexedDB.open(DB_NAME, DB_VER);
-      req.onupgradeneeded = function (e) {
-        migrate(e.target.result, e.target.transaction, e.oldVersion);
-      };
+      req.onupgradeneeded = function (e) { migrate(e.target.result, e.target.transaction, e.oldVersion); };
       req.onsuccess = function () { db = req.result; res(db); };
       req.onerror = function () { rej(req.error); };
       req.onblocked = function () {
@@ -109,8 +120,6 @@
     });
   }
 
-  /* Stamp a record on every write. This is what makes sync possible later without a
-     migration — and what makes "which copy is newer" answerable. */
   function stamp(rec) {
     rec.updated = Date.now();
     rec.rev = (rec.rev || 0) + 1;
@@ -119,36 +128,26 @@
     if (!rec.created) rec.created = rec.updated;
     return rec;
   }
-
   function softDelete(store, rec) {
     rec.deleted = Date.now();
     return put(store, stamp(rec));
   }
-
   var live = function (arr) { return arr.filter(function (r) { return !r.deleted; }); };
 
   /* ============================================================
      2 · backups
      ============================================================ */
   function snapshot(reason) {
-    return Promise.all([all('subjects'), all('notes')]).then(function (r) {
-      var rec = {
-        id: uid(),
-        at: Date.now(),
-        reason: reason || 'auto',
-        appVersion: APP_VERSION,
-        subjects: r[0],
-        notes: r[1]
-      };
-      return put('backups', rec);
+    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
+      return put('backups', {
+        id: uid(), at: Date.now(), reason: reason || 'auto', appVersion: APP_VERSION,
+        subjects: r[0], notes: r[1], syllabus: r[2]
+      });
     }).then(function () {
       return all('backups');
     }).then(function (list) {
-      // keep only the most recent few — this is a safety net, not an archive
       list.sort(function (a, b) { return b.at - a.at; });
-      return Promise.all(list.slice(BACKUP_KEEP).map(function (b) {
-        return hardDelete('backups', b.id);
-      }));
+      return Promise.all(list.slice(BACKUP_KEEP).map(function (b) { return hardDelete('backups', b.id); }));
     });
   }
 
@@ -157,7 +156,7 @@
       var newest = list.reduce(function (m, b) { return Math.max(m, b.at); }, 0);
       if (Date.now() - newest < BACKUP_EVERY) return;
       return snapshot('auto');
-    }).catch(function () { /* a failed backup must never block the app */ });
+    }).catch(function () {});
   }
 
   function restore(backupId) {
@@ -165,14 +164,14 @@
       if (!b) return;
       return snapshot('before-restore').then(function () {
         var jobs = (b.subjects || []).map(function (s) { return put('subjects', s); })
-          .concat((b.notes || []).map(function (n) { return put('notes', n); }));
+          .concat((b.notes || []).map(function (n) { return put('notes', n); }))
+          .concat((b.syllabus || []).map(function (s) { return put('syllabus', s); }));
         return Promise.all(jobs);
       }).then(function () {
         state.activeNote = null;
+        state.tabs = [];
         return refresh();
-      }).then(function () {
-        toast('Restored the snapshot from ' + when(b.at) + '.');
-      });
+      }).then(function () { toast('Restored the snapshot from ' + when(b.at) + '.'); });
     });
   }
 
@@ -190,8 +189,7 @@
     return (d.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
-  /* Local convenience lock only — NOT security. Anyone with access to this device can
-     read the database directly. Said plainly in the UI too. */
+  /* Local convenience lock only — NOT security. */
   function hash(str) {
     var h = 5381, i;
     for (i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
@@ -224,15 +222,12 @@
      4 · state
      ============================================================ */
   var state = {
-    account: null,
-    deviceId: null,
-    subjects: [],
-    notes: [],
-    activeSubject: null,
-    activeNote: null,
-    query: '',
-    dirty: false,
-    editingSubject: null,
+    account: null, deviceId: null,
+    subjects: [], notes: [], syllabus: [],
+    activeSubject: null, activeNode: null, activeNote: null,
+    tabs: [], collapsed: {},
+    query: '', dirty: false,
+    editingSubject: null, editingNode: null, pendingParent: null,
     pendingColour: COLOURS[0]
   };
 
@@ -256,12 +251,7 @@
     setTimeout(function () { (creating ? $('fName') : $('fPass')).focus(); }, 60);
     $('gateForm').dataset.mode = creating ? 'create' : 'unlock';
   }
-
-  function gateError(msg) {
-    var el = $('gateErr');
-    el.textContent = msg;
-    el.hidden = false;
-  }
+  function gateError(msg) { var el = $('gateErr'); el.textContent = msg; el.hidden = false; }
 
   function gateSubmit(e) {
     e.preventDefault();
@@ -271,73 +261,85 @@
     if (mode === 'create') {
       var name = $('fName').value.trim();
       if (!name) return gateError('Enter a name.');
-      var acct = {
-        key: 'account', name: name,
-        pass: pass ? hash(pass) : null,
-        created: Date.now()
-      };
+      var acct = { key: 'account', name: name, pass: pass ? hash(pass) : null, created: Date.now() };
       put('meta', acct).then(function () {
         state.account = acct;
         return seed();
       }).then(function () {
-        $('gate').hidden = true;
-        $('app').hidden = false;
+        $('gate').hidden = true; $('app').hidden = false;
         return refresh();
       });
       return;
     }
-
     if (state.account.pass && hash(pass) !== state.account.pass) {
       return gateError('That passcode does not match. Try again.');
     }
-    $('gate').hidden = true;
-    $('app').hidden = false;
+    $('gate').hidden = true; $('app').hidden = false;
     refresh();
   }
 
   function seed() {
     var s = stamp({ id: uid(), name: 'General', code: 'GEN', colour: COLOURS[0] });
     var n = stamp({
-      id: uid(), subjectId: s.id, font: 'standard',
+      id: uid(), subjectId: s.id, syllabusId: null, kind: 'personal', font: 'standard',
       title: 'Welcome to Summit',
       body: '<p>Everything you write is stored on this device. There is no server behind ' +
             'this app and nothing is uploaded.</p>' +
-            '<h3>Your work is safe across updates</h3>' +
-            '<ul><li>Updating the app replaces its files. It never touches your notes — ' +
-            'they live in a separate store.</li>' +
-            '<li>A snapshot is taken automatically about once a day. Open ' +
-            '<b>Snapshots</b> in the sidebar to roll back.</li>' +
-            '<li>Deleting a note flags it rather than destroying it.</li>' +
-            '<li><b>Export</b> writes everything to a file whenever you want it.</li></ul>' +
-            '<h3>Next</h3>' +
-            '<ul><li>Filing notes against syllabus areas</li>' +
-            '<li>Linking notes to each other</li>' +
-            '<li>Handwriting</li></ul>' +
+            '<h3>Notes belong to the syllabus</h3>' +
+            '<p>Add a subject, hit <b>Syllabus</b> and paste in its structure. Every note ' +
+            'then files against a specific dot point — which is what lets the app later ' +
+            'find your gaps, target revision and pull the right questions.</p>' +
+            '<h3>Your work survives updates</h3>' +
+            '<ul><li>Updating replaces the app files. It never touches your notes.</li>' +
+            '<li>A snapshot is taken about once a day, and before every update, import ' +
+            'and restore. See <b>Snapshots</b>.</li>' +
+            '<li>Deleting flags a note rather than destroying it.</li></ul>' +
             '<p>Delete this note whenever you like.</p>'
     });
     return put('subjects', s).then(function () { return put('notes', n); });
   }
 
   /* ============================================================
-     6 · load + render
+     6 · load
      ============================================================ */
   function refresh() {
-    return Promise.all([all('subjects'), all('notes')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
       state.subjects = live(r[0]).sort(function (a, b) { return a.name.localeCompare(b.name); });
       state.notes = live(r[1]).sort(function (a, b) { return b.updated - a.updated; });
+      state.syllabus = live(r[2]).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      // drop tabs whose notes have gone
+      state.tabs = state.tabs.filter(noteById);
       renderSubjects();
-      renderList();
+      renderBrowser();
+      renderTabs();
       renderEditor();
     });
   }
 
-  function subjectById(id) {
-    for (var i = 0; i < state.subjects.length; i++) {
-      if (state.subjects[i].id === id) return state.subjects[i];
-    }
+  function subjectById(id) { return find(state.subjects, id); }
+  function nodeById(id) { return find(state.syllabus, id); }
+  function noteById(id) { return find(state.notes, id); }
+  function find(arr, id) {
+    for (var i = 0; i < arr.length; i++) if (arr[i].id === id) return arr[i];
     return null;
   }
 
+  function topicsOf(subjectId) {
+    return state.syllabus.filter(function (n) { return n.subjectId === subjectId && !n.parentId; });
+  }
+  function childrenOf(parentId) {
+    return state.syllabus.filter(function (n) { return n.parentId === parentId; });
+  }
+  function notesOfNode(nodeId) {
+    return state.notes.filter(function (n) { return n.syllabusId === nodeId; });
+  }
+  function unfiledOf(subjectId) {
+    return state.notes.filter(function (n) { return n.subjectId === subjectId && !n.syllabusId; });
+  }
+
+  /* ============================================================
+     7 · rail
+     ============================================================ */
   function renderSubjects() {
     var wrap = $('subjectList');
     wrap.textContent = '';
@@ -370,10 +372,7 @@
       ed.className = 'edit';
       ed.textContent = 'edit';
       ed.title = 'Edit subject';
-      ed.addEventListener('click', function (e) {
-        e.stopPropagation();
-        openSubjectDialog(s);
-      });
+      ed.addEventListener('click', function (e) { e.stopPropagation(); openSubjectDialog(s); });
       b.appendChild(ed);
     }
 
@@ -385,49 +384,279 @@
     b.addEventListener('click', function () {
       if (state.dirty) saveNow();
       state.activeSubject = s.id;
+      state.activeNode = null;
       state.query = '';
       $('search').value = '';
       $('app').classList.remove('editing');
       state.activeNote = null;
       renderSubjects();
-      renderList();
+      renderBrowser();
+      renderTabs();
       renderEditor();
     });
     return b;
   }
 
-  function visibleNotes() {
+  /* ============================================================
+     8 · browser column
+     ============================================================ */
+  function renderBrowser() {
+    var subj = state.activeSubject ? subjectById(state.activeSubject) : null;
+    var searching = !!state.query.trim();
+
+    $('listTitle').textContent = searching ? 'Search results' : (subj ? subj.name : 'All notes');
+    $('listContext').textContent = searching ? '"' + state.query.trim() + '"'
+      : (subj ? (subj.code || 'Subject') : 'Everything');
+    $('syllabusBtn').hidden = !subj || searching;
+
+    var body = $('browserBody');
+    body.textContent = '';
+
+    if (searching || !subj) { $('coverage').hidden = true; return renderFlat(body); }
+
+    var topics = topicsOf(subj.id);
+    renderCoverage(subj, topics);
+
+    if (!topics.length) {
+      var box = document.createElement('div');
+      box.className = 'emptytree';
+      var p = document.createElement('p');
+      p.textContent = 'No syllabus for ' + subj.name + ' yet. Add one and every note you write ' +
+        'has somewhere to belong — that is what later lets the app find your gaps.';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn primary';
+      b.textContent = 'Add the syllabus';
+      b.addEventListener('click', openSyllabusDialog);
+      box.appendChild(p); box.appendChild(b);
+      body.appendChild(box);
+      renderUnfiled(body, subj);
+      return;
+    }
+
+    topics.forEach(function (t) { body.appendChild(topicBlock(t)); });
+    renderUnfiled(body, subj);
+  }
+
+  function renderCoverage(subj, topics) {
+    var points = [];
+    topics.forEach(function (t) { points = points.concat(childrenOf(t.id)); });
+    if (!points.length) { $('coverage').hidden = true; return; }
+
+    // "covered" means YOU have written something there — given notes don't count
+    var covered = points.filter(function (p) {
+      return notesOfNode(p.id).some(function (n) { return n.kind === 'personal'; });
+    }).length;
+    var pct = Math.round((covered / points.length) * 100);
+
+    $('coverage').hidden = false;
+    $('covFill').style.width = pct + '%';
+    $('covLabel').textContent = covered + ' / ' + points.length + ' written · ' + pct + '%';
+  }
+
+  function topicBlock(t) {
+    var wrap = document.createElement('div');
+    wrap.className = 'topic' + (state.collapsed[t.id] ? ' closed' : '');
+
+    var head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'topic-head';
+
+    var chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.textContent = '▾';
+    head.appendChild(chev);
+
+    var tw = document.createElement('span');
+    tw.className = 'tw';
+    if (t.code) {
+      var c = document.createElement('span');
+      c.className = 'code';
+      c.textContent = t.code;
+      tw.appendChild(c);
+    }
+    var nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = t.title;
+    tw.appendChild(nm);
+    head.appendChild(tw);
+
+    var ed = document.createElement('button');
+    ed.type = 'button';
+    ed.className = 'edit';
+    ed.textContent = 'edit';
+    ed.addEventListener('click', function (e) { e.stopPropagation(); openNodeDialog(t, null); });
+    head.appendChild(ed);
+
+    head.addEventListener('click', function () {
+      state.collapsed[t.id] = !state.collapsed[t.id];
+      wrap.classList.toggle('closed');
+    });
+    wrap.appendChild(head);
+
+    var bodyEl = document.createElement('div');
+    bodyEl.className = 'topic-body';
+    childrenOf(t.id).forEach(function (p) { bodyEl.appendChild(pointBlock(p)); });
+
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'node-add';
+    add.textContent = '+ dot point';
+    add.addEventListener('click', function () { openNodeDialog(null, t.id); });
+    bodyEl.appendChild(add);
+
+    wrap.appendChild(bodyEl);
+    return wrap;
+  }
+
+  function pointBlock(p) {
+    var frag = document.createDocumentFragment();
+    var notes = notesOfNode(p.id);
+    var mine = notes.filter(function (n) { return n.kind === 'personal'; });
+
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'dp' + (state.activeNode === p.id ? ' on' : '');
+
+    var pip = document.createElement('i');
+    pip.className = 'pip' + (mine.length ? ' has' : (notes.length ? ' given' : ''));
+    pip.title = mine.length ? 'You have written here'
+      : (notes.length ? 'Only given notes here — nothing of your own' : 'Nothing here yet');
+    row.appendChild(pip);
+
+    var tw = document.createElement('span');
+    tw.className = 'tw';
+    if (p.code) {
+      var c = document.createElement('span');
+      c.className = 'code';
+      c.textContent = p.code;
+      tw.appendChild(c);
+    }
+    var nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = p.title;
+    tw.appendChild(nm);
+    row.appendChild(tw);
+
+    var ed = document.createElement('button');
+    ed.type = 'button';
+    ed.className = 'edit';
+    ed.textContent = 'edit';
+    ed.addEventListener('click', function (e) { e.stopPropagation(); openNodeDialog(p, p.parentId); });
+    row.appendChild(ed);
+
+    if (notes.length) {
+      var ct = document.createElement('span');
+      ct.className = 'ct';
+      ct.textContent = notes.length;
+      row.appendChild(ct);
+    }
+
+    row.addEventListener('click', function () {
+      state.activeNode = state.activeNode === p.id ? null : p.id;
+      renderBrowser();
+    });
+    frag.appendChild(row);
+
+    var list = document.createElement('div');
+    list.className = 'notes-under';
+    notes.forEach(function (n) { list.appendChild(noteRow(n)); });
+
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'node-add';
+    add.textContent = '+ note here';
+    add.addEventListener('click', function () { newNote(p.id); });
+    list.appendChild(add);
+    frag.appendChild(list);
+
+    return frag;
+  }
+
+  function noteRow(n) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'nrow' + (state.activeNote === n.id ? ' on' : '');
+
+    var k = document.createElement('span');
+    k.className = 'kind ' + (n.kind === 'syllabus' ? 'given' : 'mine');
+    k.textContent = n.kind === 'syllabus' ? 'syl' : 'mine';
+    b.appendChild(k);
+
+    var t = document.createElement('span');
+    t.className = 't';
+    t.textContent = n.title || 'Untitled note';
+    b.appendChild(t);
+
+    var dt = document.createElement('span');
+    dt.className = 'dt';
+    dt.textContent = when(n.updated);
+    b.appendChild(dt);
+
+    b.addEventListener('click', function () { openNote(n.id); });
+    return b;
+  }
+
+  function renderUnfiled(body, subj) {
+    var loose = unfiledOf(subj.id);
+    if (!loose.length) return;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'topic';
+
+    var head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'topic-head';
+    var chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.textContent = '▾';
+    var tw = document.createElement('span');
+    tw.className = 'tw';
+    var nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = 'Unfiled (' + loose.length + ')';
+    tw.appendChild(nm);
+    head.appendChild(chev); head.appendChild(tw);
+    head.addEventListener('click', function () { wrap.classList.toggle('closed'); });
+    wrap.appendChild(head);
+
+    var list = document.createElement('div');
+    list.className = 'topic-body';
+    var inner = document.createElement('div');
+    inner.className = 'notes-under';
+    loose.forEach(function (n) { inner.appendChild(noteRow(n)); });
+    list.appendChild(inner);
+    wrap.appendChild(list);
+    body.appendChild(wrap);
+  }
+
+  /* flat list — used for search and for "All notes" */
+  function renderFlat(body) {
     var q = state.query.trim().toLowerCase();
-    return state.notes.filter(function (n) {
+    var list = state.notes.filter(function (n) {
       if (state.activeSubject && n.subjectId !== state.activeSubject) return false;
       if (!q) return true;
       return (n.title || '').toLowerCase().indexOf(q) > -1 ||
              plain(n.body).toLowerCase().indexOf(q) > -1;
     });
-  }
 
-  function renderList() {
-    var subj = state.activeSubject ? subjectById(state.activeSubject) : null;
-    $('listTitle').textContent = state.query ? 'Search results' : (subj ? subj.name : 'All notes');
-    $('listContext').textContent = state.query
-      ? '"' + state.query + '"' : (subj ? (subj.code || 'Subject') : 'Everything');
-
-    var list = visibleNotes();
-    var wrap = $('noteList');
-    wrap.textContent = '';
+    var holder = document.createElement('div');
+    holder.className = 'notes';
 
     if (!list.length) {
       var e = document.createElement('p');
       e.className = 'listempty';
-      e.textContent = state.query ? 'Nothing matches that search.'
-        : (state.subjects.length ? 'No notes here yet. Hit "New note" to start one.'
+      e.textContent = q ? 'Nothing matches that search.'
+        : (state.subjects.length ? 'No notes yet. Hit "New note" to start one.'
                                  : 'Add a subject first, then start writing.');
-      wrap.appendChild(e);
+      holder.appendChild(e);
+      body.appendChild(holder);
       return;
     }
 
     list.forEach(function (n) {
       var s = subjectById(n.subjectId);
+      var node = n.syllabusId ? nodeById(n.syllabusId) : null;
       var card = document.createElement('button');
       card.type = 'button';
       card.className = 'ncard' + (state.activeNote === n.id ? ' on' : '');
@@ -451,21 +680,88 @@
 
       card.appendChild(top);
       card.appendChild(ex);
+
+      if (node) {
+        var w = document.createElement('span');
+        w.className = 'dt';
+        w.textContent = (node.code ? node.code + ' · ' : '') + node.title;
+        card.appendChild(w);
+      }
+
       card.addEventListener('click', function () { openNote(n.id); });
-      wrap.appendChild(card);
+      holder.appendChild(card);
+    });
+    body.appendChild(holder);
+  }
+
+  /* ============================================================
+     9 · tabs
+     ============================================================ */
+  function addTab(id) {
+    if (state.tabs.indexOf(id) === -1) {
+      state.tabs.push(id);
+      if (state.tabs.length > MAX_TABS) state.tabs.shift();
+    }
+    saveTabs();
+  }
+  function closeTab(id) {
+    var i = state.tabs.indexOf(id);
+    if (i > -1) state.tabs.splice(i, 1);
+    saveTabs();
+    if (state.activeNote === id) {
+      var next = state.tabs[Math.min(i, state.tabs.length - 1)];
+      if (next) { openNote(next); return; }
+      closeNote();
+      return;
+    }
+    renderTabs();
+  }
+  function saveTabs() {
+    put('meta', { key: 'tabs', ids: state.tabs.slice() }).catch(function () {});
+  }
+
+  function renderTabs() {
+    var strip = $('tabStrip');
+    strip.textContent = '';
+    if (state.tabs.length < 2) { strip.hidden = true; return; }
+    strip.hidden = false;
+
+    state.tabs.forEach(function (id) {
+      var n = noteById(id);
+      if (!n) return;
+      var t = document.createElement('div');
+      t.className = 'tab' + (state.activeNote === id ? ' on' : '');
+
+      var label = document.createElement('span');
+      label.className = 'tl';
+      label.textContent = n.title || 'Untitled';
+      label.addEventListener('click', function () { openNote(id); });
+      t.appendChild(label);
+
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'x';
+      x.textContent = '×';
+      x.title = 'Close tab';
+      x.addEventListener('click', function (e) { e.stopPropagation(); closeTab(id); });
+      t.appendChild(x);
+
+      strip.appendChild(t);
     });
   }
 
   /* ============================================================
-     7 · editor
+     10 · editor
      ============================================================ */
   var saveTimer = null;
 
   function openNote(id) {
     if (state.dirty) saveNow();
     state.activeNote = id;
+    addTab(id);
     $('app').classList.add('editing');
-    renderList();
+    renderBrowser();
+    renderTabs();
     renderEditor();
     setTimeout(function () { $('noteTitle').focus(); }, 40);
   }
@@ -474,16 +770,12 @@
     if (state.dirty) saveNow();
     state.activeNote = null;
     $('app').classList.remove('editing');
-    renderList();
+    renderBrowser();
+    renderTabs();
     renderEditor();
   }
 
-  function activeNoteObj() {
-    for (var i = 0; i < state.notes.length; i++) {
-      if (state.notes[i].id === state.activeNote) return state.notes[i];
-    }
-    return null;
-  }
+  function activeNoteObj() { return noteById(state.activeNote); }
 
   function renderEditor() {
     var n = activeNoteObj();
@@ -510,23 +802,75 @@
       sel.appendChild(o);
     });
 
-    var s = subjectById(n.subjectId);
-    var c = $('crumb');
-    c.textContent = '';
-    var dot = document.createElement('i');
-    dot.className = 'dot';
-    dot.style.background = s ? s.colour : 'var(--muted)';
-    var b = document.createElement('b');
-    b.textContent = s ? s.name : 'No subject';
-    var sep = document.createElement('span');
-    sep.textContent = '›';
-    var ttl = document.createElement('span');
-    ttl.textContent = n.title || 'Untitled note';
-    c.appendChild(dot); c.appendChild(b); c.appendChild(sep); c.appendChild(ttl);
-
+    renderSyllabusPicker(n);
+    setKindButtons(n.kind || 'personal');
+    renderCrumb(n);
     applyFont(n.font || 'standard');
     markSaved();
     countWords();
+  }
+
+  function renderSyllabusPicker(n) {
+    var sel = $('noteSyllabus');
+    sel.textContent = '';
+
+    var none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'Unfiled';
+    sel.appendChild(none);
+
+    topicsOf(n.subjectId).forEach(function (t) {
+      var group = document.createElement('optgroup');
+      group.label = (t.code ? t.code + ' · ' : '') + t.title;
+      childrenOf(t.id).forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = (p.code ? p.code + ' · ' : '') + p.title;
+        if (p.id === n.syllabusId) o.selected = true;
+        group.appendChild(o);
+      });
+      if (group.children.length) sel.appendChild(group);
+    });
+
+    if (!n.syllabusId) none.selected = true;
+    sel.disabled = sel.options.length <= 1;
+  }
+
+  function setKindButtons(kind) {
+    $('kindPersonal').classList.toggle('on', kind !== 'syllabus');
+    $('kindSyllabus').classList.toggle('on', kind === 'syllabus');
+  }
+
+  function renderCrumb(n) {
+    var s = subjectById(n.subjectId);
+    var node = n.syllabusId ? nodeById(n.syllabusId) : null;
+    var c = $('crumb');
+    c.textContent = '';
+
+    var dot = document.createElement('i');
+    dot.className = 'dot';
+    dot.style.background = s ? s.colour : 'var(--muted)';
+    c.appendChild(dot);
+
+    var b = document.createElement('b');
+    b.textContent = s ? s.name : 'No subject';
+    c.appendChild(b);
+
+    if (node) {
+      var sep1 = document.createElement('span');
+      sep1.className = 'sep';
+      sep1.textContent = '›';
+      var nd = document.createElement('span');
+      nd.textContent = (node.code ? node.code + ' ' : '') + node.title;
+      c.appendChild(sep1); c.appendChild(nd);
+    }
+
+    var sep2 = document.createElement('span');
+    sep2.className = 'sep';
+    sep2.textContent = '›';
+    var ttl = document.createElement('span');
+    ttl.textContent = n.title || 'Untitled note';
+    c.appendChild(sep2); c.appendChild(ttl);
   }
 
   function markDirty() {
@@ -548,34 +892,33 @@
     n.title = $('noteTitle').value.trim();
     n.body = $('noteBody').innerHTML;
     n.subjectId = $('noteSubject').value || n.subjectId;
+    n.syllabusId = $('noteSyllabus').value || null;
     stamp(n);
     clearTimeout(saveTimer);
     return put('notes', n).then(function () {
       state.notes.sort(function (a, b) { return b.updated - a.updated; });
       renderSubjects();
-      renderList();
+      renderBrowser();
+      renderTabs();
       // a save landing after the user moved on must not rewrite the new note's chrome
       if (state.activeNote !== n.id) return;
       markSaved();
-      var s = subjectById(n.subjectId);
-      var c = $('crumb');
-      if (c.children.length >= 4) {
-        c.children[1].textContent = s ? s.name : 'No subject';
-        c.children[3].textContent = n.title || 'Untitled note';
-      }
+      renderCrumb(n);
     });
   }
 
-  function newNote() {
+  function newNote(nodeId) {
     if (!state.subjects.length) {
       toast('Add a subject first.');
       openSubjectDialog(null);
       return;
     }
+    var node = nodeId ? nodeById(nodeId) : null;
     var n = stamp({
       id: uid(),
-      subjectId: state.activeSubject || state.subjects[0].id,
-      title: '', body: '', font: 'standard'
+      subjectId: node ? node.subjectId : (state.activeSubject || state.subjects[0].id),
+      syllabusId: node ? node.id : null,
+      kind: 'personal', title: '', body: '', font: 'standard'
     });
     put('notes', n).then(function () {
       state.notes.unshift(n);
@@ -593,9 +936,11 @@
                  'not destroyed — the most recent snapshot can bring it back.')) return;
     softDelete('notes', n).then(function () {
       state.notes = state.notes.filter(function (x) { return x.id !== n.id; });
+      closeTab(n.id);
       state.activeNote = null;
       renderSubjects();
-      renderList();
+      renderBrowser();
+      renderTabs();
       renderEditor();
       toast('Note deleted. Recoverable from Snapshots.');
     });
@@ -639,7 +984,6 @@
       }
       node = node.parentNode;
     }
-
     var mark = document.createElement('mark');
     try { range.surroundContents(mark); }
     catch (err) {
@@ -656,7 +1000,7 @@
   }
 
   /* ============================================================
-     8 · subjects
+     11 · subjects
      ============================================================ */
   function renderSwatches() {
     var wrap = $('swatches');
@@ -667,10 +1011,7 @@
       b.className = 'sw' + (c === state.pendingColour ? ' on' : '');
       b.style.background = c;
       b.setAttribute('aria-label', 'Colour ' + c);
-      b.addEventListener('click', function () {
-        state.pendingColour = c;
-        renderSwatches();
-      });
+      b.addEventListener('click', function () { state.pendingColour = c; renderSwatches(); });
       wrap.appendChild(b);
     });
   }
@@ -710,13 +1051,15 @@
     var s = state.editingSubject;
     if (!s) return;
     var kids = state.notes.filter(function (n) { return n.subjectId === s.id; });
-    var msg = kids.length
-      ? 'Delete "' + s.name + '" and its ' + kids.length + ' note' + (kids.length === 1 ? '' : 's') +
-        '?\n\nThey are flagged as deleted, not destroyed — the most recent snapshot can bring them back.'
-      : 'Delete "' + s.name + '"?';
+    var nodes = state.syllabus.filter(function (x) { return x.subjectId === s.id; });
+    var msg = 'Delete "' + s.name + '"' +
+      (kids.length ? ' and its ' + kids.length + ' note' + (kids.length === 1 ? '' : 's') : '') +
+      (nodes.length ? ' and its syllabus' : '') +
+      '?\n\nEverything is flagged as deleted, not destroyed — the most recent snapshot can bring it back.';
     if (!confirm(msg)) return;
 
     Promise.all(kids.map(function (n) { return softDelete('notes', n); }))
+      .then(function () { return Promise.all(nodes.map(function (x) { return softDelete('syllabus', x); })); })
       .then(function () { return softDelete('subjects', s); })
       .then(function () {
         $('subjDialog').close();
@@ -729,20 +1072,189 @@
   }
 
   /* ============================================================
-     9 · export / import / snapshots
+     12 · syllabus
+     ============================================================ */
+  function openNodeDialog(node, parentId) {
+    state.editingNode = node;
+    state.pendingParent = parentId;
+    var isTopic = !parentId;
+    $('nodeHeading').textContent = (node ? 'Edit ' : 'Add ') + (isTopic ? 'topic' : 'dot point');
+    $('nodeTitleLabel').textContent = isTopic ? 'Topic' : 'Dot point';
+    $('nodeCode').value = node ? (node.code || '') : '';
+    $('nodeTitle').value = node ? node.title : '';
+    $('nodeDelete').hidden = !node;
+    $('nodeDialog').showModal();
+    setTimeout(function () { $('nodeTitle').focus(); }, 50);
+  }
+
+  function saveNode(e) {
+    e.preventDefault();
+    var title = $('nodeTitle').value.trim();
+    if (!title || !state.activeSubject) return;
+
+    var n = state.editingNode || {
+      id: uid(),
+      subjectId: state.activeSubject,
+      parentId: state.pendingParent || null,
+      order: nextOrder(state.pendingParent || null)
+    };
+    n.code = $('nodeCode').value.trim();
+    n.title = title;
+    stamp(n);
+
+    put('syllabus', n).then(function () {
+      $('nodeDialog').close();
+      state.editingNode = null;
+      return refresh();
+    });
+  }
+
+  function nextOrder(parentId) {
+    var sibs = parentId ? childrenOf(parentId) : topicsOf(state.activeSubject);
+    return sibs.reduce(function (m, s) { return Math.max(m, s.order || 0); }, 0) + 10;
+  }
+
+  function deleteNode() {
+    var n = state.editingNode;
+    if (!n) return;
+    var kids = childrenOf(n.id);
+    var affected = notesOfNode(n.id).concat(
+      kids.reduce(function (acc, k) { return acc.concat(notesOfNode(k.id)); }, []));
+
+    var msg = 'Delete "' + n.title + '"' +
+      (kids.length ? ' and its ' + kids.length + ' dot point' + (kids.length === 1 ? '' : 's') : '') + '?' +
+      (affected.length
+        ? '\n\n' + affected.length + ' note' + (affected.length === 1 ? '' : 's') +
+          ' will become Unfiled. No note is deleted.'
+        : '');
+    if (!confirm(msg)) return;
+
+    // notes are never destroyed by a syllabus change — they fall back to Unfiled
+    Promise.all(affected.map(function (note) {
+      note.syllabusId = null;
+      return put('notes', stamp(note));
+    })).then(function () {
+      return Promise.all(kids.map(function (k) { return softDelete('syllabus', k); }));
+    }).then(function () {
+      return softDelete('syllabus', n);
+    }).then(function () {
+      $('nodeDialog').close();
+      state.editingNode = null;
+      state.activeNode = null;
+      return refresh();
+    }).then(function () {
+      toast(affected.length ? affected.length + ' note(s) moved to Unfiled.' : 'Removed.');
+    });
+  }
+
+  /* Parse pasted syllabus text.
+     Left margin = topic. Indented = dot point under the topic above it.
+     A leading token containing a digit is treated as a code. */
+  function parseSyllabus(text) {
+    var out = [], currentTopic = null;
+    text.split(/\r?\n/).forEach(function (raw) {
+      if (!raw.trim()) return;
+      var indent = raw.match(/^[ \t]*/)[0].replace(/\t/g, '    ').length;
+      var line = raw.trim().replace(/^[-*•·]\s*/, '');
+      if (!line) return;
+
+      var code = '', title = line, m = null;
+
+      // "Module 5: Heredity" / "Topic 2 - Dynamics" / "Unit 1. Foundations".
+      // Only these known structural words, so ordinary prose is never split.
+      m = line.match(/^((?:module|topic|unit|chapter|part|section|option|focus)\s*\d+[a-z]?)\s*[:–—\-.]\s*(.+)$/i);
+
+      // "HM-11-01 Meanings of health" / "1.1 Motion in a straight line"
+      if (!m) {
+        m = line.match(/^([A-Za-z0-9][A-Za-z0-9._\-\/]*\d[A-Za-z0-9._\-\/]*)[\s:.\-]+(.+)$/);
+        // reject junk: over-long tokens, no real title left, and bare 4-digit numbers —
+        // "1914 as a turning point" is a history dot point, not a code
+        if (m && (m[1].length > 20 || m[2].trim().length < 2 || /^\d{4,}$/.test(m[1]))) m = null;
+      }
+
+      // bare leading number: "1 Kinematics"
+      if (!m) m = line.match(/^(\d{1,3})[\s:.\-]+(.+)$/);
+
+      if (m) { code = m[1]; title = m[2].trim(); }
+      title = title.replace(/\s*:\s*$/, '');
+
+      if (indent === 0) {
+        currentTopic = { code: code, title: title, points: [] };
+        out.push(currentTopic);
+      } else {
+        if (!currentTopic) {
+          currentTopic = { code: '', title: 'Topic', points: [] };
+          out.push(currentTopic);
+        }
+        currentTopic.points.push({ code: code, title: title });
+      }
+    });
+    return out;
+  }
+
+  function openSyllabusDialog() {
+    var subj = subjectById(state.activeSubject);
+    if (!subj) return;
+    $('sylSubject').textContent = subj.name;
+    $('sylPaste').value = '';
+    $('sylPreview').textContent = '';
+    $('sylDialog').showModal();
+    setTimeout(function () { $('sylPaste').focus(); }, 50);
+  }
+
+  function previewSyllabus() {
+    var parsed = parseSyllabus($('sylPaste').value);
+    var points = parsed.reduce(function (m, t) { return m + t.points.length; }, 0);
+    $('sylPreview').textContent = parsed.length
+      ? 'Reads as ' + parsed.length + ' topic' + (parsed.length === 1 ? '' : 's') +
+        ' and ' + points + ' dot point' + (points === 1 ? '' : 's') + '.'
+      : '';
+  }
+
+  function importSyllabus() {
+    var parsed = parseSyllabus($('sylPaste').value);
+    if (!parsed.length) return toast('Nothing to add — paste the structure first.');
+    if (!state.activeSubject) return;
+
+    var order = nextOrder(null);
+    var jobs = [];
+
+    parsed.forEach(function (t) {
+      var topic = stamp({
+        id: uid(), subjectId: state.activeSubject, parentId: null,
+        code: t.code, title: t.title, order: order
+      });
+      order += 10;
+      jobs.push(put('syllabus', topic));
+
+      var childOrder = 10;
+      t.points.forEach(function (p) {
+        jobs.push(put('syllabus', stamp({
+          id: uid(), subjectId: state.activeSubject, parentId: topic.id,
+          code: p.code, title: p.title, order: childOrder
+        })));
+        childOrder += 10;
+      });
+    });
+
+    var points = parsed.reduce(function (m, t) { return m + t.points.length; }, 0);
+    snapshot('before-syllabus-import')
+      .then(function () { return Promise.all(jobs); })
+      .then(function () { $('sylDialog').close(); return refresh(); })
+      .then(function () { toast('Added ' + parsed.length + ' topics and ' + points + ' dot points.'); });
+  }
+
+  /* ============================================================
+     13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
-    return Promise.all([all('subjects'), all('notes')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
       var payload = {
-        app: 'summit-education',
-        format: 2,
-        appVersion: APP_VERSION,
-        exported: new Date().toISOString(),
-        device: state.deviceId,
+        app: 'summit-education', format: 3, appVersion: APP_VERSION,
+        exported: new Date().toISOString(), device: state.deviceId,
         account: state.account ? { name: state.account.name, created: state.account.created } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
-        subjects: r[0],
-        notes: r[1]
+        subjects: r[0], notes: r[1], syllabus: r[2]
       };
       var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -770,13 +1282,13 @@
       }
 
       snapshot('before-import').then(function () {
-        return Promise.all([all('subjects'), all('notes')]);
+        return Promise.all([all('subjects'), all('notes'), all('syllabus')]);
       }).then(function (cur) {
-        var index = {};
+        var index = {}, kept = 0, skipped = 0, jobs = [];
         cur[0].forEach(function (s) { index['s:' + s.id] = s; });
         cur[1].forEach(function (n) { index['n:' + n.id] = n; });
+        cur[2].forEach(function (y) { index['y:' + y.id] = y; });
 
-        var kept = 0, skipped = 0, jobs = [];
         function consider(store, prefix, rec) {
           var mine = index[prefix + rec.id];
           if (mine && (mine.updated || 0) >= (rec.updated || 0)) { skipped++; return; }
@@ -784,11 +1296,15 @@
           jobs.push(put(store, rec));
         }
         (data.subjects || []).forEach(function (s) { consider('subjects', 's:', s); });
-        data.notes.forEach(function (n) { consider('notes', 'n:', n); });
+        (data.syllabus || []).forEach(function (y) { consider('syllabus', 'y:', y); });
+        data.notes.forEach(function (n) {
+          // an older export has no syllabus fields — default rather than drop the note
+          if (n.syllabusId === undefined) n.syllabusId = null;
+          if (n.kind === undefined) n.kind = 'personal';
+          consider('notes', 'n:', n);
+        });
 
-        return Promise.all(jobs).then(function () {
-          return refresh();
-        }).then(function () {
+        return Promise.all(jobs).then(refresh).then(function () {
           toast('Imported ' + kept + ' newer records. ' + skipped + ' already up to date.');
         });
       });
@@ -806,7 +1322,7 @@
         var p = document.createElement('p');
         p.className = 'listempty';
         p.textContent = 'No snapshots yet. One is taken automatically about once a day, ' +
-          'and before any import or restore.';
+          'and before any import, restore or update.';
         wrap.appendChild(p);
       }
 
@@ -819,7 +1335,8 @@
         t.textContent = new Date(b.at).toLocaleString();
         var sub = document.createElement('span');
         sub.textContent = live(b.notes || []).length + ' notes · ' +
-          live(b.subjects || []).length + ' subjects · ' + b.reason;
+          live(b.subjects || []).length + ' subjects · ' +
+          live(b.syllabus || []).length + ' syllabus · ' + b.reason;
         meta.appendChild(t); meta.appendChild(sub);
 
         var btn = document.createElement('button');
@@ -827,26 +1344,20 @@
         btn.className = 'btn';
         btn.textContent = 'Restore';
         btn.addEventListener('click', function () {
-          if (!confirm('Restore this snapshot?\n\nAnything newer is kept, and a snapshot of ' +
-                       'right now is taken first, so this is reversible.')) return;
+          if (!confirm('Restore this snapshot?\n\nA snapshot of right now is taken first, ' +
+                       'so this is reversible.')) return;
           restore(b.id).then(function () { $('snapDialog').close(); });
         });
 
-        row.appendChild(meta);
-        row.appendChild(btn);
+        row.appendChild(meta); row.appendChild(btn);
         wrap.appendChild(row);
       });
-
       $('snapDialog').showModal();
     });
   }
 
   /* ============================================================
-     10 · updates
-
-     The app must be updatable daily without disturbing work in progress. So a new
-     version is NOT applied the moment it downloads — it waits, the user is told, and it
-     is applied on their say-so after the current note has been flushed to disk.
+     14 · updates
      ============================================================ */
   function setupUpdates() {
     if (!('serviceWorker' in navigator) || location.protocol.indexOf('http') !== 0) return;
@@ -864,12 +1375,9 @@
         var bar = $('updateBar');
         bar.hidden = false;
         $('updateNow').onclick = function () {
-          // flush before anything swaps underneath us
-          Promise.resolve(state.dirty ? saveNow() : null).then(function () {
-            return snapshot('before-update');
-          }).then(function () {
-            worker.postMessage({ type: 'SKIP_WAITING' });
-          });
+          Promise.resolve(state.dirty ? saveNow() : null)
+            .then(function () { return snapshot('before-update'); })
+            .then(function () { worker.postMessage({ type: 'SKIP_WAITING' }); });
         };
         $('updateLater').onclick = function () { bar.hidden = true; };
       }
@@ -880,20 +1388,18 @@
         var nw = reg.installing;
         if (!nw) return;
         nw.addEventListener('statechange', function () {
-          // "installed" with an existing controller means this is an update, not a first install
           if (nw.state === 'installed' && navigator.serviceWorker.controller) offer(nw);
         });
       });
 
-      // look for a new version whenever the app is brought back to the foreground
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) reg.update().catch(function () {});
       });
-    }).catch(function () { /* the app works without it, just not offline */ });
+    }).catch(function () {});
   }
 
   /* ============================================================
-     11 · storage durability
+     15 · storage durability
      ============================================================ */
   function checkStorage() {
     if (!navigator.storage || !navigator.storage.persist) return;
@@ -919,19 +1425,35 @@
   }
 
   /* ============================================================
-     12 · wiring
+     16 · wiring
      ============================================================ */
   function wire() {
     $('gateForm').addEventListener('submit', gateSubmit);
 
-    $('newNote').addEventListener('click', newNote);
+    $('newNote').addEventListener('click', function () { newNote(state.activeNode); });
     $('deleteNote').addEventListener('click', deleteNote);
     $('backBtn').addEventListener('click', closeNote);
     $('addSubject').addEventListener('click', function () { openSubjectDialog(null); });
+    $('syllabusBtn').addEventListener('click', openSyllabusDialog);
 
     $('noteTitle').addEventListener('input', markDirty);
     $('noteBody').addEventListener('input', function () { markDirty(); countWords(); });
-    $('noteSubject').addEventListener('change', markDirty);
+    $('noteSubject').addEventListener('change', function () {
+      var n = activeNoteObj();
+      if (n) { n.syllabusId = null; n.subjectId = $('noteSubject').value; renderSyllabusPicker(n); }
+      markDirty();
+    });
+    $('noteSyllabus').addEventListener('change', markDirty);
+
+    [['kindPersonal', 'personal'], ['kindSyllabus', 'syllabus']].forEach(function (pair) {
+      $(pair[0]).addEventListener('click', function () {
+        var n = activeNoteObj();
+        if (!n) return;
+        n.kind = pair[1];
+        setKindButtons(n.kind);
+        markDirty();
+      });
+    });
 
     $('noteBody').addEventListener('paste', function (e) {
       e.preventDefault();
@@ -941,7 +1463,7 @@
 
     $('search').addEventListener('input', function (e) {
       state.query = e.target.value;
-      renderList();
+      renderBrowser();
     });
 
     Array.prototype.forEach.call(document.querySelectorAll('.toolbar button'), function (b) {
@@ -979,16 +1501,28 @@
     });
     $('subjDelete').addEventListener('click', deleteSubject);
 
+    $('nodeForm').addEventListener('submit', saveNode);
+    $('nodeCancel').addEventListener('click', function () {
+      $('nodeDialog').close();
+      state.editingNode = null;
+    });
+    $('nodeDelete').addEventListener('click', deleteNode);
+
+    $('sylPaste').addEventListener('input', previewSyllabus);
+    $('sylImport').addEventListener('click', importSyllabus);
+    $('sylClose').addEventListener('click', function () { $('sylDialog').close(); });
+    $('sylAddTopic').addEventListener('click', function () {
+      $('sylDialog').close();
+      openNodeDialog(null, null);
+    });
+
     document.addEventListener('keydown', function (e) {
       var k = e.key.toLowerCase();
       if ((e.ctrlKey || e.metaKey) && k === 's') {
         e.preventDefault();
         if (activeNoteObj()) saveNow().then(function () { toast('Saved.'); });
       }
-      if ((e.ctrlKey || e.metaKey) && k === 'k') {
-        e.preventDefault();
-        $('search').focus();
-      }
+      if ((e.ctrlKey || e.metaKey) && k === 'k') { e.preventDefault(); $('search').focus(); }
     });
 
     // last line of defence — never lose the buffer on close or on backgrounding a tablet
@@ -1000,7 +1534,7 @@
   }
 
   /* ============================================================
-     13 · boot
+     17 · boot
      ============================================================ */
   open().then(function () {
     return get('meta', 'device');
@@ -1010,6 +1544,9 @@
     return put('meta', rec).then(function () { return rec; });
   }).then(function (dev) {
     state.deviceId = dev.id;
+    return get('meta', 'tabs');
+  }).then(function (tabs) {
+    state.tabs = (tabs && tabs.ids) || [];
     return get('meta', 'account');
   }).then(function (acct) {
     wire();
