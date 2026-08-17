@@ -16,22 +16,28 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'summit-v3';
+var CACHE = 'summit-v4';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
-   user has never visited these URLs individually. */
+   user has never visited these URLs individually. supabase-js is precached too — auth and
+   sync calls fail gracefully offline (see sync.js's navigator.onLine guard), but the shell
+   itself, including the sign-in screen for an already-authenticated session, must load. */
 var SHELL = [
   './',
   './index.html',
   './app.css',
+  './config.js',
+  './auth.js',
+  './sync.js',
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
   './icon-180.png',
   './icon-192.png',
   './icon-512.png',
-  './icon-maskable-512.png'
+  './icon-maskable-512.png',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
 ];
 
 self.addEventListener('install', function (e) {

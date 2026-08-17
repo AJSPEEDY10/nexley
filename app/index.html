@@ -33,20 +33,28 @@
     <h1>Summit Education</h1>
     <p class="gate-sub" id="gateSub">Create your account. Everything stays on this device.</p>
 
+    <button type="button" class="btn" id="googleBtn" style="width:100%;margin-bottom:14px">Continue with Google</button>
+    <p class="gate-or">or</p>
+
     <form id="gateForm" autocomplete="off">
       <label class="field" id="nameField">
         <span>Your name</span>
         <input type="text" id="fName" maxlength="40" placeholder="Alec" autocomplete="off">
       </label>
       <label class="field">
-        <span id="passLabel">Passcode <em>(optional)</em></span>
-        <input type="password" id="fPass" maxlength="64" placeholder="leave blank for none" autocomplete="new-password">
+        <span>Email</span>
+        <input type="email" id="fEmail" maxlength="120" placeholder="you@example.com" autocomplete="email">
+      </label>
+      <label class="field">
+        <span id="passLabel">Password</span>
+        <input type="password" id="fPass" maxlength="64" placeholder="at least 6 characters" autocomplete="new-password">
       </label>
       <p class="gate-err" id="gateErr" hidden></p>
       <button type="submit" class="btn primary" id="gateBtn">Create account</button>
     </form>
 
-    <p class="gate-foot">Local build · nothing is uploaded anywhere</p>
+    <p class="gate-switch"><a href="#" id="gateSwitch">Already have an account? Sign in</a></p>
+    <p class="gate-foot">Your notes stay on this device and sync to your account</p>
   </div>
 </div>
 
@@ -259,6 +267,10 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

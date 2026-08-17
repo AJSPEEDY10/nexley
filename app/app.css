@@ -87,6 +87,11 @@ button,input,select,textarea{font:inherit;color:inherit}
   background:var(--surface);font-size:.9375rem}
 .field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .gate-err{color:var(--danger);font-size:.8125rem}
+.gate-or{text-align:center;font-family:var(--mono);font-size:.6875rem;letter-spacing:.08em;
+  color:var(--muted);text-transform:uppercase;margin:0}
+.gate-switch{text-align:center;font-size:.8125rem;margin-top:4px}
+.gate-switch a{color:var(--accent);text-decoration:none}
+.gate-switch a:hover{text-decoration:underline}
 .gate-foot{font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;color:var(--muted);
   text-align:center;margin-top:4px}
 

@@ -189,13 +189,6 @@
     return (d.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
-  /* Local convenience lock only — NOT security. */
-  function hash(str) {
-    var h = 5381, i;
-    for (i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
-    return String(h >>> 0);
-  }
-
   function when(ts) {
     if (!ts) return '';
     var d = new Date(ts), now = new Date();
@@ -240,42 +233,51 @@
     var creating = mode === 'create';
     $('nameField').hidden = !creating;
     $('gateSub').textContent = creating
-      ? 'Create your account. Everything stays on this device.'
-      : 'Welcome back' + (state.account && state.account.name ? ', ' + state.account.name : '') + '.';
-    $('passLabel').innerHTML = creating ? 'Passcode <em>(optional)</em>' : 'Passcode';
-    $('fPass').placeholder = creating ? 'leave blank for none' : 'enter passcode';
-    $('gateBtn').textContent = creating ? 'Create account' : 'Unlock';
+      ? 'Create your account. Your notes sync to it and work offline in between.'
+      : 'Welcome back.';
+    $('gateBtn').textContent = creating ? 'Create account' : 'Sign in';
+    $('gateSwitch').textContent = creating ? 'Already have an account? Sign in' : 'New here? Create an account';
     $('gateErr').hidden = true;
     $('fName').value = '';
+    $('fEmail').value = '';
     $('fPass').value = '';
-    setTimeout(function () { (creating ? $('fName') : $('fPass')).focus(); }, 60);
+    setTimeout(function () { (creating ? $('fName') : $('fEmail')).focus(); }, 60);
     $('gateForm').dataset.mode = creating ? 'create' : 'unlock';
   }
-  function gateError(msg) { var el = $('gateErr'); el.textContent = msg; el.hidden = false; }
+  function gateError(msg) { var el = $('gateErr'); el.textContent = msg; el.hidden = false; $('gateBtn').disabled = false; }
+
+  function enterApp(user) {
+    state.account = { id: user.id, name: (user.user_metadata && user.user_metadata.name) || '', email: user.email };
+    $('gate').hidden = true; $('app').hidden = false;
+    return refresh().then(function () { window.SummitSync.run(); });
+  }
 
   function gateSubmit(e) {
     e.preventDefault();
     var mode = $('gateForm').dataset.mode;
+    var email = $('fEmail').value.trim();
     var pass = $('fPass').value;
+    if (!email) return gateError('Enter your email.');
+    if (pass.length < 6) return gateError('Password must be at least 6 characters.');
+    $('gateBtn').disabled = true;
 
     if (mode === 'create') {
       var name = $('fName').value.trim();
-      if (!name) return gateError('Enter a name.');
-      var acct = { key: 'account', name: name, pass: pass ? hash(pass) : null, created: Date.now() };
-      put('meta', acct).then(function () {
-        state.account = acct;
-        return seed();
-      }).then(function () {
-        $('gate').hidden = true; $('app').hidden = false;
-        return refresh();
-      });
+      if (!name) { $('gateBtn').disabled = false; return gateError('Enter a name.'); }
+      window.SummitAuth.signUpEmail(email, pass, name).then(function (data) {
+        if (!data.session) {
+          gateError('Check your email to confirm your account, then sign in.');
+          showGate('unlock');
+          return;
+        }
+        return seed().then(function () { return enterApp(data.user); });
+      }).catch(function (err) { gateError(err.message || 'Could not create account.'); });
       return;
     }
-    if (state.account.pass && hash(pass) !== state.account.pass) {
-      return gateError('That passcode does not match. Try again.');
-    }
-    $('gate').hidden = true; $('app').hidden = false;
-    refresh();
+
+    window.SummitAuth.signInEmail(email, pass).then(function (data) {
+      return enterApp(data.user);
+    }).catch(function (err) { gateError(err.message || 'Could not sign in.'); });
   }
 
   function seed() {
@@ -1252,7 +1254,7 @@
       var payload = {
         app: 'summit-education', format: 3, appVersion: APP_VERSION,
         exported: new Date().toISOString(), device: state.deviceId,
-        account: state.account ? { name: state.account.name, created: state.account.created } : null,
+        account: state.account ? { name: state.account.name, email: state.account.email } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
         subjects: r[0], notes: r[1], syllabus: r[2]
       };
@@ -1429,6 +1431,13 @@
      ============================================================ */
   function wire() {
     $('gateForm').addEventListener('submit', gateSubmit);
+    $('gateSwitch').addEventListener('click', function (e) {
+      e.preventDefault();
+      showGate($('gateForm').dataset.mode === 'create' ? 'unlock' : 'create');
+    });
+    $('googleBtn').addEventListener('click', function () {
+      window.SummitAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
+    });
 
     $('newNote').addEventListener('click', function () { newNote(state.activeNode); });
     $('deleteNote').addEventListener('click', deleteNote);
@@ -1490,8 +1499,7 @@
 
     $('lockBtn').addEventListener('click', function () {
       if (state.dirty) saveNow();
-      if (!state.account.pass) return toast('No passcode set — nothing to lock.');
-      showGate('unlock');
+      window.SummitAuth.signOut().then(function () { showGate('unlock'); });
     });
 
     $('subjForm').addEventListener('submit', saveSubject);
@@ -1533,6 +1541,8 @@
     window.addEventListener('pagehide', function () { if (state.dirty) saveNow(); });
   }
 
+  window.SummitDB = { all: all, get: get, put: put };
+
   /* ============================================================
      17 · boot
      ============================================================ */
@@ -1547,16 +1557,18 @@
     return get('meta', 'tabs');
   }).then(function (tabs) {
     state.tabs = (tabs && tabs.ids) || [];
-    return get('meta', 'account');
-  }).then(function (acct) {
     wire();
     setupUpdates();
     $('appVersion').textContent = 'v' + APP_VERSION;
 
-    if (!acct) { showGate('create'); return; }
-    state.account = acct;
-    if (acct.pass) { showGate('unlock'); }
-    else { $('gate').hidden = true; $('app').hidden = false; refresh(); }
+    window.SummitAuth.onAuthStateChange(function (event) {
+      if (event === 'SIGNED_OUT') showGate('unlock');
+    });
+
+    return window.SummitAuth.getSession();
+  }).then(function (session) {
+    if (!session) { showGate('create'); return; }
+    return enterApp(session.user);
   }).then(function () {
     checkStorage();
     return maybeAutoBackup();
