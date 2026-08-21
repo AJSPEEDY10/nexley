@@ -1,4 +1,4 @@
-"""Summit Education — local dev server.
+"""Nexley — local dev server.
 
 Serves the app over http so IndexedDB, the service worker and PWA install all work
 (none of them work reliably from a file:// URL).
@@ -87,14 +87,14 @@ def main() -> int:
 
     if not port_free("127.0.0.1", PORT):
         # already running — just point at it rather than failing
-        print(f"Summit is already running at {url}", flush=True)
+        print(f"Nexley is already running at {url}", flush=True)
         if open_browser:
             webbrowser.open(url)
         return 0
 
     with Server((HOST, PORT), Handler) as httpd:
         print("=" * 62, flush=True)
-        print("  Summit Education — Phase 1", flush=True)
+        print("  Nexley", flush=True)
         print("", flush=True)
         print(f"  On this PC     {url}", flush=True)
         print(f"  On your iPad   {tablet_url}", flush=True)

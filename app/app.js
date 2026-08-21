@@ -1,4 +1,4 @@
-/* Summit Education
+/* Nexley (formerly Summit Education)
  *
  * Design rules for this file — the reason it looks the way it does:
  *
@@ -84,7 +84,7 @@
       req.onsuccess = function () { db = req.result; res(db); };
       req.onerror = function () { rej(req.error); };
       req.onblocked = function () {
-        rej(new Error('Another tab has an older version of Summit open. Close it and reload.'));
+        rej(new Error('Another tab has an older version of Nexley open. Close it and reload.'));
       };
     });
   }
@@ -284,9 +284,10 @@
     var s = stamp({ id: uid(), name: 'General', code: 'GEN', colour: COLOURS[0] });
     var n = stamp({
       id: uid(), subjectId: s.id, syllabusId: null, kind: 'personal', font: 'standard',
-      title: 'Welcome to Summit',
-      body: '<p>Everything you write is stored on this device. There is no server behind ' +
-            'this app and nothing is uploaded.</p>' +
+      title: 'Welcome to Nexley',
+      body: '<p>Everything you write is saved on this device first, so it works offline, ' +
+            'and syncs to your account whenever you have a connection — only you can ever ' +
+            'read it.</p>' +
             '<h3>Notes belong to the syllabus</h3>' +
             '<p>Add a subject, hit <b>Syllabus</b> and paste in its structure. Every note ' +
             'then files against a specific dot point — which is what lets the app later ' +
@@ -1280,7 +1281,7 @@
       try { data = JSON.parse(reader.result); }
       catch (err) { return toast('That file is not valid JSON.'); }
       if (!data || data.app !== 'summit-education' || !Array.isArray(data.notes)) {
-        return toast('That does not look like a Summit export.');
+        return toast('That does not look like a Nexley export.');
       }
 
       snapshot('before-import').then(function () {
@@ -1580,7 +1581,7 @@
     var h = document.createElement('h2');
     h.textContent = 'Could not open local storage';
     var p1 = document.createElement('p');
-    p1.textContent = 'Summit keeps everything in this browser profile. If you opened the file ' +
+    p1.textContent = 'Nexley keeps everything in this browser profile. If you opened the file ' +
       'directly from disk, run Summit.bat instead so it is served over http.';
     var p2 = document.createElement('p');
     p2.style.color = '#888';

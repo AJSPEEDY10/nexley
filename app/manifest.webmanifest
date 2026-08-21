@@ -1,7 +1,7 @@
 {
-  "name": "Summit Education",
-  "short_name": "Summit",
-  "description": "Syllabus-aligned notebook for tablets and pen-capable computers. Local build — Phase 1.",
+  "name": "Nexley",
+  "short_name": "Nexley",
+  "description": "Syllabus-aligned notebook for tablets and pen-capable computers.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

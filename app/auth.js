@@ -1,4 +1,4 @@
-/* Summit Education — real accounts via Supabase Auth.
+/* Nexley — real accounts via Supabase Auth.
  * Replaces the old local-only passcode gate. Session persistence, token refresh
  * and password hashing are all handled by supabase-js — nothing custom here.
  */

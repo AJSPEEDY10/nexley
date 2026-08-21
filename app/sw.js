@@ -1,4 +1,4 @@
-/* Summit Education — service worker
+/* Nexley — service worker
  *
  * Offline is a hard requirement: the iPad this is aimed at has no network, so once the
  * app is on the device it has to run with nothing behind it.
@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'summit-v4';
+var CACHE = 'summit-v5';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -27,6 +27,7 @@ var SHELL = [
   './',
   './index.html',
   './app.css',
+  './legal.html',
   './config.js',
   './auth.js',
   './sync.js',

@@ -1,4 +1,4 @@
-/* Summit Education — sync layer.
+/* Nexley — sync layer.
  *
  * IndexedDB stays the source of truth for the UI at all times (offline-first,
  * hard requirement — the iPad has no reliable Wi-Fi). This module pushes local
