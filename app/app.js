@@ -1549,8 +1549,14 @@
     setupUpdates();
     $('appVersion').textContent = 'v' + APP_VERSION;
 
-    window.SummitAuth.onAuthStateChange(function (event) {
-      if (event === 'SIGNED_OUT') showGate('unlock');
+    window.SummitAuth.onAuthStateChange(function (event, session) {
+      if (event === 'SIGNED_OUT') { showGate('unlock'); return; }
+      // OAuth sign-in (Google) returns via a redirect; supabase-js resolves the
+      // session asynchronously, usually AFTER the getSession() below has already
+      // run and shown the gate. Enter the app when that SIGNED_IN event lands.
+      if (session && event === 'SIGNED_IN' && $('gate') && !$('gate').hidden) {
+        enterApp(session.user);
+      }
     });
 
     return window.SummitAuth.getSession();
