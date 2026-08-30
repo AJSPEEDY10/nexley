@@ -1,9 +1,8 @@
 # Nexley
 
-*(formerly "Summit Education". The app, repo, site, Supabase org/projects and local
-scripts all say Nexley now. Two things still carry the old name, both invisible and
-deliberate: the local working folder `SummitEducation\`, and the IndexedDB store name
-`summit-edu` — renaming the latter would orphan existing on-device notes.)*
+*(formerly "Summit Education" — everything says Nexley now: app, repo, site, Supabase
+org/projects, local scripts, and the on-device store (`nexley`, migrated from the old
+`summit-edu` on first open). Git history keeps the old commit messages, as history does.)*
 
 A syllabus-aligned study notebook for tablets and pen-capable computers. Offline-first —
 your notes are saved on-device first and always readable/writable without a connection —

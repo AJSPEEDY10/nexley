@@ -17,11 +17,9 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.4.0';
-  // Keep this string as-is even though the product is now "Nexley" - it names the
-  // on-device IndexedDB store. Renaming it points the app at a fresh empty DB and
-  // orphans every note already saved locally. Change only with a migration.
-  var DB_NAME = 'summit-edu';
+  var APP_VERSION = '0.4.1';
+  var DB_NAME = 'nexley';
+  var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
   var BACKUP_KEEP = 7;
   var BACKUP_EVERY = 20 * 60 * 60 * 1000;
@@ -84,11 +82,64 @@
     return new Promise(function (res, rej) {
       var req = indexedDB.open(DB_NAME, DB_VER);
       req.onupgradeneeded = function (e) { migrate(e.target.result, e.target.transaction, e.oldVersion); };
-      req.onsuccess = function () { db = req.result; res(db); };
+      req.onsuccess = function () {
+        db = req.result;
+        adoptOldDb(db).then(function () { res(db); }, function () { res(db); });
+      };
       req.onerror = function () { rej(req.error); };
       req.onblocked = function () {
         rej(new Error('Another tab has an older version of Nexley open. Close it and reload.'));
       };
+    });
+  }
+
+  /* One-time: the local store was renamed 'summit-edu' -> 'nexley' in 0.4.1.
+     Copy any records out of the old database on first open so nothing that was
+     only ever saved offline is lost. Runs once (guarded by a meta flag); the
+     server copy is authoritative once sync runs anyway. */
+  function adoptOldDb(newDb) {
+    return new Promise(function (done) {
+      var STORES = ['meta', 'subjects', 'syllabus', 'notes', 'backups'];
+      var check = newDb.transaction('meta', 'readonly').objectStore('meta').get('migratedFrom');
+      check.onerror = function () { done(); };
+      check.onsuccess = function () {
+        if (check.result) return done();                     // already adopted
+        var oldReq = indexedDB.open(OLD_DB_NAME);
+        oldReq.onerror = function () { mark(); };
+        oldReq.onsuccess = function () {
+          var oldDb = oldReq.result;
+          var have = STORES.filter(function (s) { return oldDb.objectStoreNames.contains(s); });
+          if (!have.length) { oldDb.close(); return mark(); }
+          var rtx = oldDb.transaction(have, 'readonly');
+          var payload = {};
+          var pending = have.length;
+          have.forEach(function (s) {
+            var g = rtx.objectStore(s).getAll();
+            g.onsuccess = function () { payload[s] = g.result || []; if (!--pending) writeBack(); };
+            g.onerror = function () { payload[s] = []; if (!--pending) writeBack(); };
+          });
+          function writeBack() {
+            oldDb.close();
+            var names = Object.keys(payload).filter(function (s) {
+              return payload[s].length && newDb.objectStoreNames.contains(s);
+            });
+            if (!names.length) return mark();
+            var wtx = newDb.transaction(names, 'readwrite');
+            names.forEach(function (s) {
+              payload[s].forEach(function (rec) { try { wtx.objectStore(s).put(rec); } catch (e) {} });
+            });
+            wtx.oncomplete = mark;
+            wtx.onerror = mark;
+          }
+        };
+      };
+      function mark() {
+        try {
+          newDb.transaction('meta', 'readwrite').objectStore('meta')
+            .put({ key: 'migratedFrom', value: OLD_DB_NAME, at: Date.now() });
+        } catch (e) {}
+        done();
+      }
     });
   }
 
