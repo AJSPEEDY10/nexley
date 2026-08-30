@@ -30,6 +30,11 @@
 }
 
 *{box-sizing:border-box}
+/* The JS toggles visibility with el.hidden. Class rules like .gate{display:grid}
+   and .app{display:grid} outrank the UA [hidden] rule, so without this the
+   sign-in overlay (position:fixed; z-index:50) never actually goes away after
+   login. Keep this ahead of every layout rule. */
+[hidden]{display:none!important}
 html,body{height:100%}
 body{
   margin:0;background:var(--paper);color:var(--ink);
