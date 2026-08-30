@@ -1,4 +1,4 @@
-# Getting Summit onto the iPad
+# Getting Nexley onto the iPad
 
 The app is already offline-capable. The only thing missing is a one-time HTTPS address for
 Safari to install it from.
@@ -64,6 +64,6 @@ and a private repo with Pages is also possible.
 
 ## What stays local
 
-The `Summit.bat` local server still works exactly as before for building and testing on the
+The `Nexley.bat` local server still works exactly as before for building and testing on the
 PC. Nothing about publishing changes that, and the firewall / LAN setup is no longer needed
 unless you want the iPad talking to the PC directly.

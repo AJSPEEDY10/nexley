@@ -17,7 +17,10 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.3.1';
+  var APP_VERSION = '0.4.0';
+  // Keep this string as-is even though the product is now "Nexley" - it names the
+  // on-device IndexedDB store. Renaming it points the app at a fresh empty DB and
+  // orphans every note already saved locally. Change only with a migration.
   var DB_NAME = 'summit-edu';
   var DB_VER = 3;
   var BACKUP_KEEP = 7;
@@ -249,7 +252,7 @@
   function enterApp(user) {
     state.account = { id: user.id, name: (user.user_metadata && user.user_metadata.name) || '', email: user.email };
     $('gate').hidden = true; $('app').hidden = false;
-    return refresh().then(function () { window.SummitSync.run(); });
+    return refresh().then(function () { window.NexleySync.run(); });
   }
 
   function gateSubmit(e) {
@@ -264,7 +267,7 @@
     if (mode === 'create') {
       var name = $('fName').value.trim();
       if (!name) { $('gateBtn').disabled = false; return gateError('Enter a name.'); }
-      window.SummitAuth.signUpEmail(email, pass, name).then(function (data) {
+      window.NexleyAuth.signUpEmail(email, pass, name).then(function (data) {
         if (!data.session) {
           gateError('Check your email to confirm your account, then sign in.');
           showGate('unlock');
@@ -275,7 +278,7 @@
       return;
     }
 
-    window.SummitAuth.signInEmail(email, pass).then(function (data) {
+    window.NexleyAuth.signInEmail(email, pass).then(function (data) {
       return enterApp(data.user);
     }).catch(function (err) { gateError(err.message || 'Could not sign in.'); });
   }
@@ -1253,7 +1256,7 @@
   function exportAll() {
     return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
       var payload = {
-        app: 'summit-education', format: 3, appVersion: APP_VERSION,
+        app: 'nexley', format: 3, appVersion: APP_VERSION,
         exported: new Date().toISOString(), device: state.deviceId,
         account: state.account ? { name: state.account.name, email: state.account.email } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
@@ -1263,7 +1266,7 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = 'summit-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.download = 'nexley-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1280,7 +1283,7 @@
       var data;
       try { data = JSON.parse(reader.result); }
       catch (err) { return toast('That file is not valid JSON.'); }
-      if (!data || data.app !== 'summit-education' || !Array.isArray(data.notes)) {
+      if (!data || (data.app !== 'nexley' && data.app !== 'summit-education') || !Array.isArray(data.notes)) {
         return toast('That does not look like a Nexley export.');
       }
 
@@ -1424,7 +1427,7 @@
       showGate($('gateForm').dataset.mode === 'create' ? 'unlock' : 'create');
     });
     $('googleBtn').addEventListener('click', function () {
-      window.SummitAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
+      window.NexleyAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
     });
 
     $('newNote').addEventListener('click', function () { newNote(state.activeNode); });
@@ -1487,7 +1490,7 @@
 
     $('lockBtn').addEventListener('click', function () {
       if (state.dirty) saveNow();
-      window.SummitAuth.signOut().then(function () { showGate('unlock'); });
+      window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
     });
 
     $('subjForm').addEventListener('submit', saveSubject);
@@ -1529,7 +1532,7 @@
     window.addEventListener('pagehide', function () { if (state.dirty) saveNow(); });
   }
 
-  window.SummitDB = { all: all, get: get, put: put };
+  window.NexleyDB = { all: all, get: get, put: put };
 
   /* ============================================================
      17 · boot
@@ -1549,7 +1552,7 @@
     setupUpdates();
     $('appVersion').textContent = 'v' + APP_VERSION;
 
-    window.SummitAuth.onAuthStateChange(function (event, session) {
+    window.NexleyAuth.onAuthStateChange(function (event, session) {
       if (event === 'SIGNED_OUT') { showGate('unlock'); return; }
       // OAuth sign-in (Google) returns via a redirect; supabase-js resolves the
       // session asynchronously, usually AFTER the getSession() below has already
@@ -1559,7 +1562,7 @@
       }
     });
 
-    return window.SummitAuth.getSession();
+    return window.NexleyAuth.getSession();
   }).then(function (session) {
     if (!session) { showGate('create'); return; }
     return enterApp(session.user);
@@ -1575,7 +1578,7 @@
     h.textContent = 'Could not open local storage';
     var p1 = document.createElement('p');
     p1.textContent = 'Nexley keeps everything in this browser profile. If you opened the file ' +
-      'directly from disk, run Summit.bat instead so it is served over http.';
+      'directly from disk, run Nexley.bat instead so it is served over http.';
     var p2 = document.createElement('p');
     p2.style.color = '#888';
     p2.textContent = msg;

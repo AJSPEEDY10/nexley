@@ -21,7 +21,7 @@
   var syncing = false;
   var pending = false;
 
-  function client() { return window.SummitAuth.client; }
+  function client() { return window.NexleyAuth.client; }
 
   function toRemoteSubject(s, userId) {
     return {
@@ -75,7 +75,7 @@
   function needsPush(rec) { return (rec.pushedRev || 0) < (rec.rev || 1); }
 
   function pushTable(store, mapFn, remoteTable, userId) {
-    return window.SummitDB.all(store).then(function (recs) {
+    return window.NexleyDB.all(store).then(function (recs) {
       var dirty = recs.filter(needsPush);
       if (!dirty.length) return;
       var rows = dirty.map(function (r) { return mapFn(r, userId); });
@@ -83,7 +83,7 @@
         if (res.error) throw res.error;
         return Promise.all(dirty.map(function (r) {
           r.pushedRev = r.rev;
-          return window.SummitDB.put(store, r);
+          return window.NexleyDB.put(store, r);
         }));
       });
     });
@@ -96,11 +96,11 @@
       if (res.error) throw res.error;
       return Promise.all((res.data || []).map(function (row) {
         var incoming = mapFn(row);
-        return window.SummitDB.get(store, incoming.id).then(function (local) {
+        return window.NexleyDB.get(store, incoming.id).then(function (local) {
           // newest `updated` wins; a local edit made while offline beats a stale pull
           if (local && local.updated >= incoming.updated) return null;
           incoming.pushedRev = incoming.rev; // just pulled, so it's already in sync
-          return window.SummitDB.put(store, incoming);
+          return window.NexleyDB.put(store, incoming);
         });
       }));
     });
@@ -110,7 +110,7 @@
     if (syncing) { pending = true; return Promise.resolve(); }
     if (!navigator.onLine) return Promise.resolve();
     syncing = true;
-    return window.SummitAuth.getSession().then(function (session) {
+    return window.NexleyAuth.getSession().then(function (session) {
       if (!session) return;
       var userId = session.user.id;
       var since = localStorage.getItem(LAST_PULL_KEY);
@@ -129,7 +129,7 @@
     });
   }
 
-  window.SummitSync = { run: runSync };
+  window.NexleySync = { run: runSync };
 
   window.addEventListener('online', runSync);
   document.addEventListener('visibilitychange', function () {

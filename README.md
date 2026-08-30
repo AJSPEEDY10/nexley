@@ -1,8 +1,9 @@
 # Nexley
 
-*(formerly "Summit Education" — working name, folder path and internal identifiers like
-`SummitEducation\`, `Summit.bat`, and the Supabase project names still say Summit; that's
-cosmetic and will be cleaned up when there's a real domain/company to rename around.)*
+*(formerly "Summit Education". The app, repo, site, Supabase org/projects and local
+scripts all say Nexley now. Two things still carry the old name, both invisible and
+deliberate: the local working folder `SummitEducation\`, and the IndexedDB store name
+`summit-edu` — renaming the latter would orphan existing on-device notes.)*
 
 A syllabus-aligned study notebook for tablets and pen-capable computers. Offline-first —
 your notes are saved on-device first and always readable/writable without a connection —
@@ -17,7 +18,7 @@ targets, no hover-only controls, no pinch-zoom fighting the writing surface.
 
 ## Running it locally
 
-Double-click **`Summit.bat`**. It starts a tiny local server and prints two addresses.
+Double-click **`Nexley.bat`**. It starts a tiny local server and prints two addresses.
 Close the black window to stop it. Opening `app/index.html` directly (`file://`) instead of
 through the server breaks it — service workers and some scripts are blocked under `file://`.
 
@@ -30,7 +31,7 @@ Start-menu entry.
 The window prints a second address like `http://192.168.86.24:8770/index.html`.
 Open that in **Safari**, then **Share → Add to Home Screen**.
 
-Both devices must be on the same Wi-Fi, and `Summit.bat` has to be running on the PC —
+Both devices must be on the same Wi-Fi, and `Nexley.bat` has to be running on the PC —
 this local-network route is really only useful for testing; once deployed to a real HTTPS
 host, offline mode works everywhere without any of this.
 
@@ -89,7 +90,7 @@ Shortcuts: `Ctrl+S` save now · `Ctrl+K` search · `Ctrl+B/I/U` formatting
 
 ```
 SummitEducation\
-  Summit.bat        ← double-click this
+  Nexley.bat        ← double-click this
   serve.py          ← local dev server, no-cache headers
   supabase\
     migrations\     ← every schema/RLS change, in order, never a manual dashboard edit

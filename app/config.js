@@ -12,10 +12,10 @@
   var isLocal = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 
   if (isLocal) {
-    window.SUMMIT_SUPABASE_URL = 'https://yvlcpngoplecigblxnkb.supabase.co';
-    window.SUMMIT_SUPABASE_ANON_KEY = 'sb_publishable_up8q0ydyUHbJcffZ5Za0Jg_uyRoqLpH';
+    window.NEXLEY_SUPABASE_URL = 'https://yvlcpngoplecigblxnkb.supabase.co';
+    window.NEXLEY_SUPABASE_ANON_KEY = 'sb_publishable_up8q0ydyUHbJcffZ5Za0Jg_uyRoqLpH';
   } else {
-    window.SUMMIT_SUPABASE_URL = 'https://qvijxnhigqfoinuitrue.supabase.co';
-    window.SUMMIT_SUPABASE_ANON_KEY = 'sb_publishable_p1LXme9CMhWPGzv49DTyEA_is5o-rDb';
+    window.NEXLEY_SUPABASE_URL = 'https://qvijxnhigqfoinuitrue.supabase.co';
+    window.NEXLEY_SUPABASE_ANON_KEY = 'sb_publishable_p1LXme9CMhWPGzv49DTyEA_is5o-rDb';
   }
 })();

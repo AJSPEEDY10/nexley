@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var client = window.supabase.createClient(window.SUMMIT_SUPABASE_URL, window.SUMMIT_SUPABASE_ANON_KEY, {
+  var client = window.supabase.createClient(window.NEXLEY_SUPABASE_URL, window.NEXLEY_SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
 
@@ -54,7 +54,7 @@
     client.auth.onAuthStateChange(function (event, session) { cb(event, session); });
   }
 
-  window.SummitAuth = {
+  window.NexleyAuth = {
     client: client,
     signUpEmail: signUpEmail,
     signInEmail: signInEmail,

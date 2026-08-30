@@ -1,5 +1,5 @@
 @echo off
-title Summit Education
+title Nexley
 cd /d "%~dp0"
 python serve.py
 if errorlevel 1 (

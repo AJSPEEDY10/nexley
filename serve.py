@@ -11,7 +11,7 @@ Threaded on purpose: the browser opens several connections at once (html, css, j
 manifest, icons, plus the service worker's own fetches). A single-threaded server
 handles those one at a time and visibly stalls.
 
-Run:  python serve.py                 (or just double-click Summit.bat)
+Run:  python serve.py                 (or just double-click Nexley.bat)
       python serve.py --no-browser    (don't auto-open a tab)
 """
 
