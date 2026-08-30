@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'summit-v7';
+var CACHE = 'summit-v8';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -48,12 +48,13 @@ self.addEventListener('install', function (e) {
       // stop the whole worker installing
       return Promise.all(SHELL.map(function (url) {
         return c.add(new Request(url, { cache: 'reload' })).catch(function () {});
-      }));
+      })).then(function () {
+        // Activate straight away rather than sitting in "waiting". The client
+        // (setupUpdates in app.js) reloads once on controllerchange, and notes
+        // are in IndexedDB + flushed on visibilitychange, so nothing is lost.
+        return self.skipWaiting();
+      });
     })
-    // NOTE: no skipWaiting() here, deliberately.
-    // Swapping the app out from under a page mid-sentence risks losing unsaved work.
-    // The new version sits in "waiting" until the page flushes the current note, takes
-    // a snapshot, and sends SKIP_WAITING. See setupUpdates() in app.js.
   );
 });
 

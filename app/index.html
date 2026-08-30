@@ -177,13 +177,8 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<!-- A new version is downloaded and waiting. It is NOT applied until the current note is
-     saved and a snapshot taken — updating must never cost work in progress. -->
-<div class="updatebar" id="updateBar" hidden>
-  <span>A new version is ready. Your notes are untouched by updating.</span>
-  <button type="button" class="btn primary" id="updateNow">Update now</button>
-  <button type="button" class="btn ghost" id="updateLater">Later</button>
-</div>
+<!-- Updates apply silently: a new deployment self-activates and the page reloads
+     once (see setupUpdates in app.js). Notes live in IndexedDB and survive it. -->
 
 <!-- ============ SUBJECT ============ -->
 <dialog id="subjDialog">
