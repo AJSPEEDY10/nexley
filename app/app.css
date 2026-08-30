@@ -1,416 +1,447 @@
-/* Nexley (formerly Summit Education)
-   Palette: survey-map neutrals, deep eucalypt, highlighter yellow. */
+/* Nexley — a syllabus study book.
+   Direction: editorial & calm. Feint-ruled paper, a bookish serif, syllabus
+   outcome codes as the structural device, one highlighter-yellow mark used
+   sparingly. The rail is the quietest surface; the page you write on is the
+   brightest. Grounded in the real materials of study: syllabus documents,
+   ruled paper, highlighters, revision guides. */
 
 :root{
-  --paper:#E9EAE4; --surface:#F5F6F1; --raised:#FCFCFA; --sunk:#DFE1DA;
-  --ink:#14201C; --ink-2:#3C4A44; --muted:#6C7972;
-  --line:#CFD4CB; --line-soft:#E1E5DC;
-  --accent:#1E4D3E; --accent-bg:#1E4D3E; --accent-on:#F1F4EE; --accent-soft:#DCE6DF;
-  --mark:#E9EA55; --mark-ink:#1B2320;
-  --danger:#A8391F;
-  --shadow:20 32 28;
+  /* --- day --- */
+  --paper:#EBEDE7;      /* desk / working ground */
+  --surface:#E3E6DE;    /* rail, recessed chrome — deliberately dimmer */
+  --card:#F7F8F3;       /* the page: cards + the writing surface, the brightest tone */
+  --ink:#1C241F;        /* green-black, never pure #000 */
+  --ink-2:#47514A;
+  --muted:#79837B;      /* mono metadata, captions */
+  --rule:#D2D6CB;       /* hairlines — the ruled line */
+  --rule-soft:#E0E4DA;
+  --structure:#21493B;  /* eucalypt: links, primary actions, active state. Reads as ink. */
+  --structure-soft:#DEE7E0;
+  --mark:#E7E24C;       /* the one accent. Selection, coverage fill, current-note spine. */
+  --mark-ink:#23261A;
+  --danger:#A03A22;
+  --shade:22 33 27;     /* rgb for shadows */
 
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
-  --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
-  --mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
-  --hand:"Segoe Script","Bradley Hand","Brush Script MT",cursive;
+  --display:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua","Times New Roman",serif;
+  --text:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --code:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+
+  --measure:66ch;       /* the writing column */
+  --leading:1.75;       /* note-body line-height, also the ruled-paper pitch */
+  --gutter:clamp(22px,5vw,64px);
 
   color-scheme:light dark;
 }
 @media (prefers-color-scheme:dark){
   :root{
-    --paper:#0D1512; --surface:#141D19; --raised:#1A2420; --sunk:#101815;
-    --ink:#E1E7E2; --ink-2:#B2BDB7; --muted:#7C8B84;
-    --line:#2A3833; --line-soft:#22302B;
-    --accent:#79C3A2; --accent-bg:#265946; --accent-on:#EAF4EF; --accent-soft:#1D2F28;
-    --mark:#CFD147; --mark-ink:#141D19;
-    --danger:#E0774A;
-    --shadow:0 0 0;
+    /* --- night --- warm near-black, not cold */
+    --paper:#15160F;
+    --surface:#100F09;
+    --card:#1C1E15;
+    --ink:#E7E8DE;
+    --ink-2:#AEB6AC;
+    --muted:#7F887E;
+    --rule:#2C3128;
+    --rule-soft:#232821;
+    --structure:#83C6A6;
+    --structure-soft:#1E2B24;
+    --mark:#D6D858;
+    --mark-ink:#16170F;
+    --danger:#E1815B;
+    --shade:0 0 0;
   }
 }
 
 *{box-sizing:border-box}
-/* The JS toggles visibility with el.hidden. Class rules like .gate{display:grid}
-   and .app{display:grid} outrank the UA [hidden] rule, so without this the
-   sign-in overlay (position:fixed; z-index:50) never actually goes away after
-   login. Keep this ahead of every layout rule. */
+/* JS toggles visibility with el.hidden; class rules (.gate/.app {display:grid}, etc.)
+   outrank the UA [hidden] rule. Keep this ahead of every layout rule. */
 [hidden]{display:none!important}
 html,body{height:100%}
 body{
   margin:0;background:var(--paper);color:var(--ink);
-  font-family:var(--sans);font-size:15px;line-height:1.55;
-  -webkit-font-smoothing:antialiased;overflow:hidden;
-  /* tablet behaviour: no rubber-band scroll of the whole app, no grey tap flash,
-     no iOS text inflation in landscape */
-  overscroll-behavior:none;
+  font-family:var(--ui);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow:hidden;overscroll-behavior:none;
   -webkit-tap-highlight-color:transparent;
-  -webkit-text-size-adjust:100%;
-  text-size-adjust:100%;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;
 }
-button,.snav,.ncard,.sw{touch-action:manipulation}
-h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+::selection{background:var(--mark);color:var(--mark-ink)}
+button,.snav,.ncard,.sw,.nrow,.dp{touch-action:manipulation}
+h1,h2,h3{margin:0;font-weight:400;text-wrap:balance}
 p{margin:0}
 button,input,select,textarea{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+:focus-visible{outline:2px solid var(--structure);outline-offset:2px;border-radius:3px}
+a{color:var(--structure)}
 
-.glyph{width:26px;height:26px;flex:none}
-.glyph circle{fill:none;stroke:var(--accent);stroke-width:1.4}
-.glyph.lg{width:40px;height:40px}
-.glyph.xl{width:54px;height:54px;opacity:.5}
+/* the mark — an actual concentric target, drawn in eucalypt */
+.glyph{width:24px;height:24px;flex:none}
+.glyph circle{fill:none;stroke:var(--structure);stroke-width:1.3}
+.glyph.lg{width:38px;height:38px}
+.glyph.xl{width:48px;height:48px;opacity:.4}
 
-.eyebrow{font-family:var(--mono);font-size:.625rem;letter-spacing:.14em;
+/* a label is set like a syllabus code: mono, spaced, quiet */
+.eyebrow{font-family:var(--code);font-size:.625rem;letter-spacing:.16em;
   text-transform:uppercase;color:var(--muted)}
 
 /* ---------- buttons ---------- */
-.btn{border:1px solid var(--line);background:var(--raised);border-radius:7px;
-  padding:8px 14px;font-size:.875rem;cursor:pointer;transition:border-color .12s,background .12s}
-.btn:hover{border-color:var(--accent)}
-.btn.primary{background:var(--accent-bg);border-color:var(--accent-bg);color:var(--accent-on);
-  font-weight:600}
-.btn.primary:hover{filter:brightness(1.08)}
+.btn{border:1px solid var(--rule);background:var(--card);border-radius:6px;
+  padding:8px 15px;font-size:.8125rem;cursor:pointer;color:var(--ink-2);
+  transition:border-color .14s,color .14s,background .14s}
+.btn:hover{border-color:var(--structure);color:var(--ink)}
+.btn.primary{background:var(--structure);border-color:var(--structure);color:var(--paper);
+  font-weight:500}
+.btn.primary:hover{filter:brightness(1.1)}
 .btn.ghost{background:transparent}
 .btn.danger{color:var(--danger);border-color:transparent}
 .btn.danger:hover{border-color:var(--danger)}
-.linkbtn{background:none;border:0;padding:4px 0;font-size:.75rem;color:var(--muted);
-  cursor:pointer;text-align:left}
-.linkbtn:hover{color:var(--accent)}
+.linkbtn{background:none;border:0;padding:5px 0;font-size:.75rem;color:var(--muted);
+  cursor:pointer;text-align:left;transition:color .14s}
+.linkbtn:hover{color:var(--structure)}
 
-/* ---------- gate ---------- */
+/* ---------- sign in ---------- */
 .gate{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
   background:var(--surface);z-index:50}
-.gate-card{width:min(400px,100%);background:var(--raised);border:1px solid var(--line);
-  border-radius:14px;padding:34px 32px;display:flex;flex-direction:column;gap:14px;
-  box-shadow:0 22px 50px -34px rgb(var(--shadow)/.55)}
-.gate-card h1{font-family:var(--serif);font-weight:400;font-size:1.7rem;letter-spacing:-.01em}
-.gate-sub{color:var(--ink-2);font-size:.9375rem}
-#gateForm{display:flex;flex-direction:column;gap:14px;margin-top:6px}
-.field{display:flex;flex-direction:column;gap:5px}
-.field>span{font-family:var(--mono);font-size:.625rem;letter-spacing:.1em;
+.gate-card{width:min(384px,100%);background:var(--card);border:1px solid var(--rule);
+  border-radius:12px;padding:40px 36px 30px;display:flex;flex-direction:column;gap:15px;
+  box-shadow:0 30px 70px -46px rgb(var(--shade)/.5)}
+.gate-card h1{font-family:var(--display);font-size:1.9rem;letter-spacing:-.015em;
+  margin-top:4px}
+.gate-sub{color:var(--ink-2);font-size:.9375rem;line-height:1.5}
+#gateForm{display:flex;flex-direction:column;gap:13px;margin-top:4px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-family:var(--code);font-size:.625rem;letter-spacing:.12em;
   text-transform:uppercase;color:var(--muted)}
 .field>span em{font-style:normal;text-transform:none;letter-spacing:0}
-.field input{border:1px solid var(--line);border-radius:7px;padding:10px 12px;
-  background:var(--surface);font-size:.9375rem}
-.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field input{border:1px solid var(--rule);border-radius:6px;padding:11px 12px;
+  background:var(--paper);font-size:.9375rem}
+.field input:focus{outline:none;border-color:var(--structure);
+  box-shadow:0 0 0 3px var(--structure-soft)}
 .gate-err{color:var(--danger);font-size:.8125rem}
-.gate-or{text-align:center;font-family:var(--mono);font-size:.6875rem;letter-spacing:.08em;
-  color:var(--muted);text-transform:uppercase;margin:0}
-.gate-switch{text-align:center;font-size:.8125rem;margin-top:4px}
-.gate-switch a{color:var(--accent);text-decoration:none}
+.gate-or{text-align:center;font-family:var(--code);font-size:.625rem;letter-spacing:.14em;
+  color:var(--muted);text-transform:uppercase}
+.gate-switch{text-align:center;font-size:.8125rem;margin-top:2px}
+.gate-switch a{text-decoration:none}
 .gate-switch a:hover{text-decoration:underline}
-.gate-foot{font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;color:var(--muted);
-  text-align:center;margin-top:4px}
+.gate-foot{font-family:var(--code);font-size:.625rem;letter-spacing:.06em;color:var(--muted);
+  text-align:center}
 
 /* ---------- app shell ---------- */
-.app{display:grid;grid-template-columns:212px 300px 1fr;height:100vh;height:100dvh}
+.app{display:grid;grid-template-columns:216px 328px 1fr;height:100vh;height:100dvh}
 
-/* rail */
-.rail{background:var(--surface);border-right:1px solid var(--line);
-  display:flex;flex-direction:column;gap:14px;padding:16px 12px;overflow:hidden}
-.rail-brand{display:flex;align-items:center;gap:8px;padding:0 4px}
-.rail-brand b{font-family:var(--serif);font-weight:400;font-size:1.05rem}
-.rail-brand .phase{margin-left:auto;font-family:var(--mono);font-size:.5625rem;
-  letter-spacing:.1em;color:var(--muted);border:1px solid var(--line);border-radius:4px;
-  padding:2px 5px}
-.rail-search input{width:100%;border:1px solid var(--line);border-radius:7px;
-  padding:7px 10px;background:var(--raised);font-size:.8125rem}
-.rail-search input:focus{outline:none;border-color:var(--accent)}
-.rail-nav{display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1;margin:0 -4px;padding:0 4px}
-.snav{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;
-  cursor:pointer;border:1px solid transparent;text-align:left;background:none;width:100%}
-.snav:hover{background:var(--raised)}
-.snav.on{background:var(--accent-soft);border-color:var(--line-soft);font-weight:600}
-.snav .dot{width:8px;height:8px;border-radius:2px;flex:none}
-.snav .nm{flex:1;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.snav .ct{font-family:var(--mono);font-size:.6875rem;color:var(--muted)}
+/* rail — the quietest surface */
+.rail{background:var(--surface);border-right:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:16px;padding:20px 14px;overflow:hidden}
+.rail-brand{display:flex;align-items:center;gap:9px;padding:0 4px}
+.rail-brand b{font-family:var(--display);font-weight:400;font-size:1.15rem;letter-spacing:.005em}
+.rail-brand .phase{margin-left:auto;font-family:var(--code);font-size:.5625rem;
+  letter-spacing:.08em;color:var(--muted)}
+.rail-search input{width:100%;border:1px solid var(--rule);border-radius:6px;
+  padding:8px 11px;background:var(--card);font-size:.8125rem}
+.rail-search input:focus{outline:none;border-color:var(--structure)}
+.rail-nav{display:flex;flex-direction:column;gap:1px;overflow-y:auto;flex:1;
+  margin:0 -4px;padding:0 4px}
+.snav{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:6px;
+  cursor:pointer;border:1px solid transparent;text-align:left;background:none;width:100%;
+  transition:background .12s}
+.snav:hover{background:var(--card)}
+.snav.on{background:var(--card);border-color:var(--rule-soft)}
+.snav.on .nm{color:var(--ink)}
+.snav .dot{width:7px;height:7px;border-radius:2px;flex:none}
+.snav .nm{flex:1;font-size:.8125rem;color:var(--ink-2);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.snav .ct{font-family:var(--code);font-size:.6875rem;color:var(--muted);
+  font-variant-numeric:tabular-nums}
 .snav .edit{opacity:0;font-size:.6875rem;color:var(--muted);background:none;border:0;
-  cursor:pointer;padding:2px 4px}
+  cursor:pointer;padding:2px 4px;transition:opacity .12s}
 .snav:hover .edit{opacity:1}
-.add-subject{border:1px dashed var(--line);background:none;border-radius:7px;padding:8px;
-  font-size:.8125rem;color:var(--muted);cursor:pointer}
-.add-subject:hover{border-color:var(--accent);color:var(--accent)}
-.rail-foot{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);
-  padding-top:10px}
-.storage-note{font-family:var(--mono);font-size:.5625rem;letter-spacing:.06em;
-  margin-top:6px;line-height:1.4}
+.add-subject{border:1px dashed var(--rule);background:none;border-radius:6px;padding:9px;
+  font-size:.8125rem;color:var(--muted);cursor:pointer;transition:border-color .14s,color .14s}
+.add-subject:hover{border-color:var(--structure);color:var(--structure)}
+.rail-foot{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--rule);
+  padding-top:12px}
+.storage-note{font-family:var(--code);font-size:.5625rem;letter-spacing:.04em;
+  margin-top:8px;line-height:1.45}
 .storage-note.ok{color:var(--muted)}
 .storage-note.warn{color:var(--danger)}
 
-/* browser column — syllabus tree, or flat list when searching / viewing all */
-.browser{background:var(--paper);border-right:1px solid var(--line);
+/* index column — the table of contents: syllabus tree, or a flat list */
+.browser{background:var(--paper);border-right:1px solid var(--rule);
   display:flex;flex-direction:column;overflow:hidden}
 .browser-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
-  padding:18px 16px 14px;border-bottom:1px solid var(--line)}
+  padding:22px 20px 16px;border-bottom:1px solid var(--rule)}
 .bh-text{min-width:0}
-.browser-head h2{font-family:var(--serif);font-weight:400;font-size:1.2rem;margin-top:3px;
+.browser-head .eyebrow{display:block;margin-bottom:5px}
+.browser-head h2{font-family:var(--display);font-size:1.35rem;letter-spacing:-.005em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bh-actions{display:flex;align-items:center;gap:7px;flex:none}
-.iconbtn.ghost{border-color:var(--line);color:var(--ink-2)}
-.iconbtn.ghost:hover{border-color:var(--accent);color:var(--accent)}
-.browser-body{overflow-y:auto;flex:1;padding:8px}
+.bh-actions{display:flex;align-items:center;gap:8px;flex:none}
+.iconbtn.ghost{border:1px solid var(--rule);color:var(--ink-2);background:none;
+  border-radius:6px;padding:6px 11px;font-size:.75rem;cursor:pointer;transition:border-color .14s,color .14s}
+.iconbtn.ghost:hover{border-color:var(--structure);color:var(--structure)}
+.browser-body{overflow-y:auto;flex:1;padding:10px 8px 8px}
 
-/* coverage bar — how much of the syllabus you have written something for */
-.coverage{display:flex;align-items:center;gap:10px;padding:9px 16px;
-  border-bottom:1px solid var(--line-soft);background:var(--surface)}
-.cov-track{flex:1;height:5px;border-radius:3px;background:var(--sunk);overflow:hidden}
-.cov-track i{display:block;height:100%;border-radius:3px;background:var(--accent)}
-.cov-label{font-family:var(--mono);font-size:.625rem;letter-spacing:.08em;color:var(--muted);
+/* coverage — how much of the syllabus is written up. Nexley's whole reason to exist,
+   so it gets the mark. */
+.coverage{display:flex;align-items:center;gap:11px;padding:11px 20px;
+  border-bottom:1px solid var(--rule-soft);background:var(--surface)}
+.cov-track{flex:1;height:3px;background:var(--rule);overflow:hidden}
+.cov-track i{display:block;height:100%;background:var(--mark)}
+.cov-label{font-family:var(--code);font-size:.625rem;letter-spacing:.06em;color:var(--muted);
   white-space:nowrap;font-variant-numeric:tabular-nums}
 
-/* syllabus tree */
-.topic{margin-bottom:4px}
-.topic-head{display:flex;align-items:center;gap:8px;width:100%;background:none;
-  border:1px solid transparent;border-radius:7px;padding:8px 8px;cursor:pointer;text-align:left}
-.topic-head:hover{background:var(--raised)}
+/* syllabus tree — the outcome code is the identifier, set like a document section number */
+.topic{margin-bottom:2px}
+.topic-head{display:flex;align-items:center;gap:9px;width:100%;background:none;
+  border:1px solid transparent;border-radius:6px;padding:9px 8px;cursor:pointer;text-align:left}
+.topic-head:hover{background:var(--card)}
 .topic-head .tw{flex:1;min-width:0}
-.topic-head .code{font-family:var(--mono);font-size:.5625rem;letter-spacing:.08em;
-  color:var(--muted);display:block}
-.topic-head .nm{font-size:.8125rem;font-weight:700;display:block;overflow:hidden;
-  text-overflow:ellipsis;white-space:nowrap}
-.chev{font-family:var(--mono);font-size:.6875rem;color:var(--muted);width:12px;flex:none;
-  transition:transform .14s}
+.topic-head .code{font-family:var(--code);font-size:.5625rem;letter-spacing:.1em;
+  color:var(--muted);display:block;text-transform:uppercase}
+.topic-head .nm{font-size:.8125rem;font-weight:600;color:var(--ink-2);display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.chev{font-family:var(--code);font-size:.625rem;color:var(--muted);width:11px;flex:none;
+  transition:transform .16s}
 .topic.closed .chev{transform:rotate(-90deg)}
 .topic.closed .topic-body{display:none}
-.topic-body{padding-left:10px;border-left:1px solid var(--line-soft);margin-left:11px}
-.node-add{background:none;border:0;color:var(--muted);font-size:.6875rem;cursor:pointer;
-  padding:5px 8px;font-family:var(--mono);letter-spacing:.06em}
-.node-add:hover{color:var(--accent)}
+.topic-body{padding-left:11px;border-left:1px solid var(--rule-soft);margin-left:12px}
+.node-add{background:none;border:0;color:var(--muted);font-size:.625rem;cursor:pointer;
+  padding:6px 8px;font-family:var(--code);letter-spacing:.08em}
+.node-add:hover{color:var(--structure)}
 
-.dp{display:flex;align-items:center;gap:8px;width:100%;background:none;
-  border:1px solid transparent;border-radius:7px;padding:7px 8px;cursor:pointer;text-align:left}
-.dp:hover{background:var(--raised)}
-.dp.on{background:var(--accent-soft);border-color:var(--line-soft)}
-.pip{width:9px;height:9px;border-radius:50%;flex:none;border:1.5px solid var(--line)}
-.pip.has{background:var(--accent);border-color:var(--accent)}
-.pip.given{background:var(--line);border-color:var(--muted)}
+.dp{display:flex;align-items:center;gap:9px;width:100%;background:none;
+  border:1px solid transparent;border-radius:6px;padding:8px;cursor:pointer;text-align:left}
+.dp:hover{background:var(--card)}
+.dp.on{background:var(--card);border-color:var(--rule-soft)}
+.pip{width:8px;height:8px;border-radius:50%;flex:none;border:1.5px solid var(--rule)}
+.pip.has{background:var(--mark);border-color:var(--mark)}    /* written up */
+.pip.given{background:var(--rule);border-color:var(--muted)}
 .dp .tw{flex:1;min-width:0}
-.dp .code{font-family:var(--mono);font-size:.5625rem;color:var(--muted);display:block}
-.dp .nm{font-size:.8125rem;display:block;line-height:1.35}
-.dp .ct{font-family:var(--mono);font-size:.625rem;color:var(--muted);flex:none}
+.dp .code{font-family:var(--code);font-size:.5625rem;letter-spacing:.08em;color:var(--muted);
+  display:block;text-transform:uppercase}
+.dp .nm{font-size:.8125rem;color:var(--ink-2);display:block;line-height:1.4;margin-top:1px}
+.dp .ct{font-family:var(--code);font-size:.625rem;color:var(--muted);flex:none}
 .dp .edit,.topic-head .edit{opacity:0;font-size:.625rem;color:var(--muted);background:none;
-  border:0;cursor:pointer;padding:2px 4px;flex:none}
+  border:0;cursor:pointer;padding:2px 4px;flex:none;transition:opacity .12s}
 .dp:hover .edit,.topic-head:hover .edit{opacity:1}
 
-.notes-under{padding-left:18px;display:flex;flex-direction:column;gap:1px;
-  margin:2px 0 6px}
-.nrow{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;
-  border-radius:6px;padding:6px 8px;cursor:pointer;text-align:left}
-.nrow:hover{background:var(--raised)}
-.nrow.on{background:var(--raised);box-shadow:inset 2px 0 0 var(--accent)}
-.nrow .kind{font-family:var(--mono);font-size:.5rem;letter-spacing:.1em;padding:2px 5px;
-  border-radius:3px;flex:none;text-transform:uppercase}
-.nrow .kind.mine{background:var(--accent-soft);color:var(--accent)}
-.nrow .kind.given{background:var(--sunk);color:var(--muted)}
-.nrow .t{flex:1;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nrow .dt{font-family:var(--mono);font-size:.5625rem;color:var(--muted);flex:none}
+.notes-under{padding-left:19px;display:flex;flex-direction:column;margin:1px 0 8px}
+.nrow{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;
+  border-radius:5px;padding:7px 8px;cursor:pointer;text-align:left}
+.nrow:hover{background:var(--card)}
+.nrow.on{background:var(--card);box-shadow:inset 2px 0 0 var(--mark)}
+.nrow .kind{font-family:var(--code);font-size:.5rem;letter-spacing:.12em;padding:2px 5px;
+  border-radius:2px;flex:none;text-transform:uppercase}
+.nrow .kind.mine{background:var(--structure-soft);color:var(--structure)}
+.nrow .kind.given{background:var(--surface);color:var(--muted)}
+.nrow .t{flex:1;font-size:.8125rem;color:var(--ink-2);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.nrow.on .t{color:var(--ink)}
+.nrow .dt{font-family:var(--code);font-size:.5625rem;color:var(--muted);flex:none}
 
-.emptytree{padding:22px 14px;color:var(--muted);font-size:.8125rem;line-height:1.6;
+.emptytree{padding:24px 14px;color:var(--muted);font-size:.8125rem;line-height:1.65;
   display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 
-/* tabs */
-.tabs{display:flex;gap:2px;overflow-x:auto;padding:7px 10px 0;border-bottom:1px solid var(--line);
-  background:var(--surface);scrollbar-width:thin}
-.tab{display:flex;align-items:center;gap:7px;flex:none;max-width:190px;
-  border:1px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;
-  background:var(--paper);padding:7px 10px;cursor:pointer;font-size:.75rem;color:var(--ink-2)}
-.tab.on{background:var(--raised);color:var(--ink);font-weight:600}
+/* flat note list */
+.notes{overflow-y:auto;flex:1;padding:8px 8px 8px}
+.ncard{display:flex;flex-direction:column;gap:5px;padding:14px 14px;border-radius:7px;
+  cursor:pointer;border:1px solid transparent;background:none;width:100%;text-align:left;
+  transition:background .12s}
+.ncard+.ncard{border-top:1px solid var(--rule-soft);border-radius:0}
+.ncard:hover{background:var(--card)}
+.ncard.on{background:var(--card);box-shadow:inset 2px 0 0 var(--mark)}
+.ncard .top{display:flex;align-items:center;gap:9px}
+.ncard .dot{width:6px;height:6px;border-radius:2px;flex:none}
+.ncard .t{font-size:.875rem;font-weight:600;color:var(--ink);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ncard .ex{font-size:.8125rem;color:var(--muted);line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ncard .dt{font-family:var(--code);font-size:.5625rem;letter-spacing:.04em;color:var(--muted)}
+.ncard mark{background:var(--mark);color:var(--mark-ink)}
+.listempty{padding:28px 20px;color:var(--muted);font-size:.875rem;line-height:1.65}
+
+/* tabs — kept minimal, they sit on the page edge */
+.tabs{display:flex;gap:1px;overflow-x:auto;padding:8px 12px 0;
+  border-bottom:1px solid var(--rule);background:var(--paper);scrollbar-width:thin}
+.tab{display:flex;align-items:center;gap:8px;flex:none;max-width:190px;
+  border:1px solid var(--rule);border-bottom:0;border-radius:6px 6px 0 0;
+  background:var(--surface);padding:7px 11px;cursor:pointer;font-size:.75rem;color:var(--muted)}
+.tab.on{background:var(--card);color:var(--ink)}
 .tab .tl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tab .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:.8125rem;
-  line-height:1;padding:2px 3px;border-radius:4px;flex:none}
-.tab .x:hover{color:var(--danger);background:var(--sunk)}
+  line-height:1;padding:2px 3px;border-radius:3px;flex:none}
+.tab .x:hover{color:var(--danger)}
 
-/* kind toggle */
-.kindtoggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
-.kindtoggle button{background:none;border:0;padding:5px 11px;font-size:.75rem;
-  color:var(--ink-2);cursor:pointer}
-.kindtoggle button.on{background:var(--accent-bg);color:var(--accent-on);font-weight:600}
-
-/* paste box */
-.paste{width:100%;min-height:190px;resize:vertical;border:1px solid var(--line);
-  border-radius:8px;padding:12px;background:var(--surface);font-family:var(--mono);
-  font-size:.75rem;line-height:1.6;color:var(--ink)}
-.paste:focus{outline:none;border-color:var(--accent)}
-.notes{overflow-y:auto;flex:1;padding:8px}
-.ncard{display:flex;flex-direction:column;gap:4px;padding:12px 13px;border-radius:9px;
-  cursor:pointer;border:1px solid transparent;background:none;width:100%;text-align:left}
-.ncard:hover{background:var(--raised)}
-.ncard.on{background:var(--raised);border-color:var(--accent)}
-.ncard .top{display:flex;align-items:center;gap:8px}
-.ncard .dot{width:7px;height:7px;border-radius:2px;flex:none}
-.ncard .t{font-size:.875rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;
-  white-space:nowrap;flex:1}
-.ncard .ex{font-size:.8125rem;color:var(--muted);line-height:1.4;
-  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ncard .dt{font-family:var(--mono);font-size:.625rem;color:var(--muted)}
-.ncard mark{background:var(--mark);color:var(--mark-ink)}
-.listempty{padding:26px 18px;color:var(--muted);font-size:.875rem;line-height:1.6}
-
-/* editor */
-.editor{display:flex;flex-direction:column;overflow:hidden;background:var(--raised)}
+/* ---------- the page: where a note is written ---------- */
+.editor{display:flex;flex-direction:column;overflow:hidden;background:var(--card)}
 .ed-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:12px 24px;border-bottom:1px solid var(--line-soft)}
-.crumb{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted);
-  overflow:hidden;white-space:nowrap}
-.crumb .dot{width:7px;height:7px;border-radius:2px;flex:none}
-.crumb b{color:var(--ink-2);font-weight:600}
-/* only reachable when the editor has taken over the working area */
-.backbtn{display:none;background:none;border:1px solid var(--line);border-radius:7px;
-  padding:6px 12px;font-size:.8125rem;color:var(--ink-2);cursor:pointer;flex:none}
-.backbtn:hover{border-color:var(--accent);color:var(--accent)}
+  padding:14px var(--gutter);border-bottom:1px solid var(--rule-soft)}
+.crumb{display:flex;align-items:center;gap:8px;font-family:var(--code);font-size:.6875rem;
+  letter-spacing:.04em;color:var(--muted);overflow:hidden;white-space:nowrap;text-transform:uppercase}
+.crumb .dot{width:6px;height:6px;border-radius:2px;flex:none}
+.crumb b{color:var(--ink-2);font-weight:400}
+.backbtn{display:none;background:none;border:1px solid var(--rule);border-radius:6px;
+  padding:7px 13px;font-size:.8125rem;color:var(--ink-2);cursor:pointer;flex:none}
+.backbtn:hover{border-color:var(--structure);color:var(--structure)}
 @media (max-width:1080px){ .backbtn{display:block} }
-@media (max-width:680px){ .backbtn{display:none} }
-@media (pointer:coarse){ .backbtn{padding:10px 16px;min-height:44px} }
 
-.ed-actions{display:flex;align-items:center;gap:12px;flex:none}
-.saved{font-family:var(--mono);font-size:.625rem;letter-spacing:.1em;text-transform:uppercase;
+.ed-actions{display:flex;align-items:center;gap:14px;flex:none}
+.saved{font-family:var(--code);font-size:.625rem;letter-spacing:.14em;text-transform:uppercase;
   color:var(--muted)}
-.saved.dirty{color:var(--accent)}
-.iconbtn{background:none;border:1px solid transparent;border-radius:6px;padding:4px 9px;
+.saved.dirty{color:var(--structure)}
+.iconbtn{background:none;border:1px solid transparent;border-radius:5px;padding:5px 10px;
   font-size:.75rem;color:var(--muted);cursor:pointer}
 .iconbtn:hover{color:var(--danger);border-color:var(--danger)}
 
-.ed-title{border:0;background:none;padding:20px 24px 4px;font-family:var(--serif);
-  font-weight:400;font-size:1.75rem;letter-spacing:-.012em;width:100%}
+/* title — big, light, serif. The fresh-page moment. */
+.ed-title{border:0;background:none;padding:26px var(--gutter) 6px;font-family:var(--display);
+  font-weight:400;font-size:clamp(1.55rem,1.25rem+1.4vw,2rem);letter-spacing:-.015em;
+  line-height:1.15;width:100%;max-width:calc(var(--measure) + 2 * var(--gutter))}
 .ed-title:focus{outline:none}
-.ed-title::placeholder{color:var(--muted);opacity:.6}
+.ed-title::placeholder{color:var(--muted);opacity:.55}
 
-.ed-meta{display:flex;align-items:center;gap:16px;padding:0 24px 12px;flex-wrap:wrap}
+/* apparatus — one quiet mono line, not a control panel */
+.ed-meta{display:flex;align-items:center;gap:18px;padding:2px var(--gutter) 14px;flex-wrap:wrap}
 .sel{display:flex;align-items:center;gap:8px}
-.sel>span{font-family:var(--mono);font-size:.625rem;letter-spacing:.1em;
+.sel>span{font-family:var(--code);font-size:.5625rem;letter-spacing:.12em;
   text-transform:uppercase;color:var(--muted)}
-.sel select{border:1px solid var(--line);border-radius:6px;padding:5px 8px;
-  background:var(--surface);font-size:.8125rem}
-.stamp{font-family:var(--mono);font-size:.625rem;color:var(--muted);margin-left:auto}
+.sel select{border:1px solid var(--rule);border-radius:5px;padding:5px 8px;
+  background:var(--paper);font-size:.8125rem;color:var(--ink-2)}
+.stamp{font-family:var(--code);font-size:.625rem;letter-spacing:.04em;color:var(--muted);
+  margin-left:auto}
+.kindtoggle{display:flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+.kindtoggle button{background:none;border:0;padding:5px 12px;font-size:.75rem;
+  color:var(--muted);cursor:pointer}
+.kindtoggle button.on{background:var(--structure);color:var(--paper)}
 
-.toolbar{display:flex;align-items:center;gap:3px;padding:0 24px 12px;flex-wrap:wrap}
-.toolbar button{border:1px solid transparent;background:none;border-radius:6px;
-  padding:5px 9px;font-size:.8125rem;cursor:pointer;color:var(--ink-2);min-width:30px}
-.toolbar button:hover{background:var(--surface);border-color:var(--line)}
-.toolbar button.on{background:var(--accent-soft);border-color:var(--line-soft);color:var(--ink)}
-.tsep{width:1px;height:18px;background:var(--line);margin:0 5px}
+/* toolbar — understated, sits just above the writing */
+.toolbar{display:flex;align-items:center;gap:2px;padding:0 var(--gutter) 14px;flex-wrap:wrap}
+.toolbar button{border:1px solid transparent;background:none;border-radius:5px;
+  padding:5px 9px;font-size:.8125rem;cursor:pointer;color:var(--muted);min-width:30px}
+.toolbar button:hover{background:var(--paper);color:var(--ink-2)}
+.toolbar button.on{background:var(--structure-soft);color:var(--ink)}
+.tsep{width:1px;height:16px;background:var(--rule);margin:0 6px}
 
-.ed-body{flex:1;overflow-y:auto;padding:6px 24px 32px;font-size:.9375rem;line-height:1.75;
-  outline:none}
-.ed-body:empty::before{content:"Start writing…";color:var(--muted);opacity:.55}
-.ed-body h3{font-family:var(--serif);font-weight:400;font-size:1.2rem;margin:18px 0 6px}
-.ed-body ul,.ed-body ol{padding-left:24px;margin:8px 0}
-.ed-body li{margin:3px 0}
-.ed-body mark{background:var(--mark);color:var(--mark-ink);padding:0 2px}
-.ed-body.font-hand{font-family:var(--hand);font-size:1.05rem;line-height:1.9}
-.ed-body.font-serif{font-family:var(--serif);font-size:1rem}
+/* the writing column — a fixed measure of feint-ruled paper */
+.ed-body{flex:1;overflow-y:auto;padding:10px var(--gutter) 40vh;
+  font-family:var(--text);font-size:1.0625rem;line-height:var(--leading);
+  color:var(--ink);outline:none;max-width:calc(var(--measure) + 2 * var(--gutter));
+  /* feint ruling: a 1px line at every line-height, whisper faint */
+  background-image:repeating-linear-gradient(transparent 0 calc(var(--leading) * 1em - 1px),
+    var(--rule-soft) calc(var(--leading) * 1em - 1px) calc(var(--leading) * 1em));
+  background-attachment:local;background-position:0 1.2em}
+.ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
+.ed-body h3{font-family:var(--display);font-weight:400;font-size:1.3rem;
+  margin:calc(var(--leading) * 1em) 0 .2em;line-height:var(--leading)}
+.ed-body ul,.ed-body ol{padding-left:26px;margin:0}
+.ed-body li{margin:0}
+.ed-body mark{background:var(--mark);color:var(--mark-ink);padding:0 .1em}
+.ed-body.font-hand{font-family:"Segoe Script","Bradley Hand","Brush Script MT",cursive;
+  font-size:1.15rem;line-height:1.85}
+.ed-body.font-serif{font-family:var(--text)}
 
-.ed-foot{display:flex;justify-content:space-between;gap:14px;padding:9px 24px;
-  border-top:1px solid var(--line-soft);font-family:var(--mono);font-size:.625rem;
-  color:var(--muted);letter-spacing:.06em}
+.ed-foot{display:flex;justify-content:space-between;gap:14px;padding:10px var(--gutter);
+  border-top:1px solid var(--rule-soft);font-family:var(--code);font-size:.625rem;
+  color:var(--muted);letter-spacing:.04em}
 
-/* empty */
+/* nothing open (wide screens only) */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:12px;padding:40px;text-align:center;background:var(--raised)}
-.empty h3{font-family:var(--serif);font-weight:400;font-size:1.2rem}
-.empty p{color:var(--muted);font-size:.875rem;max-width:38ch}
+  gap:14px;padding:40px;text-align:center;background:var(--card)}
+.empty h3{font-family:var(--display);font-weight:400;font-size:1.25rem}
+.empty p{color:var(--muted);font-size:.875rem;max-width:36ch;line-height:1.6}
 
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
-  background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:9px;
-  font-size:.8125rem;z-index:80;box-shadow:0 10px 30px -14px rgb(var(--shadow)/.6)}
-
-/* update bar */
-.updatebar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
-  display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;
-  background:var(--raised);border:1px solid var(--accent);border-radius:12px;
-  padding:12px 16px;z-index:90;max-width:min(560px,94vw);
-  box-shadow:0 18px 44px -24px rgb(var(--shadow)/.6)}
-.updatebar span{font-size:.8125rem;color:var(--ink-2)}
-@supports(padding:max(0px)){.updatebar{bottom:max(22px,env(safe-area-inset-bottom))}}
+  background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:7px;
+  font-size:.8125rem;z-index:80;box-shadow:0 14px 36px -18px rgb(var(--shade)/.6)}
 
 /* snapshots */
 .dlgbody{padding:26px;display:flex;flex-direction:column;gap:14px}
-.dlgnote{font-size:.8125rem;color:var(--muted);line-height:1.55}
+.dlgnote{font-size:.8125rem;color:var(--muted);line-height:1.6}
 .snaplist{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow-y:auto}
 .snaprow{display:flex;align-items:center;justify-content:space-between;gap:14px;
-  border:1px solid var(--line);border-radius:9px;padding:12px 14px;background:var(--surface)}
+  border:1px solid var(--rule);border-radius:7px;padding:13px 14px;background:var(--paper)}
 .snaprow b{display:block;font-size:.875rem;font-weight:600}
-.snaprow span{display:block;font-family:var(--mono);font-size:.6875rem;color:var(--muted);
+.snaprow span{display:block;font-family:var(--code);font-size:.6875rem;color:var(--muted);
   margin-top:2px}
+.paste{width:100%;min-height:190px;resize:vertical;border:1px solid var(--rule);
+  border-radius:7px;padding:12px;background:var(--paper);font-family:var(--code);
+  font-size:.75rem;line-height:1.65;color:var(--ink)}
+.paste:focus{outline:none;border-color:var(--structure)}
 
 /* dialog */
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--raised);
-  color:var(--ink);padding:0;width:min(460px,92vw);
-  box-shadow:0 26px 60px -34px rgb(var(--shadow)/.6)}
-dialog::backdrop{background:rgba(20,32,28,.45)}
+dialog{border:1px solid var(--rule);border-radius:12px;background:var(--card);
+  color:var(--ink);padding:0;width:min(440px,92vw);
+  box-shadow:0 34px 76px -44px rgb(var(--shade)/.6)}
+dialog::backdrop{background:rgb(var(--shade)/.5)}
 dialog form{padding:26px;display:flex;flex-direction:column;gap:15px}
-dialog h3{font-family:var(--serif);font-weight:400;font-size:1.3rem}
-.swatches{display:flex;gap:7px;flex-wrap:wrap}
-.sw{width:26px;height:26px;border-radius:7px;border:2px solid transparent;cursor:pointer}
-.sw.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--raised) inset}
+dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:pointer}
+.sw.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
 .dlg-actions{display:flex;align-items:center;gap:9px;margin-top:4px}
 
 /* ============================================================
-   TOUCH & PEN — the real target: iPads and pen-capable PCs
+   TOUCH & PEN — iPads and pen-capable PCs are the real target
    ============================================================ */
 @media (pointer:coarse){
-  /* hover doesn't exist here — anything hover-revealed is invisible and unreachable */
-  .snav .edit{opacity:1}
-
-  /* 44px minimum hit target throughout */
-  .snav{padding:11px 10px;min-height:44px}
-  .ncard{padding:14px 13px;min-height:56px}
+  .snav .edit,.dp .edit,.topic-head .edit{opacity:1}
+  .snav{padding:12px 10px;min-height:44px}
+  .ncard{padding:15px 14px;min-height:56px}
+  .dp{padding:12px 8px;min-height:44px}
+  .topic-head{padding:12px 8px;min-height:46px}
+  .nrow{padding:11px 8px;min-height:42px}
   .toolbar button{min-width:44px;min-height:44px;padding:9px 12px}
   .btn{padding:11px 18px;min-height:44px}
   .iconbtn{padding:9px 14px;min-height:44px}
-  .linkbtn{padding:10px 0;min-height:40px}
-  .add-subject{padding:12px;min-height:44px}
+  .iconbtn.ghost{padding:9px 14px;min-height:44px}
+  .linkbtn{padding:11px 0;min-height:40px}
+  .add-subject{padding:13px;min-height:44px}
+  .tab{padding:10px 12px;min-height:42px}
+  .kindtoggle button{padding:9px 14px;min-height:42px}
   .sw{width:38px;height:38px}
   .rail-brand .phase{display:none}
-
-  /* iOS zooms the whole page when a focused input is under 16px */
+  .paste{font-size:16px}
+  /* iOS zooms the page when a focused field is under 16px */
   .field input,.rail-search input,.sel select,.ed-title,.ed-body{font-size:16px}
-  .ed-title{font-size:1.6rem}
-  .ed-body{font-size:16px;line-height:1.85}
-
-  /* roomier writing surface — this is where the pen will live */
-  .ed-body{padding:8px 28px 44px}
+  .ed-body{line-height:1.9}
 }
 
-/* home indicator / rounded corners on iPad */
+/* iPad safe areas */
 @supports(padding:max(0px)){
-  .rail{padding-left:max(12px,env(safe-area-inset-left));
-        padding-bottom:max(16px,env(safe-area-inset-bottom))}
-  .ed-foot{padding-bottom:max(9px,env(safe-area-inset-bottom))}
-  .notes{padding-bottom:max(8px,env(safe-area-inset-bottom))}
+  .rail{padding-left:max(14px,env(safe-area-inset-left));
+        padding-bottom:max(20px,env(safe-area-inset-bottom))}
+  .ed-foot{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  .notes,.browser-body{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 }
 
 /* ============================================================
-   LAYOUT BREAKPOINTS
-   3 cols on desktop + iPad landscape · 2 cols on iPad portrait · stacked on phones
+   LAYOUT — three panes wide · index-or-page on tablet · stacked on phone
    ============================================================ */
-@media (max-width:1080px){
-  .app{grid-template-columns:190px 1fr}
+@media (max-width:1180px){
+  .app{grid-template-columns:204px 1fr}
   .browser{grid-column:2;grid-row:1}
   .editor,.empty{grid-column:2;grid-row:1}
-  /* editor takes over the working area while a note is open */
+  /* the page takes over the working area while a note is open */
   .app.editing .browser{display:none}
-  /* Narrow layout: browser, editor and placeholder all share one column.
-     The "pick a note" placeholder would sit on top of the browser list and
-     block "New note" / the note rows, so drop it here - the browser column
-     already IS the no-note-selected view. */
+  /* the placeholder would stack on top of the index and block it — the index
+     column is already the nothing-open view here */
   .empty{display:none}
+  :root{--gutter:clamp(20px,4vw,40px)}
 }
 @media (max-width:680px){
   body{overflow:auto}
-  .app{grid-template-columns:1fr;height:auto}
-  .rail{border-right:0;border-bottom:1px solid var(--line)}
-  .rail-nav{max-height:210px}
+  .app{grid-template-columns:1fr;height:auto;min-height:100dvh}
+  .rail{border-right:0;border-bottom:1px solid var(--rule);flex-direction:row;
+    flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px}
+  .rail-brand{padding:0}
+  .rail-search{flex:1;min-width:150px;order:3;width:100%}
+  .rail-nav{flex-direction:row;flex-wrap:wrap;max-height:none;order:4;width:100%;gap:6px}
+  .snav{width:auto}
+  .add-subject{order:5}
+  .rail-foot{order:6;width:100%;flex-direction:row;flex-wrap:wrap;gap:14px;border-top:0;padding-top:0}
   .browser,.editor,.empty{grid-column:1;grid-row:auto}
-  .editor{min-height:70vh}
-  .ed-meta{gap:10px}
+  .editor{min-height:78dvh}
+  .ed-meta{gap:12px}
 }
-@media (pointer:coarse){
-  .dp{padding:11px 8px;min-height:44px}
-  .topic-head{padding:12px 8px;min-height:46px}
-  .nrow{padding:10px 8px;min-height:42px}
-  .dp .edit,.topic-head .edit{opacity:1}
-  .tab{padding:10px 12px;min-height:42px}
-  .kindtoggle button{padding:9px 14px;min-height:42px}
-  .paste{font-size:16px}
-}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
