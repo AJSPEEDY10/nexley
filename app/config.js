@@ -3,10 +3,11 @@
  * RLS on every table is what actually protects data (see supabase/migrations/).
  * The secret key must NEVER appear in this file or anywhere under app/.
  *
- * Dev/prod separation (Supabase projects are still named summit-education* internally —
- * renaming those is cosmetic and deferred): local testing (127.0.0.1/localhost) always points at the
- * dev project so nothing testing-related ever touches real user data. Everything
- * else (the deployed site) points at production.
+ * Dev/prod separation: local testing (127.0.0.1/localhost) always points at the
+ * dev Supabase project (nexley-dev) so nothing testing-related ever touches real
+ * user data. Everything else (the deployed site) points at production (nexley).
+ * The project *refs* in the URLs below are opaque Supabase-assigned strings and
+ * don't change on rename.
  */
 (function () {
   var isLocal = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
