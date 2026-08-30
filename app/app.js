@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.3.0';
+  var APP_VERSION = '0.3.1';
   var DB_NAME = 'summit-edu';
   var DB_VER = 3;
   var BACKUP_KEEP = 7;
@@ -1365,33 +1365,52 @@
   function setupUpdates() {
     if (!('serviceWorker' in navigator) || location.protocol.indexOf('http') !== 0) return;
 
+    // Only auto-reload on a controller handoff if the page was ALREADY controlled
+    // when we started. On a first-ever install the controller goes null -> active,
+    // which used to trigger a needless reload that flashed the update banner with a
+    // stale worker reference behind it (so "Update now" did nothing).
+    var hadController = !!navigator.serviceWorker.controller;
     var reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
+    function reloadOnce() {
       if (reloading) return;
       reloading = true;
       location.reload();
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadController) reloadOnce();
     });
 
-    navigator.serviceWorker.register('sw.js').then(function (reg) {
-      function offer(worker) {
-        if (!worker) return;
+    // updateViaCache:'none' - always revalidate sw.js itself, so a deploy is seen
+    // even while GitHub Pages still serves it with a 10-minute max-age.
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      function offer() {
         var bar = $('updateBar');
+        if (!bar || !bar.hidden) return;      // already showing
         bar.hidden = false;
         $('updateNow').onclick = function () {
-          Promise.resolve(state.dirty ? saveNow() : null)
-            .then(function () { return snapshot('before-update'); })
-            .then(function () { worker.postMessage({ type: 'SKIP_WAITING' }); });
+          $('updateNow').disabled = true;
+          Promise.resolve((typeof state !== 'undefined' && state && state.dirty) ? saveNow() : null)
+            .catch(function () {})
+            .then(function () { return snapshot('before-update').catch(function () {}); })
+            .then(function () {
+              var w = reg.waiting;
+              if (w) w.postMessage({ type: 'SKIP_WAITING' });
+              // Fallback: if the new worker doesn't take over promptly, just reload -
+              // sw.js is network-first so a plain reload still pulls fresh assets.
+              setTimeout(reloadOnce, 1500);
+            });
         };
         $('updateLater').onclick = function () { bar.hidden = true; };
       }
 
-      if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
+      // A genuine pending update means a distinct worker sitting in "waiting".
+      if (reg.waiting && reg.active) offer();
 
       reg.addEventListener('updatefound', function () {
         var nw = reg.installing;
         if (!nw) return;
         nw.addEventListener('statechange', function () {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) offer(nw);
+          if (nw.state === 'installed' && navigator.serviceWorker.controller && reg.waiting) offer();
         });
       });
 
