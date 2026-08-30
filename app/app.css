@@ -389,6 +389,11 @@ dialog h3{font-family:var(--serif);font-weight:400;font-size:1.3rem}
   .editor,.empty{grid-column:2;grid-row:1}
   /* editor takes over the working area while a note is open */
   .app.editing .browser{display:none}
+  /* Narrow layout: browser, editor and placeholder all share one column.
+     The "pick a note" placeholder would sit on top of the browser list and
+     block "New note" / the note rows, so drop it here - the browser column
+     already IS the no-note-selected view. */
+  .empty{display:none}
 }
 @media (max-width:680px){
   body{overflow:auto}
