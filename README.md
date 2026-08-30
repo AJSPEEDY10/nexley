@@ -88,7 +88,7 @@ Shortcuts: `Ctrl+S` save now · `Ctrl+K` search · `Ctrl+B/I/U` formatting
 ## Layout
 
 ```
-SummitEducation\
+Nexley\
   Nexley.bat        ← double-click this
   serve.py          ← local dev server, no-cache headers
   supabase\
