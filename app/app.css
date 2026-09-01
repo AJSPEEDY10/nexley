@@ -28,6 +28,7 @@
   --code:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
 
   --measure:66ch;       /* the writing column */
+  --margin:154px;       /* the marginalia column beside it, on a wide page */
   --leading:1.75;       /* note-body line-height, also the ruled-paper pitch */
   --gutter:clamp(22px,5vw,64px);
 
@@ -136,6 +137,15 @@ a{color:var(--structure)}
 .rail-brand b{font-family:var(--display);font-weight:400;font-size:1.15rem;letter-spacing:.005em}
 .rail-brand .phase{margin-left:auto;font-family:var(--code);font-size:.5625rem;
   letter-spacing:.08em;color:var(--muted)}
+/* the three ways of working — set like the tabs on a syllabus document, not like app chrome */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:-6px -4px -4px;
+  border-bottom:1px solid var(--rule)}
+.mode{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
+  padding:7px 0;font-family:var(--code);font-size:.5625rem;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);cursor:pointer;transition:color .14s}
+.mode:hover{color:var(--ink-2)}
+.mode.on{color:var(--ink);border-bottom-color:var(--mark)}
+
 .rail-search input{width:100%;border:1px solid var(--rule);border-radius:6px;
   padding:8px 11px;background:var(--card);font-size:.8125rem}
 .rail-search input:focus{outline:none;border-color:var(--structure)}
@@ -272,7 +282,9 @@ a{color:var(--structure)}
 .tab .x:hover{color:var(--danger)}
 
 /* ---------- the page: where a note is written ---------- */
-.editor{display:flex;flex-direction:column;overflow:hidden;background:var(--card)}
+.editor{display:flex;flex-direction:column;overflow:hidden;background:var(--card);
+  container-type:inline-size;container-name:page}
+.ed-page{flex:1;min-height:0;display:flex;flex-direction:column}
 .ed-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:14px var(--gutter);border-bottom:1px solid var(--rule-soft)}
 .crumb{display:flex;align-items:center;gap:8px;font-family:var(--code);font-size:.6875rem;
@@ -294,7 +306,9 @@ a{color:var(--structure)}
 
 /* title — big, light, serif. The fresh-page moment. */
 .ed-title{border:0;background:none;padding:26px var(--gutter) 6px;font-family:var(--display);
-  font-weight:400;font-size:clamp(1.55rem,1.25rem+1.4vw,2rem);letter-spacing:-.015em;
+  /* the + needs whitespace: clamp(a,b+c,d) is a parse error and silently drops the
+     whole declaration, which is how this title spent Pass 1 rendering at 14px */
+  font-weight:400;font-size:clamp(1.55rem, 1.25rem + 1.4vw, 2rem);letter-spacing:-.015em;
   line-height:1.15;width:100%;max-width:calc(var(--measure) + 2 * var(--gutter))}
 .ed-title:focus{outline:none}
 .ed-title::placeholder{color:var(--muted);opacity:.55}
@@ -309,7 +323,12 @@ a{color:var(--structure)}
   background:none;font-size:.8125rem;color:var(--ink-2)}
 .sel select:focus{outline:none;border-color:var(--structure)}
 .stamp{font-family:var(--code);font-size:.625rem;letter-spacing:.04em;color:var(--muted);
-  margin-left:auto;text-align:right}
+  margin-left:auto;text-align:right;white-space:nowrap}
+/* narrow: one short "edited" line so the apparatus row never wraps. The full
+   provenance appears in the margin on a wide page. */
+.st-cr{display:none}
+.wc{font-family:var(--code);font-size:.625rem;letter-spacing:.04em;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums}
 .kindtoggle{display:flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
 .kindtoggle button{background:none;border:0;padding:5px 12px;font-size:.75rem;
   color:var(--muted);cursor:pointer}
@@ -348,11 +367,61 @@ a{color:var(--structure)}
   border-top:1px solid var(--rule-soft);font-family:var(--code);font-size:.625rem;
   color:var(--muted);letter-spacing:.04em}
 
+/* ---------- the margin ----------
+   Once the page is wide enough to hold a 66ch column AND a margin beside it, the
+   apparatus leaves the top of the note and becomes marginalia: subject, syllabus
+   code, kind, provenance and length ranged right against a margin rule, the way
+   a study book annotates its own pages. Below that width the flex column above
+   stands unchanged, so this can only ever add — never break the writing surface. */
+@container page (min-width:880px){
+  .ed-page{
+    display:grid;
+    grid-template-columns:calc(var(--gutter) + var(--margin)) minmax(0,1fr);
+    grid-template-rows:auto auto auto auto 1fr auto;
+  }
+  .tabs   {grid-column:1/-1;grid-row:1}
+  .ed-head{grid-column:1/-1;grid-row:2}
+  .ed-title{grid-column:2;grid-row:3;padding-left:0;padding-right:var(--gutter);
+    padding-bottom:18px;max-width:calc(var(--measure) + var(--gutter))}
+  /* the margin already names the subject and the outcome code — don't say it twice */
+  .crumb{display:none}
+  .ed-actions{margin-left:auto}   /* keep them right once the crumb is gone */
+  .toolbar {grid-column:2;grid-row:4;padding-left:0;padding-right:var(--gutter)}
+  .ed-body {grid-column:2;grid-row:5;padding-left:0;padding-right:var(--gutter);
+    max-width:calc(var(--measure) + var(--gutter))}
+  .ed-foot{grid-column:1/-1;grid-row:6}
+
+  .ed-meta{grid-column:1;grid-row:3/6;
+    flex-direction:column;align-items:stretch;text-align:right;gap:15px;
+    padding:32px 22px 20px var(--gutter);max-width:none;overflow:hidden;
+    border-right:1px solid var(--rule)}   /* the margin rule */
+  .ed-meta>*{min-width:0;max-width:100%}
+  .ed-meta .sel{flex-direction:column;align-items:stretch;gap:3px}
+  .ed-meta .sel select{width:100%;text-align:right;padding-right:0;
+    text-overflow:ellipsis}
+  .ed-meta .kindtoggle{align-self:flex-end}
+  .ed-meta .stamp{margin-left:0;white-space:normal;line-height:1.7}
+  .ed-meta .st-cr,.ed-meta .st-ed{display:block}
+  .ed-meta .wc{white-space:normal}
+}
+
 /* nothing open (wide screens only) */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:14px;padding:40px;text-align:center;background:var(--card)}
 .empty h3{font-family:var(--display);font-weight:400;font-size:1.25rem}
 .empty p{color:var(--muted);font-size:.875rem;max-width:36ch;line-height:1.6}
+
+/* a mode that isn't built yet — honest, not a fake screen */
+.stub{grid-column:2/-1;grid-row:1;background:var(--paper);overflow-y:auto;
+  display:flex;flex-direction:column;justify-content:center;gap:14px;
+  padding:40px var(--gutter);align-items:flex-start}
+.stub h2{font-family:var(--display);font-size:clamp(1.6rem, 1.3rem + 1.2vw, 2.1rem);
+  letter-spacing:-.015em}
+.stub p{color:var(--ink-2);font-size:1rem;line-height:1.65;max-width:52ch;
+  font-family:var(--text)}
+.stub .stub-note{font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);margin-top:6px}
+.app.stubbed .browser,.app.stubbed .editor,.app.stubbed .empty{display:none!important}
 
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
@@ -425,7 +494,7 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
 @media (max-width:1180px){
   .app{grid-template-columns:204px 1fr}
   .browser{grid-column:2;grid-row:1}
-  .editor,.empty{grid-column:2;grid-row:1}
+  .editor,.empty,.stub{grid-column:2;grid-row:1}
   /* the page takes over the working area while a note is open */
   .app.editing .browser{display:none}
   /* the placeholder would stack on top of the index and block it — the index
@@ -452,8 +521,9 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
   .app.nav-open .rail{transform:none;box-shadow:0 0 60px -10px rgb(var(--shade)/.5)}
 
   /* working area fills the screen, one view at a time */
-  .browser,.editor,.empty{grid-column:1;grid-row:1}
+  .browser,.editor,.empty,.stub{grid-column:1;grid-row:1}
   .browser,.editor{height:100dvh}
+  .stub{padding-top:60px;justify-content:flex-start}   /* clear the menu button */
   .browser-head{padding-left:56px}      /* clear the menu button */
   .app.editing .browser{display:none}
   .app.editing .menu-btn{display:none}  /* the page uses the back button, not the menu */

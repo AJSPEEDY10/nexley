@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.4.1';
+  var APP_VERSION = '0.5.0';
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
@@ -847,7 +847,10 @@
 
     $('noteTitle').value = n.title || '';
     $('noteBody').innerHTML = n.body || '';
-    $('noteStamp').textContent = 'Created ' + when(n.created) + ' · edited ' + when(n.updated);
+    // narrow shows only the "edited" line; the margin shows both (see .st-cr in app.css)
+    $('stampCreated').textContent = 'Created ' + when(n.created);
+    $('stampEdited').textContent = 'Edited ' + when(n.updated);
+    $('noteStamp').title = 'Created ' + when(n.created) + ' · edited ' + when(n.updated);
 
     var sel = $('noteSubject');
     sel.textContent = '';
@@ -1567,7 +1570,46 @@
     function closeNav() { $('app').classList.remove('nav-open'); }
     $('menuBtn').addEventListener('click', function () { $('app').classList.toggle('nav-open'); });
     $('railScrim').addEventListener('click', closeNav);
-    $('subjectList').addEventListener('click', closeNav);   // picking a subject closes it
+    // picking a subject closes the drawer — and means "show me my notebook", so it also
+    // drops out of a stub mode rather than leaving a dead click
+    $('subjectList').addEventListener('click', function () { setMode('notebook'); });
+    $('search').addEventListener('focus', function () { setMode('notebook'); });
+
+    // modes. Classwork and Review are honest stubs — the nav holds the shape now so we
+    // don't restructure it again when they're built. Deliberately not persisted: opening
+    // the app into a "not built yet" screen would be a bad landing.
+    var STUBS = {
+      classwork: {
+        title: 'Classwork',
+        body: 'Quick capture for what actually happens in class — get it down fast, ' +
+              'unfiled and unpolished, and tidy it later. Classwork graduates into ' +
+              'notebook notes once you file it against the syllabus.'
+      },
+      review: {
+        title: 'Review',
+        body: 'Spaced repetition over what you have already written. Nexley builds a ' +
+              'due-today queue from your own notes and your syllabus coverage, so ' +
+              'revision follows the gaps instead of the whole course.'
+      }
+    };
+    function setMode(m) {
+      var stub = STUBS[m];
+      var btns = $('modeSwitch').getElementsByClassName('mode');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle('on', btns[i].getAttribute('data-mode') === m);
+      }
+      if (stub) {
+        $('stubTitle').textContent = stub.title;
+        $('stubBody').textContent = stub.body;
+      }
+      $('modeStub').hidden = !stub;
+      $('app').classList.toggle('stubbed', !!stub);
+      closeNav();
+    }
+    $('modeSwitch').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('.mode') : null;
+      if (b) setMode(b.getAttribute('data-mode'));
+    });
 
     $('subjForm').addEventListener('submit', saveSubject);
     $('subjCancel').addEventListener('click', function () {

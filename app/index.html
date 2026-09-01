@@ -77,6 +77,14 @@
       <span class="phase" id="appVersion">v…</span>
     </div>
 
+    <!-- the three ways of working. Classwork + Review are stubs for now, but the nav
+         model has to hold them or we restructure it twice. -->
+    <div class="modes" id="modeSwitch">
+      <button type="button" class="mode on" data-mode="notebook">Notebook</button>
+      <button type="button" class="mode" data-mode="classwork">Classwork</button>
+      <button type="button" class="mode" data-mode="review">Review</button>
+    </div>
+
     <div class="rail-search">
       <input type="search" id="search" placeholder="Search notes…" autocomplete="off">
     </div>
@@ -117,6 +125,9 @@
   </section>
 
   <main class="editor" id="editor" hidden>
+   <!-- .editor is the size container; .ed-page is what the container query restyles.
+        (An element can't respond to its own container query, hence the wrapper.) -->
+   <div class="ed-page">
     <div class="tabs" id="tabStrip" hidden></div>
 
     <header class="ed-head">
@@ -130,6 +141,9 @@
 
     <input type="text" class="ed-title" id="noteTitle" placeholder="Untitled note" maxlength="140">
 
+    <!-- the apparatus. On a wide page this becomes a real left margin beside the
+         writing column (see the container query in app.css); narrow, it stays a
+         quiet row above the writing. -->
     <div class="ed-meta">
       <label class="sel">
         <span>Subject</span>
@@ -143,7 +157,11 @@
         <button type="button" data-kind="personal" id="kindPersonal">Mine</button>
         <button type="button" data-kind="syllabus" id="kindSyllabus">Syllabus</button>
       </div>
-      <span class="stamp" id="noteStamp"></span>
+      <span class="stamp" id="noteStamp">
+        <span class="st-cr" id="stampCreated"></span>
+        <span class="st-ed" id="stampEdited"></span>
+      </span>
+      <span class="wc" id="wordCount">0 words</span>
     </div>
 
     <div class="toolbar" role="toolbar" aria-label="Formatting">
@@ -165,10 +183,18 @@
          aria-label="Note body"></div>
 
     <footer class="ed-foot">
-      <span id="wordCount">0 words</span>
       <span class="hint">Autosaves as you type · Ctrl+S to save now</span>
     </footer>
+   </div>
   </main>
+
+  <!-- Classwork / Review live here until they're built -->
+  <section class="stub" id="modeStub" hidden>
+    <span class="eyebrow">Not built yet</span>
+    <h2 id="stubTitle"></h2>
+    <p id="stubBody"></p>
+    <p class="stub-note">Notebook is where everything lives for now.</p>
+  </section>
 
   <div class="empty" id="emptyState">
     <svg class="glyph xl" viewBox="0 0 26 26" aria-hidden="true">
