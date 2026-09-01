@@ -1563,6 +1563,12 @@
       applyTheme(THEMES[(THEMES.indexOf(readTheme()) + 1) % THEMES.length]);
     });
 
+    // phone drawer
+    function closeNav() { $('app').classList.remove('nav-open'); }
+    $('menuBtn').addEventListener('click', function () { $('app').classList.toggle('nav-open'); });
+    $('railScrim').addEventListener('click', closeNav);
+    $('subjectList').addEventListener('click', closeNav);   // picking a subject closes it
+
     $('subjForm').addEventListener('submit', saveSubject);
     $('subjCancel').addEventListener('click', function () {
       $('subjDialog').close();

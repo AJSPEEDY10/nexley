@@ -433,20 +433,36 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
   .empty{display:none}
   :root{--gutter:clamp(20px,4vw,40px)}
 }
+/* menu button + drawer scrim — phone only */
+.menu-btn{display:none;position:fixed;top:9px;left:10px;z-index:44;
+  width:38px;height:38px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--card);color:var(--ink-2);font-size:1rem;line-height:1;cursor:pointer}
+.rail-scrim{display:none;position:fixed;inset:0;z-index:38;background:rgb(var(--shade)/.4)}
+
 @media (max-width:680px){
-  body{overflow:auto}
-  .app{grid-template-columns:1fr;height:auto;min-height:100dvh}
-  .rail{border-right:0;border-bottom:1px solid var(--rule);flex-direction:row;
-    flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px}
-  .rail-brand{padding:0}
-  .rail-search{flex:1;min-width:150px;order:3;width:100%}
-  .rail-nav{flex-direction:row;flex-wrap:wrap;max-height:none;order:4;width:100%;gap:6px}
-  .snav{width:auto}
-  .add-subject{order:5}
-  .rail-foot{order:6;width:100%;flex-direction:row;flex-wrap:wrap;gap:14px;border-top:0;padding-top:0}
-  .browser,.editor,.empty{grid-column:1;grid-row:auto}
-  .editor{min-height:78dvh}
+  .app{grid-template-columns:1fr;height:100dvh;overflow:hidden}
+  .menu-btn{display:block}
+  .app.nav-open .rail-scrim{display:block}
+
+  /* rail is a proper drawer — keeps its vertical layout, slides in */
+  .rail{position:fixed;top:0;left:0;bottom:0;width:min(280px,82vw);z-index:40;
+    border-right:1px solid var(--rule);
+    transform:translateX(-100%);transition:transform .22s ease;
+    will-change:transform}
+  .app.nav-open .rail{transform:none;box-shadow:0 0 60px -10px rgb(var(--shade)/.5)}
+
+  /* working area fills the screen, one view at a time */
+  .browser,.editor,.empty{grid-column:1;grid-row:1}
+  .browser,.editor{height:100dvh}
+  .browser-head{padding-left:56px}      /* clear the menu button */
+  .app.editing .browser{display:none}
+  .app.editing .menu-btn{display:none}  /* the page uses the back button, not the menu */
+  .app:not(.editing) .editor{display:none}
+  .ed-head{padding-left:16px;padding-right:16px}
   .ed-meta{gap:12px}
+  :root{--gutter:18px}
 }
+
+@media (prefers-reduced-motion:reduce){ .rail{transition:none} }
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
