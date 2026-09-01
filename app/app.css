@@ -33,24 +33,24 @@
 
   color-scheme:light dark;
 }
+/* --- night --- warm near-black. Desk dark, page a touch lit.
+   Applied when the OS is dark AND the reader hasn't forced light, or when the
+   reader has explicitly chosen dark via the rail toggle. */
 @media (prefers-color-scheme:dark){
-  :root{
-    /* --- night --- warm near-black. Desk dark, page a touch lit. */
-    --paper:#131510;      /* the working ground */
-    --surface:#1A1D15;    /* rail — a step up from the ground, not a void */
-    --card:#20231B;       /* the page: brightest, faint warmth */
-    --ink:#EAEBE1;
-    --ink-2:#C0C7BB;      /* readable secondary, not a whisper */
-    --muted:#89927F;
-    --rule:#333930;
-    --rule-soft:#2A2F27;
-    --structure:#8ECBAB;
-    --structure-soft:#243228;
-    --mark:#D9DB5C;
-    --mark-ink:#17180F;
-    --danger:#E48B65;
-    --shade:0 0 0;
+  :root:not([data-theme="light"]){
+    --paper:#131510; --surface:#1A1D15; --card:#20231B;
+    --ink:#EAEBE1; --ink-2:#C0C7BB; --muted:#89927F;
+    --rule:#333930; --rule-soft:#2A2F27;
+    --structure:#8ECBAB; --structure-soft:#243228;
+    --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
   }
+}
+:root[data-theme="dark"]{
+  --paper:#131510; --surface:#1A1D15; --card:#20231B;
+  --ink:#EAEBE1; --ink-2:#C0C7BB; --muted:#89927F;
+  --rule:#333930; --rule-soft:#2A2F27;
+  --structure:#8ECBAB; --structure-soft:#243228;
+  --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
 }
 
 *{box-sizing:border-box}

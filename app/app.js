@@ -1544,6 +1544,25 @@
       window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
     });
 
+    // day / night — cycles system -> light -> dark. 'system' clears the override
+    // and follows prefers-color-scheme.
+    var THEMES = ['system', 'light', 'dark'];
+    function readTheme() {
+      try { var t = localStorage.getItem('nexley-theme'); return THEMES.indexOf(t) > 0 ? t : 'system'; }
+      catch (e) { return 'system'; }
+    }
+    function applyTheme(t) {
+      if (t === 'system') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', t);
+      try { t === 'system' ? localStorage.removeItem('nexley-theme') : localStorage.setItem('nexley-theme', t); }
+      catch (e) {}
+      $('themeBtn').textContent = 'Theme: ' + t;
+    }
+    applyTheme(readTheme());
+    $('themeBtn').addEventListener('click', function () {
+      applyTheme(THEMES[(THEMES.indexOf(readTheme()) + 1) % THEMES.length]);
+    });
+
     $('subjForm').addEventListener('submit', saveSubject);
     $('subjCancel').addEventListener('click', function () {
       $('subjDialog').close();
