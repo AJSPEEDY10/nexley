@@ -294,6 +294,7 @@
      5 · gate
      ============================================================ */
   function showGate(mode) {
+    enteredUser = null;
     $('gate').hidden = false;
     $('app').hidden = true;
     var creating = mode === 'create';
@@ -310,40 +311,95 @@
     setTimeout(function () { (creating ? $('fName') : $('fEmail')).focus(); }, 60);
     $('gateForm').dataset.mode = creating ? 'create' : 'unlock';
   }
-  function gateError(msg) { var el = $('gateErr'); el.textContent = msg; el.hidden = false; $('gateBtn').disabled = false; }
+  function gateError(msg) {
+    var el = $('gateErr');
+    el.textContent = msg;
+    el.hidden = false;
+    gateBusy = false;
+    $('gateBtn').disabled = false;
+    // put the label back — otherwise a wrong password leaves it reading "Signing in…"
+    $('gateBtn').textContent = $('gateForm').dataset.mode === 'create' ? 'Create account' : 'Sign in';
+  }
+
+  /* Signing up fires BOTH the signUp promise and a SIGNED_IN event, and Google's
+     redirect fires the event on its own. All of them land here, so entering has to
+     be idempotent — otherwise a single sign-up ran the whole load twice, racing its
+     own seed. Reset in showGate on the way out. */
+  var enteredUser = null;
 
   function enterApp(user) {
+    if (enteredUser === user.id) return Promise.resolve();
+    enteredUser = user.id;
     state.account = { id: user.id, name: (user.user_metadata && user.user_metadata.name) || '', email: user.email };
     $('gate').hidden = true; $('app').hidden = false;
-    return refresh().then(function () { window.NexleySync.run(); });
+    return refresh()
+      .then(function () { return window.NexleySync.run(); })
+      .then(function (res) { return maybeSeed(res); })
+      .then(function (seeded) {
+        if (!seeded) return;
+        // push the welcome note up now rather than waiting for the 5-minute tick,
+        // so it's already there when they open the app on a second device
+        return refresh().then(function () { window.NexleySync.run(); });
+      });
   }
+
+  /* Seeding belongs here, not in the sign-up handler: a Google sign-up never goes
+     through that handler, so new Google accounts used to land in a completely empty
+     app. The test is "signed in, a full sync round trip completed, and there is still
+     nothing here" — waiting for the sync is what stops a returning user on a new
+     device getting a duplicate General/Welcome pair on top of their real notebook. */
+  function maybeSeed(sync) {
+    if (!sync || !sync.ok) return false;
+    // read the store, NOT state: the sync we just awaited wrote the pulled records
+    // straight into IndexedDB, and state is only rebuilt by refresh(). Checking state
+    // here sees the pre-pull emptiness and seeds a General/Welcome pair on top of a
+    // returning user's real notebook.
+    return Promise.all([all('subjects'), all('notes')]).then(function (r) {
+      if (live(r[0]).length || live(r[1]).length) return false;
+      return seed().then(function () { return true; });
+    });
+  }
+
+  // A disabled submit button stops the click path, but not every browser blocks
+  // implicit submission (Enter in a field) on it — and creating the same account
+  // twice is the one mistake here you cannot undo from the UI.
+  var gateBusy = false;
 
   function gateSubmit(e) {
     e.preventDefault();
+    if (gateBusy) return;
     var mode = $('gateForm').dataset.mode;
     var email = $('fEmail').value.trim();
     var pass = $('fPass').value;
     if (!email) return gateError('Enter your email.');
     if (pass.length < 6) return gateError('Password must be at least 6 characters.');
+    gateBusy = true;
     $('gateBtn').disabled = true;
+    $('gateBtn').textContent = mode === 'create' ? 'Creating account…' : 'Signing in…';
+
+    var done = function () { gateBusy = false; };
 
     if (mode === 'create') {
       var name = $('fName').value.trim();
-      if (!name) { $('gateBtn').disabled = false; return gateError('Enter a name.'); }
+      if (!name) { done(); return gateError('Enter a name.'); }
       window.NexleyAuth.signUpEmail(email, pass, name).then(function (data) {
+        done();
         if (!data.session) {
-          gateError('Check your email to confirm your account, then sign in.');
+          // showGate clears the error box, so it has to happen BEFORE the message —
+          // the other way round the user got a silently reset form and no reason why
           showGate('unlock');
+          gateError('Check your email to confirm your account, then sign in.');
           return;
         }
-        return seed().then(function () { return enterApp(data.user); });
-      }).catch(function (err) { gateError(err.message || 'Could not create account.'); });
+        return enterApp(data.user);
+      }).catch(function (err) { done(); gateError(err.message || 'Could not create account.'); });
       return;
     }
 
     window.NexleyAuth.signInEmail(email, pass).then(function (data) {
+      done();
       return enterApp(data.user);
-    }).catch(function (err) { gateError(err.message || 'Could not sign in.'); });
+    }).catch(function (err) { done(); gateError(err.message || 'Could not sign in.'); });
   }
 
   function seed() {
@@ -382,7 +438,7 @@
     }));
   }
 
-  function refresh() {
+  function refresh(opts) {
     return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
       return migrateColours(live(r[0])).then(function () { return r; });
     }).then(function (r) {
@@ -394,7 +450,9 @@
       renderSubjects();
       renderBrowser();
       renderTabs();
-      renderEditor();
+      // re-rendering the editor rewrites the note body and drops the caret, so a
+      // background repaint leaves an open note alone
+      if (!(opts && opts.keepEditor)) renderEditor();
     });
   }
 
@@ -1665,6 +1723,15 @@
         if (activeNoteObj()) saveNow().then(function () { toast('Saved.'); });
       }
       if ((e.ctrlKey || e.metaKey) && k === 'k') { e.preventDefault(); $('search').focus(); }
+    });
+
+    /* A pull used to write straight into IndexedDB and stop there, so signing in on a
+       second device showed an empty app until you happened to reload — which looks
+       exactly like your notes being gone. Repaint when a pull actually changed
+       something, but never on top of unsaved typing. */
+    window.addEventListener('nexley-sync-pulled', function () {
+      if (!state.account || state.dirty) return;
+      refresh({ keepEditor: !!state.activeNote });
     });
 
     // last line of defence — never lose the buffer on close or on backgrounding a tablet

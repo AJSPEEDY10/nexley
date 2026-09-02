@@ -17,7 +17,10 @@
 (function () {
   'use strict';
 
-  var LAST_PULL_KEY = 'lastPullAt';
+  // Per user: two accounts on one browser must not share a pull watermark, or the
+  // second one starts from the first one's timestamp and silently misses every row
+  // written before it.
+  function pullKey(userId) { return 'lastPullAt:' + userId; }
   var syncing = false;
   var pending = false;
 
@@ -98,34 +101,52 @@
         var incoming = mapFn(row);
         return window.NexleyDB.get(store, incoming.id).then(function (local) {
           // newest `updated` wins; a local edit made while offline beats a stale pull
-          if (local && local.updated >= incoming.updated) return null;
+          if (local && local.updated >= incoming.updated) return 0;
           incoming.pushedRev = incoming.rev; // just pulled, so it's already in sync
-          return window.NexleyDB.put(store, incoming);
+          return window.NexleyDB.put(store, incoming).then(function () { return 1; });
         });
-      }));
+      })).then(function (writes) {
+        return writes.reduce(function (a, b) { return a + b; }, 0);
+      });
     });
   }
 
+  /* Resolves with {ok, pulled}. `ok` says a full round trip actually completed —
+     app.js needs that to tell "brand new account, seed it" apart from "returning
+     user whose pull hasn't landed yet", which is the difference between a welcome
+     note and a duplicate of somebody's real notebook. `pulled` is the number of
+     records written from remote, so the UI knows whether it's worth repainting. */
   function runSync() {
-    if (syncing) { pending = true; return Promise.resolve(); }
-    if (!navigator.onLine) return Promise.resolve();
+    if (syncing) { pending = true; return Promise.resolve({ ok: false, pulled: 0 }); }
+    if (!navigator.onLine) return Promise.resolve({ ok: false, pulled: 0 });
     syncing = true;
+    var pulled = 0;
+    var ok = false;
     return window.NexleyAuth.getSession().then(function (session) {
       if (!session) return;
       var userId = session.user.id;
-      var since = localStorage.getItem(LAST_PULL_KEY);
+      var since = localStorage.getItem(pullKey(userId));
+      var count = function (n) { pulled += (n || 0); };
       return pushTable('subjects', toRemoteSubject, 'subjects', userId)
         .then(function () { return pushTable('syllabus', toRemoteSyllabus, 'syllabus', userId); })
         .then(function () { return pushTable('notes', toRemoteNote, 'notes', userId); })
-        .then(function () { return pullTable('subjects', fromRemoteSubject, 'subjects', userId, since); })
-        .then(function () { return pullTable('syllabus', fromRemoteSyllabus, 'syllabus', userId, since); })
-        .then(function () { return pullTable('notes', fromRemoteNote, 'notes', userId, since); })
-        .then(function () { localStorage.setItem(LAST_PULL_KEY, new Date().toISOString()); });
+        .then(function () { return pullTable('subjects', fromRemoteSubject, 'subjects', userId, since).then(count); })
+        .then(function () { return pullTable('syllabus', fromRemoteSyllabus, 'syllabus', userId, since).then(count); })
+        .then(function () { return pullTable('notes', fromRemoteNote, 'notes', userId, since).then(count); })
+        .then(function () {
+          localStorage.setItem(pullKey(userId), new Date().toISOString());
+          ok = true;
+        });
     }).catch(function (err) {
       console.warn('[sync] failed, will retry next trigger', err);
     }).then(function () {
       syncing = false;
+      // a pull that changed nothing on screen is not worth a repaint
+      if (pulled) {
+        window.dispatchEvent(new CustomEvent('nexley-sync-pulled', { detail: { pulled: pulled } }));
+      }
       if (pending) { pending = false; return runSync(); }
+      return { ok: ok, pulled: pulled };
     });
   }
 
