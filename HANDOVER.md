@@ -11,14 +11,11 @@
 
 ## 🔴 Do these first
 
-1. **Apply `supabase/migrations/0004_bug_reports.sql`** to prod (and dev) via the Supabase
-   SQL editor. Until it exists, crash reports and "Report a problem" submissions queue in
-   the user's browser and retry forever — nothing is stored, nothing breaks.
-   **Read the comment on the `bug_reports_insert_anon` policy before running it.** Keeping
-   it is what allows crashes *before* sign-in to be reported (sign-in screen, OAuth
-   redirect, intro — where new-user bugs live). The cost is an unauthenticated write path:
-   nobody can read the table either way, but someone could fill it with junk. Recommendation
-   is keep it, drop it if abused — deleting that one block is the whole change.
+1. ~~Apply migration 0004~~ **DONE 09-03.** Applied to **both** prod and dev, anon-insert
+   policy kept (Alec's call). Verified live: insert `201`, select/update/delete all `403`,
+   and reports sent from the deployed app land in the table.
+   **Two test rows are in prod**, both labelled "Safe to delete" — clear them with
+   `delete from public.bug_reports where note like '%Safe to delete%';`
 
 2. **Ask Alec what the Google error page actually said.** He hit one on 09-03. A regression
    was found and fixed (see below) that fits the symptom, but that is inference, not proof.
@@ -96,6 +93,16 @@ Eleven commits, all pushed and live. In order:
    with `String(window.NexleySync.run).indexOf('<new code>')` before trusting a result.
 7. **Never write `throw new Error('Could not save ' + note.title)`** — that defeats the
    error scrubber, which relies on quoted-span redaction.
+8. **RLS policies are not privileges.** A policy decides *which rows* a role may touch; it
+   does not grant permission to touch the table at all. That is a separate table-level
+   `GRANT`, and without it every write fails with `42501 permission denied for table …`
+   no matter how permissive the policy is. The original tables inherit Supabase's defaults
+   and never needed one, which is exactly why this is easy to miss on a new table. Postgres
+   names the fix in its own error hint — read it.
+9. **Never let a client silently discard a failed write.** `errors.js` used to treat `42501`
+   as an expected refusal and drop the batch, which made a misconfigured backend
+   indistinguishable from a working one — the queue drained, the UI said "sent", nothing
+   was stored. Discard only on a confirmed write.
 
 ---
 
