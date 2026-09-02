@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.6.1';
+  var APP_VERSION = '0.7.0';
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
@@ -188,6 +188,15 @@
   }
   var live = function (arr) { return arr.filter(function (r) { return !r.deleted; }); };
 
+  /* Analytics is off unless a key is configured (see analytics.js). Wrapped so call
+     sites never have to care whether it loaded, and so nothing here can throw into
+     a save path. Only the event names in analytics.js ALLOWED are accepted, and note
+     content can't travel through it — read that file before adding a call. */
+  function track(name, props) {
+    try { if (window.NexleyAnalytics) window.NexleyAnalytics.track(name, props); }
+    catch (e) {}
+  }
+
   /* ============================================================
      2 · backups
      ============================================================ */
@@ -330,7 +339,8 @@
     $('introSkip').textContent = last ? '' : 'Skip';
     $('introSkip').hidden = last;
   }
-  function endIntro() {
+  function endIntro(how) {
+    track('intro_finished', { how: how === 'skipped' ? 'skipped' : 'completed' });
     markIntroSeen();
     document.documentElement.classList.remove('pre-intro');
     $('intro').hidden = true;
@@ -386,6 +396,7 @@
       .then(function () { return window.NexleySync.run(); })
       .then(function (res) { return maybeSeed(res); })
       .then(function (seeded) {
+        track('app_opened');
         if (!seeded) return;
         // push the welcome note up now rather than waiting for the 5-minute tick,
         // so it's already there when they open the app on a second device
@@ -1119,6 +1130,7 @@
       $('search').value = '';
       openNote(n.id);
       renderSubjects();
+      track('note_created', { filed: node ? 'syllabus' : 'unfiled' });
     });
   }
 
@@ -1434,7 +1446,10 @@
     snapshot('before-syllabus-import')
       .then(function () { return Promise.all(jobs); })
       .then(function () { $('sylDialog').close(); return refresh(); })
-      .then(function () { toast('Added ' + parsed.length + ' topics and ' + points + ' dot points.'); });
+      .then(function () {
+        toast('Added ' + parsed.length + ' topics and ' + points + ' dot points.');
+        track('syllabus_imported', { nodes: parsed.length + points });
+      });
   }
 
   /* ============================================================
@@ -1741,15 +1756,18 @@
     }
     $('modeSwitch').addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('.mode') : null;
-      if (b) setMode(b.getAttribute('data-mode'));
+      if (!b) return;
+      var m = b.getAttribute('data-mode');
+      setMode(m);
+      track('mode_switched', { mode: m });
     });
 
     $('introNext').addEventListener('click', function () {
       var n = document.querySelectorAll('.ipanel').length;
       if (introPanel < n - 1) { introPanel++; paintIntro(); return; }
-      endIntro();
+      endIntro('completed');
     });
-    $('introSkip').addEventListener('click', endIntro);
+    $('introSkip').addEventListener('click', function () { endIntro('skipped'); });
 
     $('subjForm').addEventListener('submit', saveSubject);
     $('subjCancel').addEventListener('click', function () {
@@ -1774,7 +1792,9 @@
     });
 
     document.addEventListener('keydown', function (e) {
-      var k = e.key.toLowerCase();
+      // e.key is absent on synthetic events and on some IME/composition keydowns;
+      // without this the global handler throws on those keystrokes
+      var k = (e.key || '').toLowerCase();
       if ((e.ctrlKey || e.metaKey) && k === 's') {
         e.preventDefault();
         if (activeNoteObj()) saveNow().then(function () { toast('Saved.'); });

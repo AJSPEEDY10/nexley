@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v10';
+var CACHE = 'nexley-v11';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -32,6 +32,7 @@ var SHELL = [
   // serves index.html instead of the page that was asked for
   './about.html',
   './config.js',
+  './analytics.js',
   './auth.js',
   './sync.js',
   './app.js',
