@@ -69,6 +69,8 @@ try{
   .top{display:flex;align-items:center;gap:10px;padding:26px 0 0}
   .top b{font-family:var(--display);font-weight:400;font-size:1.15rem}
   .top .spacer{flex:1}
+  .signin{font-size:.8125rem;color:var(--ink-2);text-decoration:none;padding:8px 4px}
+  .signin:hover{color:var(--structure);text-decoration:underline}
 
   .hero{padding:clamp(48px,10vw,96px) 0 clamp(32px,6vw,56px)}
   .hero h1{font-family:var(--display);font-weight:400;
@@ -116,6 +118,9 @@ try{
     </svg>
     <b>Nexley</b>
     <span class="spacer"></span>
+    <!-- returning users need an obvious way in. "Open Nexley" is the marketing CTA and
+         reads as "look at the product", not "log in to my account". -->
+    <a class="signin" href="app.html">Sign in</a>
     <a class="btn" href="app.html">Open Nexley</a>
   </header>
 
@@ -127,6 +132,7 @@ try{
       invisible.</p>
     <div class="cta">
       <a class="btn primary" href="app.html">Open Nexley</a>
+      <a class="signin" href="app.html">Already have an account? Sign in</a>
       <span class="note">Free · works offline · no app store</span>
     </div>
   </section>
