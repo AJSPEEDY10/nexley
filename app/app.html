@@ -144,7 +144,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
 
     <p class="gate-switch"><a href="#" id="gateSwitch">Already have an account? Sign in</a></p>
     <p class="gate-foot">Your notes stay on this device and sync to your account</p>
+    <!-- reporting has to be reachable from here too: someone who can't get past
+         sign-in is exactly who most needs to tell us, and they can't reach the rail -->
     <p class="gate-foot"><a href="index.html?from=app">What is Nexley?</a> ·
+      <a href="#" id="bugBtnGate">Report a problem</a> ·
       <a href="legal.html" target="_blank" rel="noopener">Privacy &amp; Terms</a></p>
   </div>
 </div>
@@ -186,6 +189,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
       <button class="linkbtn" id="importBtn" type="button">Import</button>
+      <button class="linkbtn" id="bugBtn" type="button">Report a problem</button>
       <button class="linkbtn" id="lockBtn" type="button">Lock</button>
       <button class="linkbtn" id="themeBtn" type="button" title="Day / night">Theme: system</button>
       <input type="file" id="importFile" accept="application/json" hidden>
@@ -369,6 +373,29 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
+<!-- ============ REPORT A PROBLEM ============ -->
+<dialog id="bugDialog">
+  <div class="dlgbody">
+    <h3>Report a problem</h3>
+    <p class="dlgnote">What went wrong? Rough is fine — what you were doing and what
+      happened is more useful than being precise.</p>
+    <textarea id="bugText" class="paste" style="min-height:130px"
+      placeholder="I tapped a note in the list and the page went blank…"></textarea>
+
+    <!-- shown, not hidden: people should be able to see exactly what they're sending -->
+    <p class="dlgnote">Sent with your report, so it can be traced:</p>
+    <div class="diag" id="bugDiag"></div>
+    <p class="dlgnote"><b>None of your notes are included</b> — not their content, titles
+      or subjects.</p>
+
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="bugCancel">Cancel</button>
+      <button type="button" class="btn primary" id="bugSend">Send report</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- ============ SNAPSHOTS ============ -->
 <dialog id="snapDialog">
   <div class="dlgbody">
@@ -389,6 +416,9 @@ Module 2: Body systems and movement
 <!-- inert unless a PostHog key is set in config.js — read the header of this file
      before enabling it, the privacy policy has to change in the same commit -->
 <script src="analytics.js"></script>
+<!-- before auth.js and app.js on purpose: it has to be listening early enough to
+     catch a crash during boot, which is when the worst ones happen -->
+<script src="errors.js"></script>
 <script src="auth.js"></script>
 <script src="sync.js"></script>
 <script src="app.js"></script>

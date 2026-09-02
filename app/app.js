@@ -17,7 +17,9 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.8.0';
+  var APP_VERSION = '0.9.0';
+  // errors.js loads before this and stamps crash reports with it
+  window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
@@ -1453,6 +1455,50 @@
   }
 
   /* ============================================================
+     12b · report a problem
+     ============================================================ */
+  function openBugDialog() {
+    var d = (window.NexleyErrors && window.NexleyErrors.diagnostics()) || {};
+    var box = $('bugDiag');
+    box.textContent = '';
+    // rendered as text, one line per field — the reporter can read exactly what goes
+    [['Version', d.app_version], ['Screen', d.view], ['Page', d.page],
+     ['Window', d.viewport], ['Installed', d.standalone ? 'yes' : 'no'],
+     ['Online', d.online ? 'yes' : 'no'], ['Browser', d.user_agent]
+    ].forEach(function (pair) {
+      if (!pair[1]) return;
+      var row = document.createElement('div');
+      var k = document.createElement('b');
+      k.textContent = pair[0] + ': ';
+      row.appendChild(k);
+      row.appendChild(document.createTextNode(String(pair[1])));
+      box.appendChild(row);
+    });
+    $('bugText').value = '';
+    $('bugSend').disabled = false;
+    $('bugSend').textContent = 'Send report';
+    $('bugDialog').showModal();
+    setTimeout(function () { $('bugText').focus(); }, 60);
+  }
+
+  function sendBugReport() {
+    var text = $('bugText').value.trim();
+    if (!text) { $('bugText').focus(); return; }
+    $('bugSend').disabled = true;
+    $('bugSend').textContent = 'Sending…';
+    var done = function () {
+      $('bugDialog').close();
+      // honest either way: if it couldn't send now it is queued and retried, so
+      // "sent" would be a lie and "failed" would be wrong too
+      var queued = window.NexleyErrors && window.NexleyErrors.pending();
+      // don't say "offline": it may also be queued because the server refused it
+      toast(queued ? 'Saved — it will send as soon as it can.' : 'Thanks — report sent.');
+    };
+    if (!window.NexleyErrors) return done();
+    window.NexleyErrors.report(text).then(done, done);
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -1689,6 +1735,11 @@
     });
     $('snapBtn').addEventListener('click', openSnapshots);
     $('snapClose').addEventListener('click', function () { $('snapDialog').close(); });
+
+    $('bugBtn').addEventListener('click', openBugDialog);
+    $('bugBtnGate').addEventListener('click', function (e) { e.preventDefault(); openBugDialog(); });
+    $('bugCancel').addEventListener('click', function () { $('bugDialog').close(); });
+    $('bugSend').addEventListener('click', sendBugReport);
 
     $('lockBtn').addEventListener('click', function () {
       if (state.dirty) saveNow();

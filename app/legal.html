@@ -48,7 +48,21 @@ any formal company registration. Contact: <a href="mailto:alecjordaan12@gmail.co
   <li>Your password — this is hashed by our authentication provider (Supabase); we never see or store it in plain text.</li>
   <li>If you sign in with Google, we receive your name, email address and Google account ID from Google.</li>
   <li>The study content you create: subjects, syllabus structure, and notes.</li>
+  <li>Problem reports — see below.</li>
 </ul>
+
+<h3>Problem reports</h3>
+<p>When the app hits an error, it sends us a report so the fault can be found and fixed.
+It contains the error message and the internal stack trace, which page and screen you were
+on, your app version, browser, window size, and whether you were online. If you use
+<b>Report a problem</b>, it also includes whatever you type in that box — and the same
+technical details are shown to you on screen before you send, so you can see exactly what
+is attached.</p>
+<p><b>Your notes are never included</b> — not their content, their titles, or your subject
+names. Error text is filtered before it is sent: email addresses, access tokens and any
+quoted phrase long enough to be your own writing are replaced with a placeholder. Reports
+are stored write-only: nobody can read them back through the app, and they are used only
+to fix faults.</p>
 
 <h3>How it's stored and protected</h3>
 <p>Your data is stored in a managed Postgres database (Supabase, hosted in Tokyo, Japan) protected

@@ -512,6 +512,13 @@ a{color:var(--structure)}
   background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:7px;
   font-size:.8125rem;z-index:80;box-shadow:0 14px 36px -18px rgb(var(--shade)/.6)}
 
+/* the diagnostics attached to a bug report — shown to the reporter, never hidden */
+.diag{font-family:var(--code);font-size:.625rem;line-height:1.7;color:var(--muted);
+  background:var(--paper);border:1px solid var(--rule-soft);border-radius:7px;
+  padding:11px 12px;display:flex;flex-direction:column;gap:2px;
+  max-height:132px;overflow-y:auto;word-break:break-word}
+.diag b{color:var(--ink-2);font-weight:400}
+
 /* snapshots */
 .dlgbody{padding:26px;display:flex;flex-direction:column;gap:14px}
 .dlgnote{font-size:.8125rem;color:var(--muted);line-height:1.6}
