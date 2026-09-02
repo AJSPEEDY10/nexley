@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.7.0';
+  var APP_VERSION = '0.8.0';
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;

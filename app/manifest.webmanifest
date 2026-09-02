@@ -2,7 +2,7 @@
   "name": "Nexley",
   "short_name": "Nexley",
   "description": "A study notebook that files your notes against the actual syllabus, so you can see what you've covered and what you haven't. Works offline.",
-  "start_url": "./index.html",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

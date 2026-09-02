@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- user-scalable=no: this is a pen/touch writing surface — pinch-zoom fights the canvas
+     and double-tap-to-zoom adds a 300ms delay to every tap. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1E4D3E">
+<title>Nexley — a syllabus study notebook</title>
+<meta name="description" content="Nexley is a study notebook that files your notes against the actual syllabus, so you can see what you've covered and what you haven't. Works offline.">
+
+<!-- Link previews. Absolute URLs are required here, so these are pinned to the current
+     Pages address — they need updating if Nexley ever moves to its own domain. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Nexley">
+<meta property="og:title" content="Nexley — a syllabus study notebook">
+<meta property="og:description" content="File your notes against the actual syllabus dot point, see the gaps in your own coverage, and write with no signal.">
+<meta property="og:url" content="https://ajspeedy10.github.io/nexley/">
+<meta property="og:image" content="https://ajspeedy10.github.io/nexley/icon-512.png">
+<meta name="twitter:card" content="summary">
+
+<link rel="manifest" href="manifest.webmanifest">
+
+<!-- iPad: added to the Home Screen from Safari. iOS ignores the manifest for this and
+     needs its own tags plus a PNG touch icon. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Nexley">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<script>
+/* Runs before first paint. Theme: avoids a flash of the wrong palette. pre-intro: the
+   gate markup is visible by default (so a JS failure still shows a sign-in), which
+   meant a first-time visitor saw "Create your account" flash before the intro. If
+   storage is unreadable we set nothing, matching introSeen()'s fail-closed default. */
+try{var t=localStorage.getItem('nexley-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}
+try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.classList.add('pre-intro');}catch(e){}
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ============ WHAT THIS IS ============
+     Shown once, before the sign-in screen, to anyone who has never been here. A cold
+     visitor previously landed on "Create your account" with no idea what they were
+     creating an account for. Skippable, and never shown again once dismissed. -->
+<div id="intro" class="intro" hidden>
+  <div class="intro-card">
+    <div class="intro-top">
+      <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+        <circle cx="13" cy="13" r="11"></circle>
+      </svg>
+      <b>Nexley</b>
+      <button type="button" class="linkbtn intro-skip" id="introSkip">Skip</button>
+    </div>
+
+    <div class="intro-panels">
+      <!-- 1 · the idea -->
+      <section class="ipanel on" data-panel="0">
+        <span class="eyebrow">A study notebook</span>
+        <h2>Your notes belong to the syllabus.</h2>
+        <p>Not a folder called “Term 3”. Every note files against the actual dot point
+          it answers, so a year of work stays findable.</p>
+        <div class="idemo">
+          <div class="idemo-row"><span class="idemo-code">HM-11-04</span>
+            <span class="idemo-name">Skeletal and muscular systems</span>
+            <i class="pip has"></i></div>
+          <div class="idemo-row"><span class="idemo-code">HM-11-05</span>
+            <span class="idemo-name">Energy systems</span>
+            <i class="pip has"></i></div>
+          <div class="idemo-row"><span class="idemo-code">HM-11-06</span>
+            <span class="idemo-name">Biomechanics</span>
+            <i class="pip"></i></div>
+        </div>
+      </section>
+
+      <!-- 2 · why that matters -->
+      <section class="ipanel" data-panel="1">
+        <span class="eyebrow">Coverage</span>
+        <h2>See what you haven’t written up yet.</h2>
+        <p>Because notes are filed against the syllabus, the gaps are visible. That is
+          the whole point — revision aimed at what you’re missing, not the whole course.</p>
+        <div class="idemo">
+          <div class="coverage" style="border:0;padding:0;background:none">
+            <div class="cov-track"><i style="width:64%"></i></div>
+            <span class="cov-label">16 of 25 written up</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 · the practical promise -->
+      <section class="ipanel" data-panel="2">
+        <span class="eyebrow">Offline first</span>
+        <h2>Works with no signal.</h2>
+        <p>Everything is written to your device first and syncs to your account when
+          there’s a connection. School Wi-Fi dropping out is not your problem.</p>
+        <div class="idemo idemo-quiet">
+          <p>Add it to your home screen and it opens like an app.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="intro-foot">
+      <div class="dots" id="introDots" aria-hidden="true"></div>
+      <span style="flex:1"></span>
+      <button type="button" class="btn primary" id="introNext">Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SIGN IN ============ -->
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <svg class="glyph lg" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+      <circle cx="13" cy="13" r="11"></circle>
+    </svg>
+    <h1>Nexley</h1>
+    <p class="gate-sub" id="gateSub">Create your account. Your notes sync to it and work offline in between.</p>
+
+    <button type="button" class="btn" id="googleBtn" style="width:100%;margin-bottom:14px">Continue with Google</button>
+    <p class="gate-or">or</p>
+
+    <form id="gateForm" autocomplete="off">
+      <label class="field" id="nameField">
+        <span>Your name</span>
+        <input type="text" id="fName" maxlength="40" placeholder="Alec" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="fEmail" maxlength="120" placeholder="you@example.com" autocomplete="email">
+      </label>
+      <label class="field">
+        <span id="passLabel">Password</span>
+        <input type="password" id="fPass" maxlength="64" placeholder="at least 6 characters" autocomplete="new-password">
+      </label>
+      <p class="gate-err" id="gateErr" hidden></p>
+      <button type="submit" class="btn primary" id="gateBtn">Create account</button>
+    </form>
+
+    <p class="gate-switch"><a href="#" id="gateSwitch">Already have an account? Sign in</a></p>
+    <p class="gate-foot">Your notes stay on this device and sync to your account</p>
+    <p class="gate-foot"><a href="index.html?from=app">What is Nexley?</a> ·
+      <a href="legal.html" target="_blank" rel="noopener">Privacy &amp; Terms</a></p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="app" hidden>
+
+  <!-- phone: opens the rail as a drawer -->
+  <button id="menuBtn" class="menu-btn" type="button" aria-label="Menu">☰</button>
+  <div id="railScrim" class="rail-scrim" hidden></div>
+
+  <aside class="rail">
+    <div class="rail-brand">
+      <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+        <circle cx="13" cy="13" r="11"></circle>
+      </svg>
+      <b>Nexley</b>
+      <span class="phase" id="appVersion">v…</span>
+    </div>
+
+    <!-- the three ways of working. Classwork + Review are stubs for now, but the nav
+         model has to hold them or we restructure it twice. -->
+    <div class="modes" id="modeSwitch">
+      <button type="button" class="mode on" data-mode="notebook">Notebook</button>
+      <button type="button" class="mode" data-mode="classwork">Classwork</button>
+      <button type="button" class="mode" data-mode="review">Review</button>
+    </div>
+
+    <div class="rail-search">
+      <input type="search" id="search" placeholder="Search notes…" autocomplete="off">
+    </div>
+
+    <nav class="rail-nav" id="subjectList" aria-label="Subjects"></nav>
+
+    <button class="add-subject" id="addSubject" type="button">+ Add subject</button>
+
+    <div class="rail-foot">
+      <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
+      <button class="linkbtn" id="exportBtn" type="button">Export all</button>
+      <button class="linkbtn" id="importBtn" type="button">Import</button>
+      <button class="linkbtn" id="lockBtn" type="button">Lock</button>
+      <button class="linkbtn" id="themeBtn" type="button" title="Day / night">Theme: system</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
+  </aside>
+
+  <!-- middle column: syllabus tree for a subject, or a flat list for search / all notes -->
+  <section class="browser">
+    <header class="browser-head">
+      <div class="bh-text">
+        <span class="eyebrow" id="listContext">Everything</span>
+        <h2 id="listTitle">All notes</h2>
+      </div>
+      <div class="bh-actions">
+        <button class="iconbtn ghost" id="syllabusBtn" type="button" title="Edit this subject's syllabus">Syllabus</button>
+        <button class="btn" id="newNote" type="button">New note</button>
+      </div>
+    </header>
+
+    <div class="coverage" id="coverage" hidden>
+      <div class="cov-track"><i id="covFill"></i></div>
+      <span class="cov-label" id="covLabel"></span>
+    </div>
+
+    <div class="browser-body" id="browserBody"></div>
+  </section>
+
+  <main class="editor" id="editor" hidden>
+   <!-- .editor is the size container; .ed-page is what the container query restyles.
+        (An element can't respond to its own container query, hence the wrapper.) -->
+   <div class="ed-page">
+    <div class="tabs" id="tabStrip" hidden></div>
+
+    <header class="ed-head">
+      <button class="backbtn" id="backBtn" type="button" title="Back to notes">‹ Notes</button>
+      <div class="crumb" id="crumb"></div>
+      <div class="ed-actions">
+        <span class="saved" id="savedState">Saved</span>
+        <button class="iconbtn" id="deleteNote" type="button" title="Delete note">Delete</button>
+      </div>
+    </header>
+
+    <input type="text" class="ed-title" id="noteTitle" placeholder="Untitled note" maxlength="140">
+
+    <!-- the apparatus. On a wide page this becomes a real left margin beside the
+         writing column (see the container query in app.css); narrow, it stays a
+         quiet row above the writing. -->
+    <div class="ed-meta">
+      <label class="sel">
+        <span>Subject</span>
+        <select id="noteSubject"></select>
+      </label>
+      <label class="sel">
+        <span>Syllabus</span>
+        <select id="noteSyllabus"></select>
+      </label>
+      <div class="kindtoggle" role="group" aria-label="Note kind">
+        <button type="button" data-kind="personal" id="kindPersonal">Mine</button>
+        <button type="button" data-kind="syllabus" id="kindSyllabus">Syllabus</button>
+      </div>
+      <span class="stamp" id="noteStamp">
+        <span class="st-cr" id="stampCreated"></span>
+        <span class="st-ed" id="stampEdited"></span>
+      </span>
+      <span class="wc" id="wordCount">0 words</span>
+    </div>
+
+    <div class="toolbar" role="toolbar" aria-label="Formatting">
+      <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button type="button" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+      <span class="tsep"></span>
+      <button type="button" data-block="h3" title="Heading">H</button>
+      <button type="button" data-cmd="insertUnorderedList" title="Bullet list">•</button>
+      <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+      <span class="tsep"></span>
+      <button type="button" data-mark="1" title="Highlight">Highlight</button>
+      <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+      <span class="tsep"></span>
+      <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
+    </div>
+
+    <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
+         aria-label="Note body"></div>
+
+    <footer class="ed-foot">
+      <span class="hint">Autosaves as you type · Ctrl+S to save now</span>
+    </footer>
+   </div>
+  </main>
+
+  <!-- Classwork / Review live here until they're built -->
+  <section class="stub" id="modeStub" hidden>
+    <span class="eyebrow">Not built yet</span>
+    <h2 id="stubTitle"></h2>
+    <p id="stubBody"></p>
+    <p class="stub-note">Notebook is where everything lives for now.</p>
+  </section>
+
+  <div class="empty" id="emptyState">
+    <svg class="glyph xl" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+      <circle cx="13" cy="13" r="11"></circle>
+    </svg>
+    <h3>Pick a note, or start a new one</h3>
+    <p>Notes filed against syllabus areas. Add a syllabus to a subject and every note has
+      somewhere to belong.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<!-- Updates apply silently: a new deployment self-activates and the page reloads
+     once (see setupUpdates in app.js). Notes live in IndexedDB and survive it. -->
+
+<!-- ============ SUBJECT ============ -->
+<dialog id="subjDialog">
+  <form method="dialog" id="subjForm">
+    <h3 id="subjHeading">Add subject</h3>
+    <label class="field">
+      <span>Subject name</span>
+      <input type="text" id="subjName" maxlength="60" placeholder="Health &amp; Movement Science" required>
+    </label>
+    <label class="field">
+      <span>Short code <em>(optional)</em></span>
+      <input type="text" id="subjCode" maxlength="8" placeholder="HMS">
+    </label>
+    <div class="field">
+      <span>Colour</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="subjDelete" hidden>Delete subject</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="subjCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ SYLLABUS NODE ============ -->
+<dialog id="nodeDialog">
+  <form method="dialog" id="nodeForm">
+    <h3 id="nodeHeading">Add topic</h3>
+    <label class="field">
+      <span>Code <em>(optional)</em></span>
+      <input type="text" id="nodeCode" maxlength="20" placeholder="HM-11-05">
+    </label>
+    <label class="field">
+      <span id="nodeTitleLabel">Title</span>
+      <input type="text" id="nodeTitle" maxlength="200" placeholder="Energy systems" required>
+    </label>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="nodeDelete" hidden>Delete</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="nodeCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ SYLLABUS IMPORT ============ -->
+<dialog id="sylDialog">
+  <div class="dlgbody">
+    <h3>Syllabus — <span id="sylSubject"></span></h3>
+    <p class="dlgnote">Paste the structure. <b>Topics at the left margin, dot points
+      indented</b> beneath them. A leading code is picked up automatically.</p>
+    <textarea id="sylPaste" class="paste" spellcheck="false" placeholder="Module 1: Health for individuals and communities
+  HM-11-01 Meanings of health
+  HM-11-02 Determinants of health
+Module 2: Body systems and movement
+  HM-11-04 Skeletal and muscular systems
+  HM-11-05 Energy systems"></textarea>
+    <p class="dlgnote" id="sylPreview"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="sylAddTopic">+ Topic by hand</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="sylClose">Close</button>
+      <button type="button" class="btn primary" id="sylImport">Add to syllabus</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SNAPSHOTS ============ -->
+<dialog id="snapDialog">
+  <div class="dlgbody">
+    <h3>Snapshots</h3>
+    <p class="dlgnote">Taken automatically about once a day, and always before an import,
+      a restore or an update. Restoring takes a snapshot of right now first, so it is
+      reversible.</p>
+    <div class="snaplist" id="snapList"></div>
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="snapClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<!-- inert unless a PostHog key is set in config.js — read the header of this file
+     before enabling it, the privacy policy has to change in the same commit -->
+<script src="analytics.js"></script>
+<script src="auth.js"></script>
+<script src="sync.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

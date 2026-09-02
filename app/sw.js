@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v11';
+var CACHE = 'nexley-v12';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -25,12 +25,12 @@ var NET_TIMEOUT = 3000;
    itself, including the sign-in screen for an already-authenticated session, must load. */
 var SHELL = [
   './',
-  './index.html',
+  './app.html',
   './app.css',
   './legal.html',
   // real pages, not just the app: without these the navigate fallback below silently
   // serves index.html instead of the page that was asked for
-  './about.html',
+  './index.html',
   './config.js',
   './analytics.js',
   './auth.js',
@@ -123,7 +123,7 @@ self.addEventListener('fetch', function (e) {
       return caches.match(req).then(function (hit) {
         if (hit) return hit;
         // a navigation with nothing cached for that exact URL still gets the app
-        if (req.mode === 'navigate') return caches.match('./index.html');
+        if (req.mode === 'navigate') return caches.match('./app.html');
         return new Response('Offline and not cached.', {
           status: 504,
           headers: { 'Content-Type': 'text/plain' }
