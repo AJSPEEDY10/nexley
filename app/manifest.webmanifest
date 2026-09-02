@@ -1,12 +1,12 @@
 {
   "name": "Nexley",
   "short_name": "Nexley",
-  "description": "Syllabus-aligned notebook for tablets and pen-capable computers.",
+  "description": "A study notebook that files your notes against the actual syllabus, so you can see what you've covered and what you haven't. Works offline.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#E9EAE4",
+  "background_color": "#EBEDE7",
   "theme_color": "#1E4D3E",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
