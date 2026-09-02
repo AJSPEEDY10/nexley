@@ -5,6 +5,26 @@
    brightest. Grounded in the real materials of study: syllabus documents,
    ruled paper, highlighters, revision guides. */
 
+/* Newsreader — the display voice. Self-hosted and precached in sw.js so headings
+   look the same on a Windows laptop, an iPad and an Android phone, and still look
+   right with no network. One weight (400), variable optical size 6–72, so a big
+   title and a small one are drawn with the contrast each size wants.
+   SIL Open Font Licence 1.1 — see fonts/OFL.txt. */
+@font-face{
+  font-family:Newsreader;font-style:normal;font-weight:400;font-display:swap;
+  src:url(fonts/newsreader-latin.woff2) format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,
+    U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,
+    U+FEFF,U+FFFD;
+}
+@font-face{
+  font-family:Newsreader;font-style:normal;font-weight:400;font-display:swap;
+  src:url(fonts/newsreader-latin-ext.woff2) format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,
+    U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,
+    U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
 :root{
   /* --- day --- */
   --paper:#EBEDE7;      /* desk / working ground */
@@ -22,7 +42,10 @@
   --danger:#A03A22;
   --shade:22 33 27;     /* rgb for shadows */
 
-  --display:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua","Times New Roman",serif;
+  /* display = the app's voice (titles, headings). text = the writing surface, left on
+     the system serif deliberately: it is the face you stare at for an hour, it costs
+     nothing, and Iowan/Palatino are excellent at it. */
+  --display:Newsreader,"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua","Times New Roman",serif;
   --text:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
   --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
   --code:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
@@ -342,25 +365,37 @@ a{color:var(--structure)}
 .toolbar button.on{background:var(--structure-soft);color:var(--ink)}
 .tsep{width:1px;height:16px;background:var(--rule);margin:0 6px}
 
-/* the writing column — a fixed measure of feint-ruled paper */
+/* the writing column — a fixed measure of feint-ruled paper.
+   --line is the single source of truth for the pitch: the text sits on it, the ruling
+   is drawn at it, and headings are measured in it. Anything that changes the writing
+   font size must set --line with it (see .font-hand and the coarse-pointer block) or
+   the words drift off the lines. Deliberately NOT written with `em` — a custom property
+   resolves its units against the element that USES it, so `1em` inside --line would
+   mean the heading's font size, not the body's. */
 .ed-body{flex:1;overflow-y:auto;padding:14px var(--gutter) 40vh;
-  font-family:var(--text);font-size:1.0625rem;line-height:var(--leading);
+  font-family:var(--text);font-size:1.0625rem;
+  --line:calc(var(--leading) * 1.0625rem);line-height:var(--line);
   color:var(--ink);outline:none;max-width:calc(var(--measure) + 2 * var(--gutter));
   /* feint ruling — a hairline under each text line, barely there */
   background-image:repeating-linear-gradient(to bottom,
-    transparent 0, transparent calc(var(--leading) * 1em - 1px),
-    var(--rule-soft) calc(var(--leading) * 1em - 1px), var(--rule-soft) calc(var(--leading) * 1em));
+    transparent 0, transparent calc(var(--line) - 1px),
+    var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line));
   background-position:0 calc(14px + .4em);
   background-attachment:local}
 .ed-body:empty{background-image:none}
 .ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
+/* a heading has to occupy a whole number of ruled lines or the paper stops lining up
+   under it. One line for itself, one line of space above — expressed in the BODY's
+   line unit, not the heading's own em, which is bigger and would drift. */
 .ed-body h3{font-family:var(--display);font-weight:400;font-size:1.3rem;
-  margin:calc(var(--leading) * 1em) 0 .2em;line-height:var(--leading)}
+  line-height:var(--line);margin:var(--line) 0 0}
 .ed-body ul,.ed-body ol{padding-left:26px;margin:0}
 .ed-body li{margin:0}
 .ed-body mark{background:var(--mark);color:var(--mark-ink);padding:0 .1em}
+/* the handwriting face wants more air — move the ruled pitch with it, not just the
+   line-height, or the writing sits between the lines instead of on them */
 .ed-body.font-hand{font-family:"Segoe Script","Bradley Hand","Brush Script MT",cursive;
-  font-size:1.15rem;line-height:1.85}
+  font-size:1.15rem;--line:calc(1.85 * 1.15rem)}
 .ed-body.font-serif{font-family:var(--text)}
 
 .ed-foot{display:flex;justify-content:space-between;gap:14px;padding:10px var(--gutter);
@@ -476,8 +511,14 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
   .rail-brand .phase{display:none}
   .paste{font-size:16px}
   /* iOS zooms the page when a focused field is under 16px */
-  .field input,.rail-search input,.sel select,.ed-title,.ed-body{font-size:16px}
-  .ed-body{line-height:1.9}
+  /* .ed-title is NOT in this list: it is an input, but its clamp already puts it well
+     above 16px, and forcing 16px here shrank the note title to nothing on the exact
+     devices this app is for. */
+  .field input,.rail-search input,.sel select,.ed-body{font-size:16px}
+  /* iPads are the real target, so this is the case that has to line up: move the
+     ruled pitch with the bigger touch text, don't just loosen line-height */
+  .ed-body{--line:calc(1.9 * 16px)}
+  .ed-body.font-hand{--line:calc(1.9 * 1.15rem)}
 }
 
 /* iPad safe areas */

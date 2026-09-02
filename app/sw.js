@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v7';
+var CACHE = 'nexley-v8';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -38,6 +38,10 @@ var SHELL = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
+  // the display face — precached so headings don't fall back to a system serif
+  // on the first offline launch
+  './fonts/newsreader-latin.woff2',
+  './fonts/newsreader-latin-ext.woff2',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
 ];
 
@@ -102,6 +106,13 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   if (new URL(req.url).origin !== self.location.origin) return;
+
+  // fonts never change under a given filename — go to cache first so a cold start
+  // never waits on the network (or the 3s timeout) before the display face appears
+  if (/\/fonts\/.+\.woff2$/.test(new URL(req.url).pathname)) {
+    e.respondWith(caches.match(req).then(function (hit) { return hit || fromNetwork(req); }));
+    return;
+  }
 
   e.respondWith(
     fromNetwork(req).catch(function () {

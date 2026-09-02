@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.5.0';
+  var APP_VERSION = '0.5.1';
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
@@ -263,7 +263,19 @@
     toastTimer = setTimeout(function () { t.hidden = true; }, 3000);
   }
 
-  var COLOURS = ['#1E4D3E', '#2E6F8E', '#8A5A2B', '#7A3B5C', '#4A6B2F', '#A8721B', '#3F4C8A', '#A8391F'];
+  /* Subject colours. These are mid-tone on purpose: a subject shows up as a 7px dot,
+     and the old palette was dark enough to vanish against the near-black rail in dark
+     mode. Everything here reads on both the blue-grey paper and the warm near-black.
+     Muted and earthy rather than bright, so eight subjects on screen stay calm and the
+     highlighter yellow is still the only loud thing in the app. */
+  var COLOURS = ['#4E8C6E', '#5B87A8', '#C07A5E', '#C09A48',
+                 '#9C6E92', '#4F9095', '#6E76B0', '#86A05A'];
+
+  /* the pre-0.5.1 palette, by index. Subjects still carrying one of these get moved to
+     the matching new colour on load — cosmetic, exact-match only, and idempotent since
+     no new colour appears in this list. */
+  var OLD_COLOURS = ['#1E4D3E', '#2E6F8E', '#8A5A2B', '#7A3B5C',
+                     '#4A6B2F', '#A8721B', '#3F4C8A', '#A8391F'];
 
   /* ============================================================
      4 · state
@@ -359,8 +371,21 @@
   /* ============================================================
      6 · load
      ============================================================ */
+  // one-time colour remap, see OLD_COLOURS. Runs inside refresh so it lands before the
+  // first paint; writes are stamped so the new colour syncs like any other edit.
+  function migrateColours(subjects) {
+    var moved = subjects.filter(function (s) { return OLD_COLOURS.indexOf(s.colour) > -1; });
+    if (!moved.length) return Promise.resolve();
+    return Promise.all(moved.map(function (s) {
+      s.colour = COLOURS[OLD_COLOURS.indexOf(s.colour)];
+      return put('subjects', stamp(s));
+    }));
+  }
+
   function refresh() {
     return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
+      return migrateColours(live(r[0])).then(function () { return r; });
+    }).then(function (r) {
       state.subjects = live(r[0]).sort(function (a, b) { return a.name.localeCompare(b.name); });
       state.notes = live(r[1]).sort(function (a, b) { return b.updated - a.updated; });
       state.syllabus = live(r[2]).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
