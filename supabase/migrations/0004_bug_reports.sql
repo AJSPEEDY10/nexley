@@ -44,6 +44,17 @@ create index bug_reports_signature_idx  on public.bug_reports (signature);
 
 alter table public.bug_reports enable row level security;
 
+-- RLS policies decide WHICH ROWS a role may touch. They do not grant the privilege to
+-- touch the table at all — that is a separate, table-level GRANT, and without it every
+-- insert fails with 42501 "permission denied for table bug_reports" no matter how
+-- permissive the policy is. The other tables in this schema never needed an explicit
+-- grant (they inherit Supabase's defaults), which is exactly why this was easy to miss.
+--
+-- INSERT only, on purpose. No SELECT is granted to anyone, which is what keeps this
+-- table write-only from the client — see the header.
+grant insert on public.bug_reports to authenticated;
+grant insert on public.bug_reports to anon;
+
 -- A signed-in user may file their own report.
 create policy "bug_reports_insert_own" on public.bug_reports
   for insert to authenticated with check (auth.uid() = user_id);

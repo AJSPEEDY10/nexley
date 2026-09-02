@@ -170,13 +170,19 @@
         return r;
       });
       return window.NexleyAuth.client.from('bug_reports').insert(rows).then(function (res) {
-        // 42501 = RLS refusal (anon inserts disabled). Dropping is right: retrying
-        // for the rest of the session would just fail over and over.
-        if (res.error && res.error.code !== '42501') throw res.error;
-        writeQueue([]);
+        if (res.error) throw res.error;
+        writeQueue([]);      // only ever cleared on a confirmed write
       });
-    }).catch(function () {
-      // keep the queue for the next attempt; never surface anything to the user
+    }).catch(function (err) {
+      /* Keep the queue for the next attempt and never surface anything to the user —
+         but DO say so in the console. An earlier version treated 42501 as an expected
+         refusal and dropped the batch, which meant a misconfigured backend looked
+         exactly like a working one: the queue drained, the UI said "sent", and nothing
+         was ever stored. A report is only ever discarded on a confirmed write now.
+         The queue is capped at MAX_QUEUE, so retrying forever cannot grow unbounded. */
+      if (window.console && console.warn) {
+        console.warn('[nexley] report not sent, still queued:', err && (err.message || err.code));
+      }
     }).then(function () { busy = false; });
   }
 
