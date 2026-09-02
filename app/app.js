@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.9.0';
+  var APP_VERSION = '0.9.1';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -352,7 +352,9 @@
   function showGate(mode) {
     enteredUser = null;
     // a first-time visitor gets the explanation before the sign-up form
-    if (mode === 'create' && !introSeen() && $('intro')) return showIntro();
+    // a sign-in that just failed outranks the first-run pitch — showing the carousel
+    // here would bury the reason it failed behind three taps
+    if (mode === 'create' && !introSeen() && !authUrlError() && $('intro')) return showIntro();
     // whenever the gate is genuinely being shown, drop the pre-paint guard — otherwise
     // signing out on a device that skipped the intro leaves the card display:none
     document.documentElement.classList.remove('pre-intro');
@@ -372,6 +374,29 @@
     $('fPass').value = '';
     setTimeout(function () { (creating ? $('fName') : $('fEmail')).focus(); }, 60);
     $('gateForm').dataset.mode = creating ? 'create' : 'unlock';
+    showAuthUrlError();
+  }
+
+  /* A failed OAuth round trip comes back as ?error=/#error_description=. Read-only, so
+     it can also be used to decide whether to show the intro. */
+  function authUrlError() {
+    try {
+      var q = new URLSearchParams(location.search);
+      var h = new URLSearchParams(location.hash.replace(/^#/, ''));
+      var msg = h.get('error_description') || q.get('error_description') ||
+                h.get('error') || q.get('error');
+      return msg ? decodeURIComponent(String(msg).replace(/\+/g, ' ')) : null;
+    } catch (e) { return null; }
+  }
+
+  /* Without this a failed sign-in just rendered a blank form, so a real failure looked
+     like nothing happened. Say what went wrong, then strip it from the URL so a reload
+     doesn't replay a stale error. */
+  function showAuthUrlError() {
+    var msg = authUrlError();
+    if (!msg) return;
+    gateError(msg);
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
   }
   function gateError(msg) {
     var el = $('gateErr');

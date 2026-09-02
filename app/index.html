@@ -20,6 +20,22 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <script>try{var t=localStorage.getItem('nexley-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <script>
+/* Auth redirects can land HERE, and this page has no auth code in it at all.
+   Three ways that happens, all introduced when this page took the site root:
+     - Supabase's configured Site URL is this root, and it is the fallback target
+       for email confirmation, password reset, and OAuth errors
+     - a browser still running the pre-swap app asks to come back to ./index.html
+     - anything that appends ?error=/#access_token= to the root
+   Without this the token or error is silently dropped and you get a marketing page
+   after signing in. Hand the whole payload to the app, which knows what to do with
+   it. Runs before the installed-app check below because it is the more specific case. */
+try{
+  if (/[#&?](access_token|refresh_token|provider_token|provider_refresh_token|code|error|error_description|type)=/.test(location.hash + location.search)) {
+    location.replace('app.html' + location.search + location.hash);
+  }
+}catch(e){}
+</script>
+<script>
 /* Anyone already running Nexley from their home screen must not land on the pitch.
    Installs made before this page took the root still have start_url ./index.html
    baked into them, so this is what stops their icon opening a marketing page.
