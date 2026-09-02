@@ -19,10 +19,86 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<script>try{var t=localStorage.getItem('nexley-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<script>
+/* Runs before first paint. Theme: avoids a flash of the wrong palette. pre-intro: the
+   gate markup is visible by default (so a JS failure still shows a sign-in), which
+   meant a first-time visitor saw "Create your account" flash before the intro. If
+   storage is unreadable we set nothing, matching introSeen()'s fail-closed default. */
+try{var t=localStorage.getItem('nexley-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}
+try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.classList.add('pre-intro');}catch(e){}
+</script>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+
+<!-- ============ WHAT THIS IS ============
+     Shown once, before the sign-in screen, to anyone who has never been here. A cold
+     visitor previously landed on "Create your account" with no idea what they were
+     creating an account for. Skippable, and never shown again once dismissed. -->
+<div id="intro" class="intro" hidden>
+  <div class="intro-card">
+    <div class="intro-top">
+      <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+        <circle cx="13" cy="13" r="11"></circle>
+      </svg>
+      <b>Nexley</b>
+      <button type="button" class="linkbtn intro-skip" id="introSkip">Skip</button>
+    </div>
+
+    <div class="intro-panels">
+      <!-- 1 · the idea -->
+      <section class="ipanel on" data-panel="0">
+        <span class="eyebrow">A study notebook</span>
+        <h2>Your notes belong to the syllabus.</h2>
+        <p>Not a folder called “Term 3”. Every note files against the actual dot point
+          it answers, so a year of work stays findable.</p>
+        <div class="idemo">
+          <div class="idemo-row"><span class="idemo-code">HM-11-04</span>
+            <span class="idemo-name">Skeletal and muscular systems</span>
+            <i class="pip has"></i></div>
+          <div class="idemo-row"><span class="idemo-code">HM-11-05</span>
+            <span class="idemo-name">Energy systems</span>
+            <i class="pip has"></i></div>
+          <div class="idemo-row"><span class="idemo-code">HM-11-06</span>
+            <span class="idemo-name">Biomechanics</span>
+            <i class="pip"></i></div>
+        </div>
+      </section>
+
+      <!-- 2 · why that matters -->
+      <section class="ipanel" data-panel="1">
+        <span class="eyebrow">Coverage</span>
+        <h2>See what you haven’t written up yet.</h2>
+        <p>Because notes are filed against the syllabus, the gaps are visible. That is
+          the whole point — revision aimed at what you’re missing, not the whole course.</p>
+        <div class="idemo">
+          <div class="coverage" style="border:0;padding:0;background:none">
+            <div class="cov-track"><i style="width:64%"></i></div>
+            <span class="cov-label">16 of 25 written up</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 · the practical promise -->
+      <section class="ipanel" data-panel="2">
+        <span class="eyebrow">Offline first</span>
+        <h2>Works with no signal.</h2>
+        <p>Everything is written to your device first and syncs to your account when
+          there’s a connection. School Wi-Fi dropping out is not your problem.</p>
+        <div class="idemo idemo-quiet">
+          <p>Add it to your home screen and it opens like an app.</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="intro-foot">
+      <div class="dots" id="introDots" aria-hidden="true"></div>
+      <span style="flex:1"></span>
+      <button type="button" class="btn primary" id="introNext">Next</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ SIGN IN ============ -->
 <div id="gate" class="gate">

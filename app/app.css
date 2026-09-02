@@ -123,6 +123,55 @@ a{color:var(--structure)}
   cursor:pointer;text-align:left;transition:color .14s}
 .linkbtn:hover{color:var(--structure)}
 
+/* set by the head script for a visitor who has never seen the intro — keeps the
+   sign-in card from flashing for the moment before boot decides */
+:root.pre-intro .gate{display:none}
+
+/* ---------- what this is ----------
+   Sits above the gate (z 60 vs 50) so it covers the sign-in card that paints on first
+   load. One idea per panel, the same materials as the app itself — outcome codes,
+   coverage pips, the highlighter mark — so the intro is a preview, not a brochure. */
+.intro{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
+  background:var(--surface);z-index:60;overflow-y:auto}
+.intro-card{width:min(560px,100%);background:var(--card);border:1px solid var(--rule);
+  border-radius:12px;padding:26px 30px 22px;display:flex;flex-direction:column;gap:20px;
+  box-shadow:0 30px 70px -46px rgb(var(--shade)/.5)}
+.intro-top{display:flex;align-items:center;gap:9px}
+.intro-top b{font-family:var(--display);font-weight:400;font-size:1.15rem}
+.intro-skip{margin-left:auto}
+
+.intro-panels{position:relative;min-height:296px}
+.ipanel{display:none;flex-direction:column;gap:12px}
+.ipanel.on{display:flex}
+.ipanel h2{font-family:var(--display);font-size:clamp(1.5rem, 1.2rem + 1.2vw, 1.95rem);
+  letter-spacing:-.015em;line-height:1.2}
+.ipanel p{font-family:var(--text);font-size:1rem;line-height:1.6;color:var(--ink-2);
+  max-width:46ch}
+
+/* the little demonstration under each claim — real app furniture, quietened */
+.idemo{margin-top:6px;border:1px solid var(--rule-soft);border-radius:8px;
+  padding:14px 15px;background:var(--paper);display:flex;flex-direction:column;gap:9px}
+.idemo-row{display:flex;align-items:center;gap:11px}
+.idemo-code{font-family:var(--code);font-size:.5625rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);flex:none;width:66px}
+.idemo-name{font-size:.8125rem;color:var(--ink-2);flex:1;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.idemo-quiet{align-items:flex-start;justify-content:center}
+.idemo-quiet p{font-size:.875rem;color:var(--muted);max-width:none}
+
+.intro-foot{display:flex;align-items:center;gap:12px}
+.dots{display:flex;gap:6px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--rule);
+  transition:background .16s}
+.dots i.on{background:var(--mark)}
+
+@media (max-width:520px){
+  .intro{padding:0;place-items:stretch}
+  .intro-card{border:0;border-radius:0;min-height:100dvh;padding:22px 20px;
+    justify-content:space-between;box-shadow:none}
+  .intro-panels{min-height:0;flex:1;display:flex;align-items:center}
+}
+
 /* ---------- sign in ---------- */
 .gate{position:fixed;inset:0;display:grid;place-items:center;padding:24px;
   background:var(--surface);z-index:50}

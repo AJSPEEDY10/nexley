@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.5.1';
+  var APP_VERSION = '0.6.0';
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
   var DB_VER = 3;
@@ -293,8 +293,58 @@
   /* ============================================================
      5 · gate
      ============================================================ */
+  /* The intro runs once per device, ahead of the sign-in card. Deliberately keyed off
+     localStorage and not the account: it answers "what is this", which you need BEFORE
+     you have an account, and a returning user must never see it again. If storage is
+     unavailable (private window, blocked site data) we simply skip it rather than
+     showing it on every visit. */
+  var INTRO_KEY = 'nexley-intro-seen';
+  function introSeen() {
+    try { return localStorage.getItem(INTRO_KEY) === '1'; } catch (e) { return true; }
+  }
+  function markIntroSeen() {
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch (e) {}
+  }
+
+  var introPanel = 0;
+  function showIntro() {
+    var panels = document.querySelectorAll('.ipanel');
+    var dots = $('introDots');
+    dots.textContent = '';
+    for (var i = 0; i < panels.length; i++) dots.appendChild(document.createElement('i'));
+    $('gate').hidden = true;
+    $('app').hidden = true;
+    $('intro').hidden = false;
+    introPanel = 0;
+    paintIntro();
+  }
+  function paintIntro() {
+    var panels = document.querySelectorAll('.ipanel');
+    var dots = $('introDots').children;
+    for (var i = 0; i < panels.length; i++) {
+      panels[i].classList.toggle('on', i === introPanel);
+      if (dots[i]) dots[i].classList.toggle('on', i === introPanel);
+    }
+    var last = introPanel === panels.length - 1;
+    $('introNext').textContent = last ? 'Get started' : 'Next';
+    $('introSkip').textContent = last ? '' : 'Skip';
+    $('introSkip').hidden = last;
+  }
+  function endIntro() {
+    markIntroSeen();
+    document.documentElement.classList.remove('pre-intro');
+    $('intro').hidden = true;
+    showGate('create');
+  }
+
   function showGate(mode) {
     enteredUser = null;
+    // a first-time visitor gets the explanation before the sign-up form
+    if (mode === 'create' && !introSeen() && $('intro')) return showIntro();
+    // whenever the gate is genuinely being shown, drop the pre-paint guard — otherwise
+    // signing out on a device that skipped the intro leaves the card display:none
+    document.documentElement.classList.remove('pre-intro');
+    $('intro').hidden = true;
     $('gate').hidden = false;
     $('app').hidden = true;
     var creating = mode === 'create';
@@ -1693,6 +1743,13 @@
       var b = e.target.closest ? e.target.closest('.mode') : null;
       if (b) setMode(b.getAttribute('data-mode'));
     });
+
+    $('introNext').addEventListener('click', function () {
+      var n = document.querySelectorAll('.ipanel').length;
+      if (introPanel < n - 1) { introPanel++; paintIntro(); return; }
+      endIntro();
+    });
+    $('introSkip').addEventListener('click', endIntro);
 
     $('subjForm').addEventListener('submit', saveSubject);
     $('subjCancel').addEventListener('click', function () {
