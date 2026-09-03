@@ -12,19 +12,30 @@
 
 ## 🔴 Do these first
 
-1. ~~Apply migration 0004~~ **DONE 09-03.** Applied to **both** prod and dev, anon-insert
-   policy kept (Alec's call). Verified live: insert `201`, select/update/delete all `403`,
-   and reports sent from the deployed app land in the table.
-   **Two test rows are in prod**, both labelled "Safe to delete" — clear them with
-   `delete from public.bug_reports where note like '%Safe to delete%';`
+1. **SYNC HAS NEVER WORKED. Apply migration 0005.** Found 2026-09-03 by asking the
+   deployed app, signed in as Alec, to do what sync does. Every table answered
+   `42501 permission denied` (subjects, syllabus, notes, profiles) and
+   `localStorage['lastPullAt:<uid>']` was **null** — no full round trip has ever
+   completed on that account. Notes have only ever existed on the device that typed
+   them, and the welcome note's promise that work "syncs to your account" has never
+   been true. Two independent faults, either fatal on its own:
+   - **No table GRANTs.** Exactly trap 8 again, on the *original* tables. 0004's
+     header reasoned they "inherit Supabase's defaults" — that was wrong.
+   - **`id` columns are `uuid`; `uid()` does not emit uuids** (`mtfgzh94-ib5yby`).
+     Fixing only the grants swaps 42501 for `22P02 invalid input syntax for type uuid`.
+   `supabase/migrations/0005_fix_sync_grants_and_id_type.sql` fixes both and is safe to
+   run — the tables are empty *because* sync never worked, so the type change rewrites
+   nothing. Apply to **prod and dev**, then verify with the app, not the client.
+   ⚠️ I could not apply it: browser automation to the Supabase dashboard is blocked in
+   this environment. It needs you.
 
-2. **Ask Alec what the Google error page actually said.** He hit one on 09-03. A regression
-   was found and fixed (see below) that fits the symptom, but that is inference, not proof.
-   If it said something specific — a Google `Error 400`, a Supabase message, a blank page —
-   it either confirms the fix or points somewhere else.
+2. **Then apply 0006 (cards).** Review mode's table. Until it exists the client skips
+   card sync deliberately and keeps the records unpushed — nothing is lost, and notes
+   sync is not taken down with it.
 
-3. **Alec has not eyeballed any of this on his iPad yet.** Particularly the ruled-paper
-   alignment (a real bug was fixed there — see below) and the phone drawer.
+3. **Ask Alec what the Google error page actually said.** Still open from 09-02.
+
+4. **Alec has not eyeballed any of this on an iPad.**
 
 ---
 
@@ -112,7 +123,22 @@ Fourteen commits, all pushed and live. In order:
 
 ## What needs doing next
 
-**Agreed build order, in order:**
+**⚠️ The build order below is on hold.** On 09-03 Alec asked for five full redesign
+directions to choose from before anything else ships. They are built and published:
+
+| Direction | What it argues | Link |
+|---|---|---|
+| Marking Ledger | The app as an evidenced record; outcomes with receipts, marks with reasons | https://claude.ai/code/artifact/0b60cb0e-21e9-4aaa-8fd5-4095b6364f04 |
+| Dark Regions | The knowledge map *is* the interface; gaps found from absence | https://claude.ai/code/artifact/f58e7806-a38c-4d0b-aada-ee3c9de17dd0 |
+| Ten Weeks Out | The term as a workload problem; collisions caught weeks early | https://claude.ai/code/artifact/c90b2a37-d391-4c8a-90d6-2a56e514c703 |
+| Season Four | The syllabus as the skill tree it already is; live, competitive | https://claude.ai/code/artifact/a00c8fb0-0f3a-4a45-adee-ab6b20b9cebd |
+| One Block | Strip everything; protect one block of attention at a time | https://claude.ai/code/artifact/280486ef-8b6a-45d1-a5c8-5ea6b4d491b5 |
+
+Commit `8df8853` (Classwork + Review + sync reporting, v0.10.0) is **committed locally
+and deliberately not pushed** — a redesign may restructure it. Nothing is deployed from
+it. `git push` when the direction is settled, or rebuild on top of whichever wins.
+
+**Agreed build order, once a direction is picked:**
 
 1. **Classwork mode** — quick-capture for what happens in class, graduating into notebook
    notes once filed against the syllabus. The rail stub is already there waiting.
