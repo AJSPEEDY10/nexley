@@ -1,6 +1,7 @@
 # Nexley — session handover
 
-**Session:** 2026-09-02 → 09-03 · **Ended at:** v0.9.2, SW cache `nexley-v16`, commit `9f6a739`
+**Session:** 2026-09-02 → 09-03 · **Ended at:** v0.9.3, SW cache `nexley-v17`, commit `4f1a604`
+**Backend:** migration 0004 applied to prod **and** dev; reporting verified working live.
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main` (GitHub Pages, live in ~30–60s)
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `https://ajspeedy10.github.io/nexley/app.html`
 
@@ -29,7 +30,7 @@
 
 ## What was done
 
-Eleven commits, all pushed and live. In order:
+Fourteen commits, all pushed and live. In order:
 
 | Commit | What |
 |---|---|
@@ -44,6 +45,9 @@ Eleven commits, all pushed and live. In order:
 | `1e7332e` | Crash reporting + Report a problem |
 | `7019875` | Fix auth redirects landing on the landing page |
 | `9f6a739` | Explicit Sign in link on the landing page |
+| `71bd3d0` | This handover file |
+| `01fa9b2` | Migration 0004 applied — fix the missing GRANTs, and stop reports vanishing |
+| `4f1a604` | Handover updated after the migration went in |
 
 ### Design (Pass 2 is finished)
 - **Rail mode switch** — Notebook / Classwork / Review. The last two are honest "not built
@@ -137,6 +141,12 @@ Eleven commits, all pushed and live. In order:
 - Supabase: prod `qvijxnhigqfoinuitrue`, dev `yvlcpngoplecigblxnkb`. Local
   (`127.0.0.1`/`localhost`) automatically points at **dev** — see `config.js`.
 - Both Supabase projects auto-pause after ~7 days idle on the free tier.
+- **There is no Supabase CLI and no linked config.** Migrations are applied by hand in the
+  dashboard SQL editor, and `supabase/migrations/` is a record of what was run, not
+  something that runs itself. Apply to **both** prod and dev. Alec is already logged into
+  the dashboard in Chrome, so this is doable with browser automation: paste into the editor
+  (Monaco — `window.monaco.editor.getModels()[0].setValue(sql)` beats typing it), Run, then
+  **verify against the server** rather than trusting the client.
 - Testable hooks: `NexleyErrors._capture/report/diagnostics/pending/flush`,
   `NexleyAnalytics.sanitize/track/events`, `NexleyDB.all/get/put`, `NexleySync.run`.
 - To test the sign-up path without making real accounts: copy `app.html`, `sed` the
