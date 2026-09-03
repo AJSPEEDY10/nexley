@@ -240,6 +240,17 @@ a{color:var(--structure)}
 .add-subject{border:1px dashed var(--rule);background:none;border-radius:6px;padding:9px;
   font-size:.8125rem;color:var(--muted);cursor:pointer;transition:border-color .14s,color .14s}
 .add-subject:hover{border-color:var(--structure);color:var(--structure)}
+/* sync state — quiet when it works, impossible to miss when it doesn't */
+.syncline{display:flex;align-items:center;gap:7px;width:100%;text-align:left;
+  background:none;border:0;border-top:1px solid var(--rule);padding:9px 0 8px;
+  font-size:.6875rem;color:var(--muted);cursor:pointer;font-family:inherit}
+.syncline .sdot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--muted)}
+.syncline.ok .sdot{background:var(--structure)}
+.syncline.warn{color:var(--danger)}
+.syncline.warn .sdot{background:var(--danger)}
+.syncline:hover{color:var(--ink-2)}
+.syncline.warn:hover{color:var(--danger)}
+
 .rail-foot{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--rule);
   padding-top:12px}
 .storage-note{font-family:var(--code);font-size:.5625rem;letter-spacing:.04em;
@@ -495,17 +506,121 @@ a{color:var(--structure)}
 .empty h3{font-family:var(--display);font-weight:400;font-size:1.25rem}
 .empty p{color:var(--muted);font-size:.875rem;max-width:36ch;line-height:1.6}
 
-/* a mode that isn't built yet — honest, not a fake screen */
-.stub{grid-column:2/-1;grid-row:1;background:var(--paper);overflow-y:auto;
-  display:flex;flex-direction:column;justify-content:center;gap:14px;
-  padding:40px var(--gutter);align-items:flex-start}
-.stub h2{font-family:var(--display);font-size:clamp(1.6rem, 1.3rem + 1.2vw, 2.1rem);
-  letter-spacing:-.015em}
-.stub p{color:var(--ink-2);font-size:1rem;line-height:1.65;max-width:52ch;
-  font-family:var(--text)}
-.stub .stub-note{font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--muted);margin-top:6px}
-.app.stubbed .browser,.app.stubbed .editor,.app.stubbed .empty{display:none!important}
+/* ============================================================
+   MODE PANES — Classwork and Review
+   Both take the whole working area (everything right of the rail) because
+   neither is a browse-then-open shape; they are one continuous surface.
+   ============================================================ */
+.pane{grid-column:2/-1;grid-row:1;background:var(--paper);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.app.moded .browser,.app.moded .editor,.app.moded .empty{display:none!important}
+
+.pane-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  padding:22px var(--gutter) 16px;border-bottom:1px solid var(--rule);flex:none}
+.pane-head h2{font-family:var(--display);font-size:clamp(1.35rem, 1.15rem + .7vw, 1.7rem);
+  letter-spacing:-.01em;font-weight:400}
+.pane-head .eyebrow{display:block;margin-bottom:5px}
+.pane-sel{display:flex;flex-direction:column;gap:4px;flex:none}
+.pane-sel > span{font-family:var(--code);font-size:.5625rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.pane-sel select,.cw-compose select{border:1px solid var(--rule);border-radius:6px;
+  background:var(--card);color:var(--ink);padding:7px 9px;font-size:.8125rem;
+  font-family:inherit;max-width:220px}
+.pane-body{overflow-y:auto;flex:1;min-height:0;padding:18px var(--gutter) 40px}
+
+/* ---------- classwork ---------- */
+/* The composer is pinned above the list on purpose: in a lesson the only thing
+   that matters is that the box is already there and already focused. */
+.cw-compose{flex:none;padding:16px var(--gutter);border-bottom:1px solid var(--rule);
+  background:var(--surface);display:flex;flex-direction:column;gap:10px}
+.cw-compose textarea{width:100%;resize:vertical;min-height:76px;
+  border:1px solid var(--rule);border-radius:8px;background:var(--card);
+  color:var(--ink);padding:12px 13px;font-family:var(--text);font-size:1rem;
+  line-height:1.55}
+.cw-compose textarea:focus{outline:none;border-color:var(--structure)}
+.cw-bar{display:flex;align-items:center;gap:12px}
+.cw-bar .hint{flex:1}
+
+.cw-day{margin-bottom:22px}
+.cw-day > h4{font-family:var(--code);font-size:.625rem;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);font-weight:400;
+  padding-bottom:7px;border-bottom:1px solid var(--rule-soft);margin-bottom:10px}
+.cap{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border-radius:8px;
+  border:1px solid transparent}
+.cap:hover{background:var(--card);border-color:var(--rule-soft)}
+.cap .cdot{width:8px;height:8px;border-radius:50%;flex:none;margin-top:7px}
+.cap .cbody{flex:1;min-width:0}
+.cap .ctext{font-family:var(--text);font-size:.9375rem;line-height:1.55;color:var(--ink);
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.cap .cmeta{display:flex;gap:9px;align-items:center;margin-top:6px;
+  font-size:.6875rem;color:var(--muted)}
+.cap .cacts{display:flex;gap:4px;flex:none;opacity:0;transition:opacity .12s}
+.cap:hover .cacts,.cap:focus-within .cacts{opacity:1}
+@media (pointer:coarse){ .cap .cacts{opacity:1} }
+.cap .cacts button{border:1px solid var(--rule);background:var(--card);border-radius:6px;
+  padding:5px 9px;font-size:.6875rem;color:var(--ink-2);cursor:pointer;font-family:inherit}
+.cap .cacts button:hover{border-color:var(--structure);color:var(--ink)}
+.cap-quote{font-family:var(--text);font-size:.875rem;line-height:1.55;color:var(--ink-2);
+  border-left:2px solid var(--rule);padding-left:11px;max-height:6.5em;overflow:hidden;
+  white-space:pre-wrap}
+
+/* ---------- review ---------- */
+.rv-progress{height:2px;background:var(--rule-soft);margin-bottom:26px;flex:none}
+.rv-progress i{display:block;height:100%;background:var(--structure);width:0;
+  transition:width .2s ease}
+.rv-session{display:flex;flex-direction:column;min-height:0}
+.rv-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;
+  padding:clamp(20px,3.5vw,38px);max-width:64ch;margin:0 auto;width:100%}
+.rv-where{font-family:var(--code);font-size:.625rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.rv-front{font-family:var(--text);font-size:clamp(1.0625rem,.95rem + .5vw,1.3rem);
+  line-height:1.5;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.rv-back{font-family:var(--text);font-size:1rem;line-height:1.65;color:var(--ink-2);
+  white-space:pre-wrap;overflow-wrap:anywhere;
+  margin-top:20px;padding-top:20px;border-top:1px solid var(--rule-soft)}
+.rv-ask{display:flex;flex-direction:column;align-items:center;gap:12px;
+  margin:26px auto 0;max-width:64ch;text-align:center}
+.rv-ask .hint{max-width:44ch}
+
+.rv-grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  max-width:64ch;margin:26px auto 0;width:100%}
+.grade{border:1px solid var(--rule);background:var(--card);border-radius:8px;
+  padding:12px 8px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--ink);
+  display:flex;flex-direction:column;align-items:center;gap:4px}
+.grade em{font-style:normal;font-family:var(--code);font-size:.625rem;color:var(--muted);
+  letter-spacing:.04em}
+.grade:hover{border-color:var(--structure)}
+.grade.again:hover{border-color:var(--warn)}
+.grade.easy:hover{border-color:var(--good)}
+
+/* deck + empty states inside review */
+.rv-note{max-width:56ch;color:var(--ink-2);font-family:var(--text);font-size:1rem;
+  line-height:1.65;margin-bottom:14px}
+.rv-stats{display:flex;flex-wrap:wrap;gap:26px;padding:16px 0 22px;
+  border-bottom:1px solid var(--rule-soft);margin-bottom:20px}
+.rv-stat{display:flex;flex-direction:column;gap:3px}
+.rv-stat b{font-family:var(--display);font-size:1.6rem;font-weight:400;line-height:1;
+  font-variant-numeric:tabular-nums}
+.rv-stat span{font-family:var(--code);font-size:.5625rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.deckrow{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border-radius:8px;
+  border:1px solid transparent}
+.deckrow:hover{background:var(--card);border-color:var(--rule-soft)}
+.deckrow .dfront{flex:1;min-width:0;font-family:var(--text);font-size:.9375rem;
+  line-height:1.5;color:var(--ink)}
+.deckrow .dmeta{display:flex;gap:9px;margin-top:5px;font-size:.6875rem;color:var(--muted)}
+.deckrow .dacts{display:flex;gap:4px;flex:none;opacity:0;transition:opacity .12s}
+.deckrow:hover .dacts,.deckrow:focus-within .dacts{opacity:1}
+@media (pointer:coarse){ .deckrow .dacts{opacity:1} }
+.deckrow .dacts button{border:1px solid var(--rule);background:var(--card);
+  border-radius:6px;padding:5px 9px;font-size:.6875rem;color:var(--ink-2);
+  cursor:pointer;font-family:inherit}
+.due-chip{font-family:var(--code);font-size:.5625rem;letter-spacing:.07em;
+  text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid var(--rule)}
+.due-chip.now{border-color:var(--warn);color:var(--warn)}
+.due-chip.new{border-color:var(--structure);color:var(--structure)}
+
+.paste.short{min-height:78px;height:auto}
 
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
@@ -591,7 +706,7 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
 @media (max-width:1180px){
   .app{grid-template-columns:204px 1fr}
   .browser{grid-column:2;grid-row:1}
-  .editor,.empty,.stub{grid-column:2;grid-row:1}
+  .editor,.empty,.pane{grid-column:2;grid-row:1}
   /* the page takes over the working area while a note is open */
   .app.editing .browser{display:none}
   /* the placeholder would stack on top of the index and block it — the index
@@ -618,9 +733,10 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:1.35rem}
   .app.nav-open .rail{transform:none;box-shadow:0 0 60px -10px rgb(var(--shade)/.5)}
 
   /* working area fills the screen, one view at a time */
-  .browser,.editor,.empty,.stub{grid-column:1;grid-row:1}
+  .browser,.editor,.empty,.pane{grid-column:1;grid-row:1}
   .browser,.editor{height:100dvh}
-  .stub{padding-top:60px;justify-content:flex-start}   /* clear the menu button */
+  .pane{height:100dvh}
+  .pane-head{padding-left:56px}   /* clear the menu button */
   .browser-head{padding-left:56px}      /* clear the menu button */
   .app.editing .browser{display:none}
   .app.editing .menu-btn{display:none}  /* the page uses the back button, not the menu */

@@ -185,6 +185,14 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
 
     <button class="add-subject" id="addSubject" type="button">+ Add subject</button>
 
+    <!-- Sync state, always visible. The app spent its whole life so far telling
+         people their notes were on their account when nothing had ever left the
+         device; a quiet line that can go loud is the cheapest guard against that
+         ever being true again. -->
+    <button class="syncline" id="syncState" type="button" hidden>
+      <i class="sdot"></i><span id="syncText">Checking…</span>
+    </button>
+
     <div class="rail-foot">
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
@@ -270,6 +278,9 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
       <span class="tsep"></span>
       <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
+      <span class="tsep"></span>
+      <button type="button" id="makeCard"
+              title="Turn the selected text into a review card">+ Card</button>
     </div>
 
     <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
@@ -281,12 +292,74 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
    </div>
   </main>
 
-  <!-- Classwork / Review live here until they're built -->
-  <section class="stub" id="modeStub" hidden>
-    <span class="eyebrow">Not built yet</span>
-    <h2 id="stubTitle"></h2>
-    <p id="stubBody"></p>
-    <p class="stub-note">Notebook is where everything lives for now.</p>
+  <!-- ============ CLASSWORK ============
+       Rough capture, deliberately not the editor. One box, one button, no filing
+       decision at write time — that decision is what makes people stop taking notes
+       in class. Captures are notes with kind='capture'; filing one graduates it. -->
+  <section class="pane" id="classwork" hidden>
+    <header class="pane-head">
+      <div class="bh-text">
+        <span class="eyebrow">Classwork</span>
+        <h2>Get it down now, tidy it later</h2>
+      </div>
+      <label class="pane-sel">
+        <span>Subject</span>
+        <select id="cwSubject" aria-label="Subject for this capture"></select>
+      </label>
+    </header>
+
+    <div class="cw-compose">
+      <textarea id="cwInput" rows="3" spellcheck="true"
+                placeholder="What just happened in class…"></textarea>
+      <div class="cw-bar">
+        <span class="hint" id="cwHint">Ctrl+Enter to capture</span>
+        <button class="btn primary" id="cwSave" type="button">Capture</button>
+      </div>
+    </div>
+
+    <div class="pane-body" id="cwList"></div>
+  </section>
+
+  <!-- ============ REVIEW ============
+       SM-2 over cards made from the user's own notes. Two views: the session
+       (one card at a time) and the deck (everything, plus suggestions). -->
+  <section class="pane" id="review" hidden>
+    <header class="pane-head">
+      <div class="bh-text">
+        <span class="eyebrow" id="rvContext">Review</span>
+        <h2 id="rvTitle">Nothing due</h2>
+      </div>
+      <div class="bh-actions">
+        <button class="iconbtn ghost" id="rvDeckBtn" type="button">Deck</button>
+        <button class="btn primary" id="rvStart" type="button" hidden>Start</button>
+      </div>
+    </header>
+
+    <div class="pane-body" id="rvBody">
+
+      <!-- session -->
+      <div class="rv-session" id="rvSession" hidden>
+        <div class="rv-progress"><i id="rvFill"></i></div>
+        <article class="rv-card">
+          <div class="rv-where" id="rvWhere"></div>
+          <div class="rv-front" id="rvFront"></div>
+          <div class="rv-back" id="rvBack" hidden></div>
+        </article>
+        <div class="rv-ask" id="rvAsk">
+          <p class="hint">Say it out loud before you flip. "I know this" is not knowing it.</p>
+          <button class="btn primary" id="rvShow" type="button">Show answer</button>
+        </div>
+        <div class="rv-grades" id="rvGrades" hidden>
+          <button type="button" class="grade again" data-grade="0">Again<em id="gi0"></em></button>
+          <button type="button" class="grade hard"  data-grade="3">Hard<em id="gi3"></em></button>
+          <button type="button" class="grade good"  data-grade="4">Good<em id="gi4"></em></button>
+          <button type="button" class="grade easy"  data-grade="5">Easy<em id="gi5"></em></button>
+        </div>
+      </div>
+
+      <!-- deck / empty / done all render into here -->
+      <div id="rvPanel"></div>
+    </div>
   </section>
 
   <div class="empty" id="emptyState">
@@ -371,6 +444,58 @@ Module 2: Body systems and movement
       <button type="button" class="btn primary" id="sylImport">Add to syllabus</button>
     </div>
   </div>
+</dialog>
+
+<!-- ============ REVIEW CARD ============ -->
+<dialog id="cardDialog">
+  <form method="dialog" id="cardForm">
+    <h3 id="cardHeading">New card</h3>
+    <p class="dlgnote">A card has to make you <b>produce</b> the answer, not recognise it.
+      Write the front as a question you could be asked in an exam.</p>
+    <label class="field">
+      <span>Front <em>(the question)</em></span>
+      <textarea id="cardFront" class="paste short" maxlength="600" required
+                placeholder="Why does a frameshift mutation usually cause more severe consequences than a substitution?"></textarea>
+    </label>
+    <label class="field">
+      <span>Back <em>(the answer)</em></span>
+      <textarea id="cardBack" class="paste short" maxlength="2000" required
+                placeholder="Every subsequent codon is altered, so all downstream amino acids change…"></textarea>
+    </label>
+    <label class="field">
+      <span>Files against</span>
+      <select id="cardSyllabus"></select>
+    </label>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="cardDelete" hidden>Delete card</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="cardCancel">Cancel</button>
+      <button type="submit" class="btn primary">Save card</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ FILE A CAPTURE ============ -->
+<dialog id="fileDialog">
+  <form method="dialog" id="fileForm">
+    <h3>File this capture</h3>
+    <p class="dlgnote">Filing it against a syllabus point graduates it into your notebook.
+      It stops being classwork and starts counting towards coverage.</p>
+    <p class="cap-quote" id="fileExcerpt"></p>
+    <label class="field">
+      <span>Subject</span>
+      <select id="fileSubject"></select>
+    </label>
+    <label class="field">
+      <span>Syllabus point</span>
+      <select id="fileSyllabus"></select>
+    </label>
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="fileCancel">Cancel</button>
+      <button type="submit" class="btn primary">File it</button>
+    </div>
+  </form>
 </dialog>
 
 <!-- ============ REPORT A PROBLEM ============ -->

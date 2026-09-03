@@ -17,12 +17,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.9.3';
+  var APP_VERSION = '0.10.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
-  var DB_VER = 3;
+  var DB_VER = 4;
   var BACKUP_KEEP = 7;
   var BACKUP_EVERY = 20 * 60 * 60 * 1000;
   var MAX_TABS = 8;
@@ -76,6 +76,16 @@
           cur.update(v);
           cur.continue();
         };
+      }
+    }
+
+    if (from < 4) {
+      // review cards. Sync-shaped like everything else so they ride the same
+      // push/pull path the moment the remote table exists (see sync.js).
+      if (!d.objectStoreNames.contains('cards')) {
+        var c = d.createObjectStore('cards', { keyPath: 'id' });
+        c.createIndex('subjectId', 'subjectId', { unique: false });
+        c.createIndex('due', 'due', { unique: false });
       }
     }
   }
@@ -203,10 +213,10 @@
      2 · backups
      ============================================================ */
   function snapshot(reason) {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
       return put('backups', {
         id: uid(), at: Date.now(), reason: reason || 'auto', appVersion: APP_VERSION,
-        subjects: r[0], notes: r[1], syllabus: r[2]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3]
       });
     }).then(function () {
       return all('backups');
@@ -230,7 +240,9 @@
       return snapshot('before-restore').then(function () {
         var jobs = (b.subjects || []).map(function (s) { return put('subjects', s); })
           .concat((b.notes || []).map(function (n) { return put('notes', n); }))
-          .concat((b.syllabus || []).map(function (s) { return put('syllabus', s); }));
+          .concat((b.syllabus || []).map(function (s) { return put('syllabus', s); }))
+          // snapshots taken before 0.10.0 have no cards key — leave the deck alone
+          .concat((b.cards || []).map(function (c) { return put('cards', c); }));
         return Promise.all(jobs);
       }).then(function () {
         state.activeNote = null;
@@ -293,7 +305,7 @@
      ============================================================ */
   var state = {
     account: null, deviceId: null,
-    subjects: [], notes: [], syllabus: [],
+    subjects: [], notes: [], syllabus: [], cards: [],
     activeSubject: null, activeNode: null, activeNote: null,
     tabs: [], collapsed: {},
     query: '', dirty: false,
@@ -527,12 +539,13 @@
   }
 
   function refresh(opts) {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
       return migrateColours(live(r[0])).then(function () { return r; });
     }).then(function (r) {
       state.subjects = live(r[0]).sort(function (a, b) { return a.name.localeCompare(b.name); });
       state.notes = live(r[1]).sort(function (a, b) { return b.updated - a.updated; });
       state.syllabus = live(r[2]).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      state.cards = live(r[3]);
       // drop tabs whose notes have gone
       state.tabs = state.tabs.filter(noteById);
       renderSubjects();
@@ -541,6 +554,9 @@
       // re-rendering the editor rewrites the note body and drops the caret, so a
       // background repaint leaves an open note alone
       if (!(opts && opts.keepEditor)) renderEditor();
+      // a sync pull or an edit elsewhere has to reach whichever mode is on screen
+      if (mode === 'classwork') renderClasswork();
+      else if (mode === 'review') renderReview();
     });
   }
 
@@ -562,7 +578,9 @@
     return state.notes.filter(function (n) { return n.syllabusId === nodeId; });
   }
   function unfiledOf(subjectId) {
-    return state.notes.filter(function (n) { return n.subjectId === subjectId && !n.syllabusId; });
+    return state.notes.filter(function (n) {
+      return n.subjectId === subjectId && !n.syllabusId && !isCapture(n);
+    });
   }
 
   /* ============================================================
@@ -808,7 +826,7 @@
 
     var k = document.createElement('span');
     k.className = 'kind ' + (n.kind === 'syllabus' ? 'given' : 'mine');
-    k.textContent = n.kind === 'syllabus' ? 'syl' : 'mine';
+    k.textContent = n.kind === 'syllabus' ? 'syl' : (isCapture(n) ? 'class' : 'mine');
     b.appendChild(k);
 
     var t = document.createElement('span');
@@ -861,7 +879,10 @@
   /* flat list — used for search and for "All notes" */
   function renderFlat(body) {
     var q = state.query.trim().toLowerCase();
-    var list = state.notes.filter(function (n) {
+    // Browsing shows the notebook only. Searching reaches captures too — you should
+    // be able to find something you wrote in class without knowing it never got filed.
+    var pool = q ? state.notes : notebookNotes();
+    var list = pool.filter(function (n) {
       if (state.activeSubject && n.subjectId !== state.activeSubject) return false;
       if (!q) return true;
       return (n.title || '').toLowerCase().indexOf(q) > -1 ||
@@ -1524,16 +1545,801 @@
   }
 
   /* ============================================================
+     12b2 · sync state
+     ------------------------------------------------------------
+     Sync being broken is not a background detail — it decides whether your work
+     exists in more than one place. It was broken in production from the first
+     deploy until 2026-09-03 and the app never said a word, because nothing ever
+     read the result of a sync. This reads it.
+     ============================================================ */
+  var lastSync = null;
+  function renderSyncState(s) {
+    lastSync = s || lastSync;
+    if (!lastSync) return;
+    var el = $('syncState');
+    var txt = $('syncText');
+    if (!el) return;
+    el.hidden = false;
+    el.classList.remove('ok', 'warn');
+
+    if (lastSync.state === 'ok') {
+      el.classList.add('ok');
+      txt.textContent = 'Synced ' + when(lastSync.at).toLowerCase();
+    } else if (lastSync.state === 'offline') {
+      txt.textContent = 'Offline — saved on this device';
+    } else if (lastSync.state === 'signedout') {
+      el.hidden = true;
+    } else if (lastSync.state === 'error') {
+      el.classList.add('warn');
+      // never "syncing…" while it is failing: that is the lie that hid this bug
+      txt.textContent = lastSync.lastOkAt
+        ? 'Not syncing since ' + when(lastSync.lastOkAt).toLowerCase()
+        : 'Never synced — tap to see why';
+    } else {
+      txt.textContent = 'Checking…';
+    }
+  }
+
+  function openSyncDetail() {
+    if (!lastSync) return;
+    var lines = [];
+    if (lastSync.state === 'ok') {
+      lines.push('Everything on this device has reached your account. Last full '
+        + 'round trip: ' + when(lastSync.at) + '.');
+    } else if (lastSync.state === 'offline') {
+      lines.push('You are offline. Everything you write is saved on this device and '
+        + 'will go up on its own once you have a connection. Nothing is lost.');
+    } else if (lastSync.state === 'error') {
+      lines.push(lastSync.lastOkAt
+        ? 'Your notes are safe on this device, but nothing has reached your account '
+          + 'since ' + when(lastSync.lastOkAt) + '.'
+        : 'Your notes are safe on this device, but they have never reached your '
+          + 'account. Nothing has been lost — but there is no second copy, and this '
+          + 'device is the only place your work exists.');
+      if (lastSync.error) {
+        lines.push('The server said: ' + (lastSync.error.code ? lastSync.error.code + ' — ' : '')
+          + lastSync.error.message);
+        if (lastSync.error.hint) lines.push('Hint: ' + lastSync.error.hint);
+      }
+      lines.push('Export all (in the sidebar) writes a full copy to a file you keep. '
+        + 'Worth doing now if this persists.');
+    }
+    alert(lines.join('\n\n'));
+  }
+
+  /* ============================================================
+     12c · classwork
+     ------------------------------------------------------------
+     A capture is an ordinary note with kind 'capture'. That is the whole data
+     model, deliberately:
+       - it syncs today, because `kind` is already a synced column. No migration,
+         so Classwork cannot be blocked on a schema change reaching the server.
+       - graduating one is a field edit (kind -> 'personal', set syllabusId), not a
+         copy. The id, the history and the created date all survive, so "when did I
+         first write this down" stays true after filing.
+     The cost is that every notebook list has to exclude captures explicitly —
+     see notebookNotes(). Missing one shows rough class notes inside the notebook,
+     which is exactly the mess this mode exists to prevent.
+     ============================================================ */
+  function closeNav() { $('app').classList.remove('nav-open'); }
+
+  /* The working area shows exactly one of: the notebook (browser + editor),
+     Classwork, or Review. Everything that switches away from a mode goes through
+     here so there is one place that decides what is visible. */
+  var mode = 'notebook';
+  function setMode(m) {
+    mode = m;
+    var btns = $('modeSwitch').getElementsByClassName('mode');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('on', btns[i].getAttribute('data-mode') === m);
+    }
+    $('classwork').hidden = m !== 'classwork';
+    $('review').hidden = m !== 'review';
+    $('app').classList.toggle('moded', m !== 'notebook');
+
+    if (m === 'classwork') {
+      renderClasswork();
+      // the point of this mode is that the box is already waiting
+      if (!matchMedia('(pointer:coarse)').matches) $('cwInput').focus();
+    }
+    if (m === 'review') { session = null; renderReview(); }
+    closeNav();
+  }
+
+  function isCapture(n) { return n.kind === 'capture'; }
+  function captures() { return state.notes.filter(isCapture); }
+  function notebookNotes() { return state.notes.filter(function (n) { return !isCapture(n); }); }
+
+  var CW_SUBJ_KEY = 'nexley-cw-subject';
+  function cwSubject() {
+    var sel = $('cwSubject');
+    return sel && sel.value ? sel.value : null;
+  }
+  function renderCwSubjects() {
+    var sel = $('cwSubject');
+    var want = sel.value;
+    if (!want) { try { want = localStorage.getItem(CW_SUBJ_KEY) || ''; } catch (e) {} }
+    sel.textContent = '';
+    state.subjects.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = s.name;
+      sel.appendChild(o);
+    });
+    if (want && subjectById(want)) sel.value = want;
+    else if (state.activeSubject && subjectById(state.activeSubject)) sel.value = state.activeSubject;
+    var none = !state.subjects.length;
+    sel.disabled = none;
+    $('cwSave').disabled = none;
+    $('cwInput').disabled = none;
+    $('cwInput').placeholder = none
+      ? 'Add a subject first — captures still have to belong to one.'
+      : 'What just happened in class…';
+  }
+
+  function captureNow() {
+    var text = $('cwInput').value.trim();
+    var subjectId = cwSubject();
+    if (!text || !subjectId) return;
+
+    // The first line becomes the title so the capture is identifiable in a list and
+    // in search. The full text stays in the body — the title is a label, not a
+    // truncation of the content.
+    var firstLine = text.split('\n')[0].trim();
+    var rec = stamp({
+      id: uid(), subjectId: subjectId, syllabusId: null, kind: 'capture',
+      font: 'standard',
+      title: firstLine.slice(0, 140),
+      body: textToHtml(text)
+    });
+    return put('notes', rec).then(function () {
+      $('cwInput').value = '';
+      $('cwInput').focus();
+      try { localStorage.setItem(CW_SUBJ_KEY, subjectId); } catch (e) {}
+      track('capture_made', {});
+      return refresh({ keepEditor: true });
+    }).then(function () { toast('Captured.'); });
+  }
+
+  function textToHtml(text) {
+    return text.split(/\n{2,}/).map(function (para) {
+      var d = document.createElement('p');
+      // single newlines inside a paragraph survive as <br>, so a list jotted in
+      // class keeps its shape
+      para.split('\n').forEach(function (line, i) {
+        if (i) d.appendChild(document.createElement('br'));
+        d.appendChild(document.createTextNode(line));
+      });
+      return d.outerHTML;
+    }).join('');
+  }
+
+  function renderClasswork() {
+    renderCwSubjects();
+    var list = $('cwList');
+    list.textContent = '';
+
+    var caps = captures().slice().sort(function (a, b) { return b.created - a.created; });
+    if (!caps.length) {
+      var e = document.createElement('p');
+      e.className = 'rv-note';
+      e.textContent = state.subjects.length
+        ? 'Nothing captured yet. In a lesson, type it here and hit Capture — no subject '
+          + 'tree, no filing decision, no thinking about where it goes. That comes later.'
+        : 'Add a subject in the rail first. Captures still belong to a subject, so you can '
+          + 'file them against its syllabus later.';
+      list.appendChild(e);
+      return;
+    }
+
+    // grouped by day, newest first — a lesson is a day-shaped thing
+    var days = [];
+    var byDay = {};
+    caps.forEach(function (c) {
+      var key = new Date(c.created).toDateString();
+      if (!byDay[key]) { byDay[key] = []; days.push(key); }
+      byDay[key].push(c);
+    });
+
+    days.forEach(function (key) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cw-day';
+      var h = document.createElement('h4');
+      h.textContent = dayLabel(new Date(key));
+      wrap.appendChild(h);
+      byDay[key].forEach(function (c) { wrap.appendChild(captureRow(c)); });
+      list.appendChild(wrap);
+    });
+  }
+
+  function dayLabel(d) {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var that = new Date(d); that.setHours(0, 0, 0, 0);
+    var diff = Math.round((today - that) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    if (diff < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'long' });
+  }
+
+  function captureRow(c) {
+    var row = document.createElement('div');
+    row.className = 'cap';
+
+    var s = subjectById(c.subjectId);
+    var dot = document.createElement('i');
+    dot.className = 'cdot';
+    dot.style.background = s ? s.colour : 'var(--muted)';
+    row.appendChild(dot);
+
+    var body = document.createElement('div');
+    body.className = 'cbody';
+    var t = document.createElement('div');
+    t.className = 'ctext';
+    t.textContent = plain(c.body) || c.title || 'Empty capture';
+    body.appendChild(t);
+
+    var meta = document.createElement('div');
+    meta.className = 'cmeta';
+    var when1 = document.createElement('span');
+    when1.textContent = new Date(c.created).toLocaleTimeString(undefined,
+      { hour: 'numeric', minute: '2-digit' });
+    meta.appendChild(when1);
+    if (s) {
+      var sn = document.createElement('span');
+      sn.textContent = s.code || s.name;
+      meta.appendChild(sn);
+    }
+    body.appendChild(meta);
+    row.appendChild(body);
+
+    var acts = document.createElement('div');
+    acts.className = 'cacts';
+
+    var fileBtn = document.createElement('button');
+    fileBtn.type = 'button';
+    fileBtn.textContent = 'File…';
+    fileBtn.addEventListener('click', function () { openFileDialog(c); });
+    acts.appendChild(fileBtn);
+
+    var openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.textContent = 'Open';
+    openBtn.addEventListener('click', function () { setMode('notebook'); openNote(c.id); });
+    acts.appendChild(openBtn);
+
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', function () {
+      if (!confirm('Delete this capture?')) return;
+      softDelete('notes', c).then(function () { return refresh({ keepEditor: true }); })
+        .then(renderClasswork);
+    });
+    acts.appendChild(del);
+
+    row.appendChild(acts);
+    return row;
+  }
+
+  /* Filing is the graduation step: it sets a syllabus point and flips the kind, so
+     the capture becomes an ordinary note and starts counting towards coverage. */
+  var filing = null;
+  function openFileDialog(c) {
+    filing = c;
+    $('fileExcerpt').textContent = plain(c.body).slice(0, 300) || c.title;
+
+    var subj = $('fileSubject');
+    subj.textContent = '';
+    state.subjects.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;
+      subj.appendChild(o);
+    });
+    subj.value = c.subjectId;
+    fillFileSyllabus();
+    $('fileDialog').showModal();
+  }
+
+  function fillFileSyllabus() {
+    var sel = $('fileSyllabus');
+    sel.textContent = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Unfiled — just move it to the notebook';
+    sel.appendChild(blank);
+    syllabusOptions($('fileSubject').value).forEach(function (o) { sel.appendChild(o); });
+  }
+
+  /* Shared by the file dialog and the card dialog: the subject's syllabus as
+     <option>s, topics as disabled group headings so the shape is readable. */
+  function syllabusOptions(subjectId) {
+    var out = [];
+    topicsOf(subjectId).forEach(function (t) {
+      var kids = childrenOf(t.id);
+      if (!kids.length) return;
+      var g = document.createElement('optgroup');
+      g.label = (t.code ? t.code + ' · ' : '') + t.title;
+      kids.forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = (p.code ? p.code + ' · ' : '') + p.title;
+        g.appendChild(o);
+      });
+      out.push(g);
+    });
+    return out;
+  }
+
+  function doFile(e) {
+    if (e) e.preventDefault();
+    if (!filing) return;
+    var c = filing;
+    filing = null;
+    c.subjectId = $('fileSubject').value || c.subjectId;
+    c.syllabusId = $('fileSyllabus').value || null;
+    c.kind = 'personal';
+    put('notes', stamp(c)).then(function () {
+      $('fileDialog').close();
+      track('capture_filed', { filed: !!c.syllabusId });
+      return refresh({ keepEditor: true });
+    }).then(function () {
+      renderClasswork();
+      toast(c.syllabusId ? 'Filed. It is a notebook note now.' : 'Moved to the notebook, unfiled.');
+    });
+  }
+
+  /* ============================================================
+     12d · review — SM-2
+     ------------------------------------------------------------
+     SM-2 (SuperMemo 2), the algorithm Anki's default scheduler descends from.
+     Chosen over anything newer because it is small, fully understood, needs no
+     training data, and runs offline — which matters more here than the last few
+     percent of scheduling accuracy.
+
+     Per card: an ease factor (how easy you find it, >= 1.3), an interval in days,
+     and a repetition count. Grade a card 0-5; anything under 3 is a lapse and the
+     card restarts. The ease factor moves by the standard SM-2 formula, so a card
+     you keep failing comes back faster forever, not just once.
+
+     Deliberately NOT stored: any measure of "retention %" of the sort the concept
+     mockups show. That number needs a decay model this scheduler does not have,
+     and inventing one would be a made-up number on a study screen.
+     ============================================================ */
+  var DAY = 86400000;
+  var MIN_EASE = 1.3;
+
+  function newCard(fields) {
+    return stamp({
+      id: uid(),
+      subjectId: fields.subjectId, syllabusId: fields.syllabusId || null,
+      noteId: fields.noteId || null,
+      front: fields.front, back: fields.back,
+      ease: 2.5, interval: 0, reps: 0, lapses: 0,
+      due: Date.now(),          // a new card is due immediately
+      lastReviewed: null
+    });
+  }
+
+  /* Returns the card mutated in place. Grade: 0 again, 3 hard, 4 good, 5 easy. */
+  function schedule(card, grade) {
+    if (grade < 3) {
+      card.lapses = (card.lapses || 0) + 1;
+      card.reps = 0;
+      card.interval = 0;
+      // 10 minutes, not tomorrow: a card you just failed should come back inside
+      // the same session, which is the whole point of grading it Again.
+      card.due = Date.now() + 10 * 60 * 1000;
+    } else {
+      card.reps = (card.reps || 0) + 1;
+      if (card.reps === 1) card.interval = 1;
+      else if (card.reps === 2) card.interval = 6;
+      else card.interval = Math.round(card.interval * card.ease);
+      card.due = Date.now() + card.interval * DAY;
+    }
+    // SM-2's ease update, applied on every grade including a lapse
+    var q = grade;
+    card.ease = Math.max(MIN_EASE,
+      (card.ease || 2.5) + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
+    card.lastReviewed = Date.now();
+    return card;
+  }
+
+  /* What the interval WOULD become, for the hint under each grade button. Pure —
+     it must not touch the card, or previewing a grade would schedule it. */
+  function previewInterval(card, grade) {
+    var c = {
+      ease: card.ease, interval: card.interval, reps: card.reps, lapses: card.lapses
+    };
+    schedule(c, grade);
+    if (grade < 3) return '10m';
+    if (c.interval < 1) return '1d';
+    if (c.interval < 30) return c.interval + 'd';
+    if (c.interval < 365) return Math.round(c.interval / 30) + 'mo';
+    return (Math.round(c.interval / 36.5) / 10) + 'y';
+  }
+
+  function dueCards() {
+    var now = Date.now();
+    return state.cards.filter(function (c) { return (c.due || 0) <= now; })
+      // most overdue first: the closest to being lost is the one worth the minute
+      .sort(function (a, b) { return (a.due || 0) - (b.due || 0); });
+  }
+
+  var session = null;   // {queue:[ids], done:n, total:n, shown:bool}
+
+  function startReview() {
+    var due = dueCards();
+    if (!due.length) return;
+    session = {
+      queue: due.map(function (c) { return c.id; }),
+      done: 0, total: due.length, shown: false
+    };
+    track('review_started', { cards: due.length });
+    renderReview();
+  }
+
+  function gradeCurrent(grade) {
+    if (!session || !session.queue.length) return;
+    var card = cardById(session.queue[0]);
+    if (!card) { session.queue.shift(); return renderReview(); }
+
+    schedule(card, grade);
+    session.queue.shift();
+    // a failed card goes back into this session, behind whatever is left
+    if (grade < 3) session.queue.push(card.id);
+    else session.done++;
+    session.shown = false;
+
+    put('cards', stamp(card)).then(function () {
+      return refreshCards();
+    }).then(renderReview);
+  }
+
+  function cardById(id) {
+    for (var i = 0; i < state.cards.length; i++) if (state.cards[i].id === id) return state.cards[i];
+    return null;
+  }
+
+  function refreshCards() {
+    return all('cards').then(function (list) {
+      state.cards = live(list);
+    });
+  }
+
+  function renderReview() {
+    var due = dueCards();
+    var panel = $('rvPanel');
+    var inSession = !!(session && session.queue.length);
+
+    $('rvSession').hidden = !inSession;
+    panel.hidden = inSession;
+    $('rvStart').hidden = inSession || !due.length;
+    $('rvDeckBtn').hidden = inSession;
+
+    if (inSession) {
+      var card = cardById(session.queue[0]);
+      if (!card) { session.queue.shift(); return renderReview(); }
+      var pct = session.total ? Math.round((session.done / session.total) * 100) : 0;
+      $('rvFill').style.width = pct + '%';
+      $('rvTitle').textContent = session.done + ' of ' + session.total;
+      $('rvContext').textContent = 'Reviewing';
+
+      var s = subjectById(card.subjectId);
+      var node = card.syllabusId ? nodeById(card.syllabusId) : null;
+      $('rvWhere').textContent = [
+        s ? (s.code || s.name) : null,
+        node ? (node.code || node.title) : null
+      ].filter(Boolean).join(' · ') || 'Unfiled';
+
+      $('rvFront').textContent = card.front;
+      $('rvBack').textContent = card.back;
+      $('rvBack').hidden = !session.shown;
+      $('rvAsk').hidden = session.shown;
+      $('rvGrades').hidden = !session.shown;
+
+      if (session.shown) {
+        [0, 3, 4, 5].forEach(function (g) {
+          $('gi' + g).textContent = previewInterval(card, g);
+        });
+      }
+      return;
+    }
+
+    // not in a session: either just finished, or the deck view
+    session = null;
+    $('rvContext').textContent = 'Review';
+    $('rvTitle').textContent = due.length
+      ? due.length + (due.length === 1 ? ' card due' : ' cards due')
+      : (state.cards.length ? 'Nothing due' : 'No cards yet');
+    renderDeck(panel, due);
+  }
+
+  function renderDeck(panel, due) {
+    panel.textContent = '';
+
+    if (!state.cards.length) {
+      var note = document.createElement('p');
+      note.className = 'rv-note';
+      note.textContent = 'Cards are made from notes you have already written — nobody sits '
+        + 'down and writes flashcards, which is why spaced repetition usually fails. Open a '
+        + 'note, select the bit worth remembering and hit "+ Card" in the toolbar.';
+      panel.appendChild(note);
+      renderSuggestions(panel);
+      return;
+    }
+
+    var stats = document.createElement('div');
+    stats.className = 'rv-stats';
+    var soon = state.cards.filter(function (c) {
+      return c.due > Date.now() && c.due < Date.now() + 7 * DAY;
+    }).length;
+    [[due.length, 'Due now'], [state.cards.length, 'In the deck'], [soon, 'Due this week']]
+      .forEach(function (pair) {
+        var d = document.createElement('div');
+        d.className = 'rv-stat';
+        var b = document.createElement('b');
+        b.textContent = pair[0];
+        var sp = document.createElement('span');
+        sp.textContent = pair[1];
+        d.appendChild(b); d.appendChild(sp);
+        stats.appendChild(d);
+      });
+    panel.appendChild(stats);
+
+    if (!due.length) {
+      var n = document.createElement('p');
+      n.className = 'rv-note';
+      var next = state.cards.reduce(function (m, c) {
+        return (!m || c.due < m) ? c.due : m;
+      }, 0);
+      n.textContent = next
+        ? 'Nothing to review right now. The next card is due ' + when(next).toLowerCase() + '. '
+          + 'Coming back early is wasted effort — that is the whole point of the schedule.'
+        : 'Nothing to review right now.';
+      panel.appendChild(n);
+    }
+
+    var list = state.cards.slice().sort(function (a, b) { return (a.due || 0) - (b.due || 0); });
+    list.forEach(function (c) { panel.appendChild(deckRow(c)); });
+    renderSuggestions(panel);
+  }
+
+  function deckRow(c) {
+    var row = document.createElement('div');
+    row.className = 'deckrow';
+
+    var main = document.createElement('div');
+    main.className = 'dfront';
+    main.textContent = c.front;
+
+    var meta = document.createElement('div');
+    meta.className = 'dmeta';
+    var chip = document.createElement('span');
+    var overdue = (c.due || 0) <= Date.now();
+    chip.className = 'due-chip' + (overdue ? ' now' : (c.reps ? '' : ' new'));
+    chip.textContent = overdue ? 'due' : (c.reps ? when(c.due) : 'new');
+    meta.appendChild(chip);
+
+    var s = subjectById(c.subjectId);
+    var node = c.syllabusId ? nodeById(c.syllabusId) : null;
+    var where = document.createElement('span');
+    where.textContent = [
+      s ? (s.code || s.name) : null,
+      node ? (node.code || node.title) : null
+    ].filter(Boolean).join(' · ');
+    meta.appendChild(where);
+
+    if (c.reps) {
+      var seen = document.createElement('span');
+      seen.textContent = c.reps + (c.reps === 1 ? ' review' : ' reviews')
+        + (c.lapses ? ' · ' + c.lapses + ' lapsed' : '');
+      meta.appendChild(seen);
+    }
+    main.appendChild(meta);
+    row.appendChild(main);
+
+    var acts = document.createElement('div');
+    acts.className = 'dacts';
+    var edit = document.createElement('button');
+    edit.type = 'button';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', function () { openCardDialog(c); });
+    acts.appendChild(edit);
+    row.appendChild(acts);
+    return row;
+  }
+
+  /* Candidate cards pulled out of what the user already wrote. No model, no network:
+     a heading followed by prose is already a question and its answer, and a
+     highlighted phrase is already the bit they decided mattered. Suggestions are
+     never saved on their own — accepting one opens the normal dialog so the front
+     is always something a person chose to ask. */
+  function suggestions() {
+    var out = [];
+    var have = {};
+    state.cards.forEach(function (c) { have[c.noteId + '|' + c.front] = true; });
+
+    notebookNotes().forEach(function (n) {
+      if (!n.body) return;
+      var d = document.createElement('div');
+      d.innerHTML = n.body;
+
+      var kids = d.children;
+      for (var i = 0; i < kids.length && out.length < 40; i++) {
+        if (kids[i].tagName !== 'H3') continue;
+        var answer = [];
+        for (var j = i + 1; j < kids.length; j++) {
+          if (kids[j].tagName === 'H3') break;
+          answer.push(kids[j].textContent || '');
+        }
+        var back = answer.join(' ').replace(/\s+/g, ' ').trim();
+        var front = (kids[i].textContent || '').trim();
+        if (!front || back.length < 25) continue;
+        if (have[n.id + '|' + front]) continue;
+        out.push({ noteId: n.id, subjectId: n.subjectId, syllabusId: n.syllabusId,
+                   front: front, back: back.slice(0, 1200), why: 'heading' });
+      }
+    });
+    return out;
+  }
+
+  function renderSuggestions(panel) {
+    var list = suggestions();
+    if (!list.length) return;
+
+    var h = document.createElement('div');
+    h.className = 'rv-stat';
+    var head = document.createElement('h4');
+    head.style.cssText = 'font-family:var(--code);font-size:.625rem;letter-spacing:.11em;'
+      + 'text-transform:uppercase;color:var(--muted);font-weight:400;margin:26px 0 4px;'
+      + 'padding-bottom:7px;border-bottom:1px solid var(--rule-soft)';
+    head.textContent = 'From your notes · ' + list.length + ' suggested';
+    panel.appendChild(head);
+
+    var why = document.createElement('p');
+    why.className = 'rv-note';
+    why.style.marginTop = '10px';
+    why.textContent = 'Every heading you wrote with something under it is already a question '
+      + 'and an answer. Check one before you keep it — a card you did not read is a card you '
+      + 'will not answer.';
+    panel.appendChild(why);
+
+    list.slice(0, 12).forEach(function (sg) {
+      var row = document.createElement('div');
+      row.className = 'deckrow';
+      var main = document.createElement('div');
+      main.className = 'dfront';
+      main.textContent = sg.front;
+      var meta = document.createElement('div');
+      meta.className = 'dmeta';
+      var chip = document.createElement('span');
+      chip.className = 'due-chip new';
+      chip.textContent = 'suggested';
+      meta.appendChild(chip);
+      var ex = document.createElement('span');
+      ex.textContent = sg.back.slice(0, 90);
+      meta.appendChild(ex);
+      main.appendChild(meta);
+      row.appendChild(main);
+
+      var acts = document.createElement('div');
+      acts.className = 'dacts';
+      var keep = document.createElement('button');
+      keep.type = 'button';
+      keep.textContent = 'Review it';
+      keep.addEventListener('click', function () { openCardDialog(null, sg); });
+      acts.appendChild(keep);
+      row.appendChild(acts);
+      panel.appendChild(row);
+    });
+  }
+
+  /* ---- card dialog ---- */
+  var editingCard = null;
+  function openCardDialog(card, prefill) {
+    editingCard = card || null;
+    var src = card || prefill || {};
+    $('cardHeading').textContent = card ? 'Edit card' : 'New card';
+    $('cardFront').value = src.front || '';
+    $('cardBack').value = src.back || '';
+    $('cardDelete').hidden = !card;
+
+    var subjectId = src.subjectId || state.activeSubject
+      || (state.subjects[0] && state.subjects[0].id);
+    var sel = $('cardSyllabus');
+    sel.textContent = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Nothing in particular';
+    sel.appendChild(blank);
+    if (subjectId) syllabusOptions(subjectId).forEach(function (o) { sel.appendChild(o); });
+    if (src.syllabusId) sel.value = src.syllabusId;
+
+    // carried on the dialog so save doesn't have to re-derive them
+    $('cardForm').dataset.subject = subjectId || '';
+    $('cardForm').dataset.note = src.noteId || '';
+    $('cardDialog').showModal();
+  }
+
+  function saveCard(e) {
+    if (e) e.preventDefault();
+    var front = $('cardFront').value.trim();
+    var back = $('cardBack').value.trim();
+    if (!front || !back) return;
+
+    var job;
+    if (editingCard) {
+      editingCard.front = front;
+      editingCard.back = back;
+      editingCard.syllabusId = $('cardSyllabus').value || null;
+      job = put('cards', stamp(editingCard));
+    } else {
+      job = put('cards', newCard({
+        subjectId: $('cardForm').dataset.subject || null,
+        syllabusId: $('cardSyllabus').value || null,
+        noteId: $('cardForm').dataset.note || null,
+        front: front, back: back
+      }));
+      track('card_made', {});
+    }
+    var wasEdit = !!editingCard;
+    editingCard = null;
+    job.then(refreshCards).then(function () {
+      $('cardDialog').close();
+      if (!$('review').hidden) renderReview();
+      toast(wasEdit ? 'Card updated.' : 'Card added — it is due now.');
+    });
+  }
+
+  function deleteCard() {
+    if (!editingCard) return;
+    if (!confirm('Delete this card? Its review history goes with it.')) return;
+    var c = editingCard;
+    editingCard = null;
+    softDelete('cards', c).then(refreshCards).then(function () {
+      $('cardDialog').close();
+      if (!$('review').hidden) renderReview();
+      toast('Card deleted.');
+    });
+  }
+
+  /* Toolbar "+ Card": the selection is the raw material. A selection spanning a
+     line break is read as question-then-answer; a single line is a front with the
+     back left for the user to write, which is the honest default — only they know
+     the answer they want to be able to produce. */
+  function cardFromSelection() {
+    var n = activeNoteObj();
+    if (!n) return;
+    var sel = window.getSelection();
+    var text = sel && !sel.isCollapsed ? String(sel) : '';
+    var front = '', back = '';
+    if (text.trim()) {
+      var parts = text.trim().split(/\n+/);
+      if (parts.length > 1) {
+        front = parts[0].trim();
+        back = parts.slice(1).join('\n').trim();
+      } else {
+        front = parts[0].trim();
+      }
+    }
+    openCardDialog(null, {
+      front: front, back: back,
+      subjectId: n.subjectId, syllabusId: n.syllabusId, noteId: n.id
+    });
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
       var payload = {
-        app: 'nexley', format: 3, appVersion: APP_VERSION,
+        app: 'nexley', format: 4, appVersion: APP_VERSION,
         exported: new Date().toISOString(), device: state.deviceId,
         account: state.account ? { name: state.account.name, email: state.account.email } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
-        subjects: r[0], notes: r[1], syllabus: r[2]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3]
       };
       var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -1561,12 +2367,13 @@
       }
 
       snapshot('before-import').then(function () {
-        return Promise.all([all('subjects'), all('notes'), all('syllabus')]);
+        return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]);
       }).then(function (cur) {
         var index = {}, kept = 0, skipped = 0, jobs = [];
         cur[0].forEach(function (s) { index['s:' + s.id] = s; });
         cur[1].forEach(function (n) { index['n:' + n.id] = n; });
         cur[2].forEach(function (y) { index['y:' + y.id] = y; });
+        cur[3].forEach(function (c) { index['c:' + c.id] = c; });
 
         function consider(store, prefix, rec) {
           var mine = index[prefix + rec.id];
@@ -1582,6 +2389,8 @@
           if (n.kind === undefined) n.kind = 'personal';
           consider('notes', 'n:', n);
         });
+        // format 4 and later; an older file simply has none
+        (data.cards || []).forEach(function (c) { consider('cards', 'c:', c); });
 
         return Promise.all(jobs).then(refresh).then(function () {
           toast('Imported ' + kept + ' newer records. ' + skipped + ' already up to date.');
@@ -1791,7 +2600,6 @@
     });
 
     // phone drawer
-    function closeNav() { $('app').classList.remove('nav-open'); }
     $('menuBtn').addEventListener('click', function () { $('app').classList.toggle('nav-open'); });
     $('railScrim').addEventListener('click', closeNav);
     // picking a subject closes the drawer — and means "show me my notebook", so it also
@@ -1799,37 +2607,8 @@
     $('subjectList').addEventListener('click', function () { setMode('notebook'); });
     $('search').addEventListener('focus', function () { setMode('notebook'); });
 
-    // modes. Classwork and Review are honest stubs — the nav holds the shape now so we
-    // don't restructure it again when they're built. Deliberately not persisted: opening
-    // the app into a "not built yet" screen would be a bad landing.
-    var STUBS = {
-      classwork: {
-        title: 'Classwork',
-        body: 'Quick capture for what actually happens in class — get it down fast, ' +
-              'unfiled and unpolished, and tidy it later. Classwork graduates into ' +
-              'notebook notes once you file it against the syllabus.'
-      },
-      review: {
-        title: 'Review',
-        body: 'Spaced repetition over what you have already written. Nexley builds a ' +
-              'due-today queue from your own notes and your syllabus coverage, so ' +
-              'revision follows the gaps instead of the whole course.'
-      }
-    };
-    function setMode(m) {
-      var stub = STUBS[m];
-      var btns = $('modeSwitch').getElementsByClassName('mode');
-      for (var i = 0; i < btns.length; i++) {
-        btns[i].classList.toggle('on', btns[i].getAttribute('data-mode') === m);
-      }
-      if (stub) {
-        $('stubTitle').textContent = stub.title;
-        $('stubBody').textContent = stub.body;
-      }
-      $('modeStub').hidden = !stub;
-      $('app').classList.toggle('stubbed', !!stub);
-      closeNav();
-    }
+    // Modes. Not persisted across reloads on purpose: the app should open on your
+    // notebook, not mid-review. A mode is a thing you choose to enter.
     $('modeSwitch').addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('.mode') : null;
       if (!b) return;
@@ -1837,6 +2616,64 @@
       setMode(m);
       track('mode_switched', { mode: m });
     });
+
+    // classwork
+    $('cwSave').addEventListener('click', captureNow);
+    $('cwInput').addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); captureNow(); }
+    });
+    $('cwSubject').addEventListener('change', function () {
+      try { localStorage.setItem(CW_SUBJ_KEY, $('cwSubject').value); } catch (err) {}
+    });
+    $('fileForm').addEventListener('submit', doFile);
+    $('fileCancel').addEventListener('click', function () {
+      filing = null;
+      $('fileDialog').close();
+    });
+    $('fileSubject').addEventListener('change', fillFileSyllabus);
+
+    // review
+    $('rvStart').addEventListener('click', startReview);
+    $('rvShow').addEventListener('click', function () {
+      if (!session) return;
+      session.shown = true;
+      renderReview();
+    });
+    $('rvDeckBtn').addEventListener('click', function () { session = null; renderReview(); });
+    $('rvGrades').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('.grade') : null;
+      if (!b) return;
+      gradeCurrent(parseInt(b.getAttribute('data-grade'), 10));
+    });
+    // space to flip, 1-4 to grade — a review session is a keyboard loop or it is slow
+    document.addEventListener('keydown', function (e) {
+      if ($('review').hidden || !session || !session.queue.length) return;
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      if (document.querySelector('dialog[open]')) return;
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        if (!session.shown) { session.shown = true; renderReview(); }
+        return;
+      }
+      if (!session.shown) return;
+      var map = { '1': 0, '2': 3, '3': 4, '4': 5 };
+      if (map[e.key] !== undefined) { e.preventDefault(); gradeCurrent(map[e.key]); }
+    });
+
+    // sync state
+    $('syncState').addEventListener('click', openSyncDetail);
+    window.addEventListener('nexley-sync-state', function (e) { renderSyncState(e.detail); });
+    // whatever the state already was before this listener existed
+    if (window.NexleySync && window.NexleySync.status) renderSyncState(window.NexleySync.status());
+
+    // cards
+    $('makeCard').addEventListener('click', cardFromSelection);
+    $('cardForm').addEventListener('submit', saveCard);
+    $('cardCancel').addEventListener('click', function () {
+      editingCard = null;
+      $('cardDialog').close();
+    });
+    $('cardDelete').addEventListener('click', deleteCard);
 
     $('introNext').addEventListener('click', function () {
       var n = document.querySelectorAll('.ipanel').length;
