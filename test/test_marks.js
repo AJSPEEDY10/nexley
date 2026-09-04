@@ -106,6 +106,72 @@ forbidden.forEach(function (word) {
      section.toLowerCase().indexOf(word.toLowerCase()) === -1);
 });
 
+/* ---------------------------------------------------------------
+   Phase 6 part two — where the marks went
+   --------------------------------------------------------------- */
+eval(grab('var LOSS_REASONS = [', '  function renderLossBreakdown'));
+
+const q = (mark, outOf, reason) => ({ id: 'q', label: 'Q', mark, outOf, reason: reason || null });
+const withQs = (qs) => ({ conditions: 'exam', mark: 0, outOf: 100, sat: 1, questions: qs });
+
+console.log('\n10. Only LOST marks are grouped');
+/* A question answered perfectly has no reason to explain. If full-mark questions
+   counted, the biggest category would just be whatever you are best at — the
+   exact opposite of what this is for. */
+let r = lossByReason([withQs([q(5, 5, 'time'), q(0, 4, 'time')])]);
+ok('a full-marks question contributes nothing', r.lost === 4, JSON.stringify(r));
+ok('one row, four marks', r.rows.length === 1 && r.rows[0].lost === 4);
+ok('the question count only counts questions that lost marks', r.rows[0].count === 1);
+
+console.log('\n11. Ordered by damage, not by list order');
+r = lossByReason([withQs([q(0, 2, 'careless'), q(0, 9, 'unknown'), q(0, 5, 'time')])]);
+ok('biggest loss first', r.rows.map(x => x.reason).join(',') === 'unknown,time,careless',
+   r.rows.map(x => x.reason).join(','));
+ok('share is a percentage of everything dropped', r.rows[0].share === 56.3, String(r.rows[0].share));
+
+console.log('\n12. Unexplained losses are reported, never hidden');
+/* Silently dropping a lost mark with no reason would make the split add up to
+   less than reality while still looking complete. */
+r = lossByReason([withQs([q(0, 6, 'unknown'), q(0, 4, null)])]);
+ok('total counts every lost mark', r.lost === 10);
+ok('unexplained is reported separately', r.unexplained === 4);
+ok('unexplained is NOT a reason row', r.rows.length === 1 && r.rows[0].reason === 'unknown');
+ok('rows plus unexplained equal the total',
+   r.rows.reduce((n, x) => n + x.lost, 0) + r.unexplained === r.lost);
+
+console.log('\n13. A reason this version does not know is unexplained, not a blank row');
+r = lossByReason([withQs([q(0, 3, 'invented_reason')])]);
+ok('unknown reason falls through to unexplained', r.unexplained === 3 && r.rows.length === 0);
+
+console.log('\n14. Across several papers');
+r = lossByReason([
+  withQs([q(1, 4, 'time')]),
+  withQs([q(2, 6, 'time'), q(0, 5, 'unknown')])
+]);
+ok('the same reason accumulates across papers',
+   r.rows.find(x => x.reason === 'time').lost === 7, JSON.stringify(r.rows));
+ok('and counts its questions', r.rows.find(x => x.reason === 'time').count === 2);
+
+console.log('\n15. Nothing recorded');
+ok('no questions means no breakdown', lossByReason([withQs([])]).lost === 0);
+ok('a paper with no questions key at all is safe',
+   lossByReason([{ conditions: 'exam', mark: 1, outOf: 2, sat: 1 }]).lost === 0);
+
+console.log('\n16. Coverage is measured, so a partial breakdown cannot read as complete');
+let cov = breakdownCoverage({ mark: 60, outOf: 100, questions: [q(10, 20, 'time')] });
+ok('counts the marks broken down', cov.marksCounted === 20);
+ok('knows the paper total', cov.marksTotal === 100);
+ok('not complete when most of the paper is unaccounted for', cov.complete === false);
+cov = breakdownCoverage({ mark: 15, outOf: 20, questions: [q(10, 20, 'time')] });
+ok('complete once the questions cover the paper', cov.complete === true);
+ok('a paper with no questions is never complete',
+   breakdownCoverage({ mark: 1, outOf: 2, questions: [] }).complete === false);
+
+console.log('\n17. Every reason carries a fix — the split is only useful if it changes what you do');
+LOSS_REASONS.forEach(function (x) {
+  ok('"' + x.id + '" has a label and a fix', !!x.label && !!x.fix && x.fix.length > 10);
+});
+
 console.log('\n==============================================');
 console.log('  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

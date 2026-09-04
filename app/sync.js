@@ -14,7 +14,7 @@
  *   notes:     id, subjectId->subject_id, syllabusId->syllabus_id, kind, title, body, font,
  *              created->created_at, updated->updated_at, rev, device, deleted
  *   papers:    id, subjectId->subject_id, title, sat->sat_at, conditions,
- *              mark, outOf->out_of, weight->weight_pct, reflection,
+ *              mark, outOf->out_of, weight->weight_pct, reflection, questions,
  *              created->created_at, updated->updated_at, rev, device, deleted
  *   feedback:  id, kind, body, status, reply, appVersion->app_version,
  *              created->created_at, updated->updated_at, rev, device, deleted
@@ -107,6 +107,7 @@
       conditions: p.conditions, mark: p.mark, out_of: p.outOf,
       weight_pct: (p.weight === null || p.weight === undefined) ? null : p.weight,
       reflection: p.reflection || null,
+      questions: p.questions || [],
       created_at: new Date(p.created).toISOString(), updated_at: new Date(p.updated).toISOString(),
       rev: p.rev || 1, device: p.device || null, deleted: !!p.deleted
     };
@@ -165,7 +166,9 @@
       sat: Date.parse(r.sat_at), conditions: r.conditions,
       mark: parseFloat(r.mark), outOf: parseFloat(r.out_of),
       weight: (r.weight_pct === null || r.weight_pct === undefined) ? null : parseFloat(r.weight_pct),
+      // a paper written by 0.15.0 has no questions key at all
       reflection: r.reflection || null,
+      questions: r.questions || [],
       created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
       rev: r.rev, device: r.device, deleted: r.deleted || null
     };

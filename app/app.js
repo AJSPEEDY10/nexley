@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.15.0';
+  var APP_VERSION = '0.16.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -3220,6 +3220,9 @@
       body.appendChild(conditionBlock(g));
     });
 
+    var loss = renderLossBreakdown(mine);
+    if (loss) body.appendChild(loss);
+
     if (groups.length > 1) {
       var p2 = document.createElement('p');
       p2.className = 'mk-why';
@@ -3305,12 +3308,172 @@
     return row;
   }
 
+  /* ------------------------------------------------------------
+     where the marks went
+     ------------------------------------------------------------
+     A mark lost to running out of time and a mark lost to not knowing the
+     content are the same number and completely different problems. Only one of
+     them is fixed by studying harder; one is fixed by doing a timed practice
+     paper, and one by writing the answer differently. A total tells you none of
+     that, which is why the total is the least useful thing on a returned script.
+
+     The app cannot infer which is which — it has no access to the script — so
+     the student says, per question, and this adds it up.
+     ------------------------------------------------------------ */
+  var LOSS_REASONS = [
+    { id: 'unknown',    label: "Didn't know it",          fix: 'Content gap — this is the one that turns into revision.' },
+    { id: 'time',       label: 'Ran out of time',         fix: 'You knew it. Practise under the clock, not more content.' },
+    { id: 'misread',    label: 'Misread the question',    fix: 'Read the verb. Underline what it actually asks for.' },
+    { id: 'careless',   label: 'Knew it, slipped',        fix: 'Checking time at the end is worth more than more study.' },
+    { id: 'working',    label: "Didn't show working",     fix: 'Marks for method are free marks. Write the steps.' },
+    { id: 'expression', label: 'Explained it badly',      fix: 'You had it. Practise writing the answer, not learning it.' }
+  ];
+
+  function reasonMeta(id) {
+    for (var i = 0; i < LOSS_REASONS.length; i++) if (LOSS_REASONS[i].id === id) return LOSS_REASONS[i];
+    return null;
+  }
+
+  function questionsOf(p) {
+    return (p && p.questions) || [];
+  }
+
+  function lostOn(q) {
+    var lost = (q.outOf || 0) - (q.mark || 0);
+    return lost > 0 ? lost : 0;
+  }
+
+  /* How much of the paper the breakdown actually accounts for. A partial
+     breakdown presented as a complete one is worse than no breakdown: it makes a
+     student think they have found where the marks went when most of them are
+     still unexplained. So this is measured and shown rather than assumed. */
+  function breakdownCoverage(p) {
+    var qs = questionsOf(p);
+    var counted = 0;
+    qs.forEach(function (q) { counted += (q.outOf || 0); });
+    var lostTotal = (p.outOf || 0) - (p.mark || 0);
+    var lostCounted = 0;
+    qs.forEach(function (q) { lostCounted += lostOn(q); });
+    return {
+      questions: qs.length,
+      marksCounted: counted,
+      marksTotal: p.outOf || 0,
+      lostCounted: lostCounted,
+      lostTotal: lostTotal > 0 ? lostTotal : 0,
+      complete: qs.length > 0 && counted >= (p.outOf || 0)
+    };
+  }
+
+  /* Only LOST marks are grouped. A question answered perfectly has no reason to
+     explain and must not pad a category — the question being answered is "where
+     did the marks you did not get actually go", and full marks are not an answer
+     to it. A lost mark with no reason recorded is counted separately as
+     unexplained rather than quietly dropped. */
+  function lossByReason(papers) {
+    var totals = {}, unexplained = 0, lostAll = 0;
+    papers.forEach(function (p) {
+      questionsOf(p).forEach(function (q) {
+        var lost = lostOn(q);
+        if (!lost) return;
+        lostAll += lost;
+        if (!q.reason || !reasonMeta(q.reason)) { unexplained += lost; return; }
+        if (!totals[q.reason]) totals[q.reason] = { lost: 0, count: 0 };
+        totals[q.reason].lost += lost;
+        totals[q.reason].count++;
+      });
+    });
+
+    var rows = [];
+    LOSS_REASONS.forEach(function (r) {
+      if (!totals[r.id]) return;
+      rows.push({
+        reason: r.id, label: r.label, fix: r.fix,
+        lost: Math.round(totals[r.id].lost * 100) / 100,
+        count: totals[r.id].count,
+        share: lostAll > 0 ? Math.round((totals[r.id].lost / lostAll) * 1000) / 10 : 0
+      });
+    });
+    // biggest loss first: the point is where to spend the next hour
+    rows.sort(function (a, b) { return b.lost - a.lost; });
+    return { rows: rows, unexplained: Math.round(unexplained * 100) / 100, lost: Math.round(lostAll * 100) / 100 };
+  }
+
+  function renderLossBreakdown(papers) {
+    var res = lossByReason(papers);
+    if (!res.lost) return null;
+
+    var wrap = document.createElement('section');
+    wrap.className = 'mk-loss';
+
+    var h = document.createElement('h3');
+    h.textContent = 'Where the marks went';
+    wrap.appendChild(h);
+
+    var lead = document.createElement('p');
+    lead.className = 'mk-lossnote';
+    lead.textContent = trimNum(res.lost) + ' marks dropped across the papers you have broken down. '
+      + 'These are different problems with different fixes, which is the only reason the split is worth having.';
+    wrap.appendChild(lead);
+
+    res.rows.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'mk-lossrow';
+
+      var top = document.createElement('div');
+      top.className = 'mk-losstop';
+
+      var name = document.createElement('b');
+      name.textContent = r.label;
+      top.appendChild(name);
+
+      var n = document.createElement('span');
+      n.className = 'mk-lossn';
+      n.textContent = trimNum(r.lost) + ' marks · ' + r.count + (r.count === 1 ? ' question' : ' questions');
+      top.appendChild(n);
+
+      row.appendChild(top);
+
+      var bar = document.createElement('div');
+      bar.className = 'mk-lossbar';
+      var fill = document.createElement('i');
+      fill.style.width = r.share + '%';
+      bar.appendChild(fill);
+      row.appendChild(bar);
+
+      var fix = document.createElement('p');
+      fix.className = 'mk-lossfix';
+      fix.textContent = r.fix;
+      row.appendChild(fix);
+
+      wrap.appendChild(row);
+    });
+
+    if (res.unexplained > 0) {
+      var u = document.createElement('p');
+      u.className = 'mk-lossnote';
+      // said plainly: an unexplained loss is the app admitting what it does not know
+      u.textContent = trimNum(res.unexplained) + ' of those marks have no reason recorded yet, '
+        + 'so they are not in the split above.';
+      wrap.appendChild(u);
+    }
+    return wrap;
+  }
+
   /* ---------- add / edit ---------- */
 
   var editingPaper = null;
+  /* Questions are edited on a COPY and only written back in savePaper. Cancelling
+     a dialog has to actually cancel — editing the live record in place would mean
+     "Cancel" silently kept every question change, which is the kind of quiet
+     data-loss-in-reverse that is very hard to notice. */
+  var draftQuestions = [];
 
   function openPaperDialog(p) {
     editingPaper = p || null;
+    draftQuestions = (p && p.questions ? p.questions : []).map(function (q) {
+      return { id: q.id, label: q.label, mark: q.mark, outOf: q.outOf,
+               reason: q.reason || null, note: q.note || null };
+    });
     $('pprHeading').textContent = p ? 'Edit this paper' : 'Record a paper';
     $('pprTitle').value = p ? p.title : '';
     $('pprMark').value = p ? p.mark : '';
@@ -3321,6 +3484,7 @@
     pprConditions = p ? p.conditions : 'exam';
     renderPprConditions();
     $('pprDelete').hidden = !p;
+    renderQuestions();
     $('pprError').hidden = true;
     $('pprDialog').showModal();
     setTimeout(function () { $('pprTitle').focus(); }, 60);
@@ -3362,6 +3526,133 @@
     $('pprHint').textContent = conditionMeta(pprConditions).hint;
   }
 
+  /* Deliberately not a spreadsheet. Six fields per question would make recording
+     a 30-question paper a chore nobody does twice, and a breakdown nobody fills in
+     is worth nothing. Label, marks, and why — the reason is the only field that
+     earns its place, because it is the one the total cannot tell you. */
+  function renderQuestions() {
+    var wrap = $('pprQuestions');
+    wrap.textContent = '';
+
+    draftQuestions.forEach(function (q, i) {
+      var row = document.createElement('div');
+      row.className = 'qrow';
+
+      var label = document.createElement('input');
+      label.type = 'text';
+      label.className = 'q-label';
+      label.value = q.label || '';
+      label.placeholder = 'Q' + (i + 1);
+      label.setAttribute('aria-label', 'Question label');
+      label.addEventListener('input', function () { q.label = this.value; });
+      row.appendChild(label);
+
+      var mark = document.createElement('input');
+      mark.type = 'number';
+      mark.className = 'q-num';
+      mark.min = '0'; mark.step = '0.5';
+      mark.value = (q.mark === null || q.mark === undefined) ? '' : q.mark;
+      mark.placeholder = 'got';
+      mark.setAttribute('aria-label', 'Marks awarded');
+      mark.addEventListener('input', function () {
+        q.mark = this.value === '' ? null : parseFloat(this.value);
+        updateQuestionState(row, q);
+      });
+      row.appendChild(mark);
+
+      var slash = document.createElement('span');
+      slash.className = 'q-slash';
+      slash.textContent = '/';
+      row.appendChild(slash);
+
+      var outOf = document.createElement('input');
+      outOf.type = 'number';
+      outOf.className = 'q-num';
+      outOf.min = '0'; outOf.step = '0.5';
+      outOf.value = (q.outOf === null || q.outOf === undefined) ? '' : q.outOf;
+      outOf.placeholder = 'of';
+      outOf.setAttribute('aria-label', 'Marks available');
+      outOf.addEventListener('input', function () {
+        q.outOf = this.value === '' ? null : parseFloat(this.value);
+        updateQuestionState(row, q);
+      });
+      row.appendChild(outOf);
+
+      var why = document.createElement('select');
+      why.className = 'q-why';
+      why.setAttribute('aria-label', 'Why the marks were lost');
+      var blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'why?';
+      why.appendChild(blank);
+      LOSS_REASONS.forEach(function (r) {
+        var o = document.createElement('option');
+        o.value = r.id; o.textContent = r.label;
+        why.appendChild(o);
+      });
+      why.value = q.reason || '';
+      why.addEventListener('change', function () { q.reason = this.value || null; });
+      row.appendChild(why);
+
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'q-rm';
+      rm.textContent = '×';
+      rm.title = 'Remove this question';
+      rm.setAttribute('aria-label', 'Remove this question');
+      rm.addEventListener('click', function () {
+        draftQuestions.splice(i, 1);
+        renderQuestions();
+      });
+      row.appendChild(rm);
+
+      updateQuestionState(row, q);
+      wrap.appendChild(row);
+    });
+
+    renderQuestionTally();
+  }
+
+  /* A question with full marks has nothing to explain, so its "why" is hidden
+     rather than sitting there empty and looking unanswered. */
+  function updateQuestionState(row, q) {
+    var lost = lostOn(q);
+    row.classList.toggle('full', !lost && q.outOf > 0);
+    var why = row.querySelector('.q-why');
+    if (why) why.disabled = !lost;
+  }
+
+  /* The tally is the honesty guard: it says how much of the paper the breakdown
+     accounts for, so a partial one can never read as complete. */
+  function renderQuestionTally() {
+    var el = $('pprTally');
+    if (!draftQuestions.length) {
+      el.textContent = 'Optional — but this is the part that tells you something a total cannot.';
+      el.className = 'dlgnote';
+      return;
+    }
+    var counted = 0, lost = 0;
+    draftQuestions.forEach(function (q) { counted += (q.outOf || 0); lost += lostOn(q); });
+    var paperOutOf = parseFloat($('pprOutOf').value);
+    var msg = trimNum(counted) + ' marks broken down';
+    if (!isNaN(paperOutOf) && paperOutOf > 0) {
+      msg += ' of ' + trimNum(paperOutOf);
+      if (counted < paperOutOf) msg += ' — ' + trimNum(paperOutOf - counted) + ' still unaccounted for';
+      else if (counted > paperOutOf) msg += ' — that is more than the paper was worth, check the numbers';
+    }
+    msg += '. ' + trimNum(lost) + ' dropped.';
+    el.textContent = msg;
+    el.className = 'dlgnote' + (!isNaN(paperOutOf) && counted > paperOutOf ? ' warn' : '');
+  }
+
+  function addQuestion() {
+    draftQuestions.push({ id: uid(), label: '', mark: null, outOf: null, reason: null, note: null });
+    renderQuestions();
+    var rows = $('pprQuestions').getElementsByClassName('qrow');
+    var last = rows[rows.length - 1];
+    if (last) last.querySelector('.q-label').focus();
+  }
+
   function pprFail(msg) {
     var e = $('pprError');
     e.textContent = msg;
@@ -3388,6 +3679,27 @@
       return pprFail('Weighting is a percentage of the course, between 0 and 100. Leave it blank if you do not know.');
     }
 
+    /* Blank rows are dropped rather than rejected: someone who taps "add
+       question" and changes their mind should not be blocked from saving. A row
+       with numbers in it still has to make sense. */
+    var qs = draftQuestions.filter(function (q) {
+      return q.label || q.mark !== null || q.outOf !== null;
+    });
+    for (var qi = 0; qi < qs.length; qi++) {
+      var q = qs[qi];
+      var name = q.label || ('question ' + (qi + 1));
+      if (q.outOf === null || isNaN(q.outOf) || q.outOf <= 0) {
+        return pprFail('What was ' + name + ' out of?');
+      }
+      if (q.mark === null || isNaN(q.mark) || q.mark < 0) {
+        return pprFail('What did you get for ' + name + '?');
+      }
+      if (q.mark > q.outOf) {
+        return pprFail(name + ' has more marks than it was worth. Check the numbers.');
+      }
+      if (!q.label) q.label = 'Q' + (qi + 1);
+    }
+
     var rec = editingPaper || { id: uid() };
     rec.subjectId = mkSubject;
     rec.title = title;
@@ -3397,6 +3709,7 @@
     rec.outOf = outOf;
     rec.weight = weight;
     rec.reflection = $('pprReflection').value.trim() || null;
+    rec.questions = qs;
 
     put('papers', stamp(rec))
       .then(function () { $('pprDialog').close(); return refresh(); })
@@ -3682,6 +3995,8 @@
     $('mkSubject').addEventListener('change', function () { mkSubject = this.value; renderMarks(); });
     $('mkAdd').addEventListener('click', function () { openPaperDialog(null); });
     $('pprCancel').addEventListener('click', function () { $('pprDialog').close(); editingPaper = null; });
+    $('pprAddQ').addEventListener('click', addQuestion);
+    $('pprOutOf').addEventListener('input', renderQuestionTally);
     $('pprSave').addEventListener('click', savePaper);
     $('pprDelete').addEventListener('click', deletePaper);
 

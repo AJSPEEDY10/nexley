@@ -762,6 +762,49 @@ a{color:var(--structure)}
   border-top:1px solid var(--rule-soft);
   font-family:var(--text);font-size:var(--t-md);line-height:1.65;color:var(--muted)}
 
+/* where the marks went — the bar is share of total marks dropped, so the
+   longest one is where the next hour of study should go */
+.mk-loss{margin-top:var(--s-8);padding-top:var(--s-7);border-top:1px solid var(--rule)}
+.mk-loss h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
+  letter-spacing:-.015em}
+.mk-lossnote{max-width:56ch;margin-top:var(--s-4);
+  font-family:var(--text);font-size:var(--t-md);line-height:1.6;color:var(--muted)}
+
+.mk-lossrow{margin-top:var(--s-6);max-width:56ch}
+.mk-losstop{display:flex;align-items:baseline;gap:var(--s-5)}
+.mk-losstop b{font-family:var(--text);font-size:var(--t-lg);font-weight:400;color:var(--ink)}
+.mk-lossn{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);margin-left:auto}
+.mk-lossbar{height:6px;border-radius:var(--r-pill);background:var(--rule-soft);
+  margin-top:var(--s-3);overflow:hidden}
+.mk-lossbar i{display:block;height:100%;background:var(--structure);border-radius:var(--r-pill)}
+.mk-lossfix{font-family:var(--text);font-size:var(--t-md);line-height:1.55;
+  color:var(--ink-2);margin-top:var(--s-3)}
+
+/* the per-question editor. One line per question on a laptop; it wraps on a
+   phone rather than turning into a horizontally scrolling table. */
+.qlist{display:flex;flex-direction:column;gap:var(--s-3)}
+.qrow{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap}
+.qrow input,.qrow select{border:1px solid var(--rule);border-radius:var(--r-md);
+  background:var(--paper);color:var(--ink);padding:7px 9px;
+  font-family:inherit;font-size:var(--t-base)}
+.qrow input:focus,.qrow select:focus{outline:none;border-color:var(--structure)}
+.q-label{flex:1;min-width:64px}
+.q-num{width:64px;text-align:right}
+.q-slash{color:var(--muted);font-family:var(--code);font-size:var(--t-sm)}
+.q-why{flex:1;min-width:132px;max-width:200px}
+/* a question answered perfectly has nothing to explain */
+.qrow.full .q-why{opacity:.35}
+.q-rm{background:none;border:0;color:var(--muted);font-size:var(--t-lg);
+  line-height:1;padding:4px 6px;cursor:pointer;border-radius:var(--r-sm)}
+.q-rm:hover{color:var(--danger);background:var(--bad-soft)}
+.qadd{align-self:flex-start}
+.dlgnote.warn{color:var(--bad)}
+
+@media (pointer:coarse){
+  .qrow input,.qrow select{font-size:1rem;padding:9px 10px}
+  .q-num{width:72px}
+}
+
 /* dialog form fields — shared with any later dialog that needs labelled inputs */
 .fld{display:flex;flex-direction:column;gap:var(--s-3)}
 .fld > span{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.1em;
