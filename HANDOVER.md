@@ -1,11 +1,11 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.15.0, SW cache `nexley-v24`
-**Backend:** migrations 0005-0009 applied to prod **and** dev. **Sync verified working.**
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.17.0, SW cache `nexley-v26`
+**Backend:** migrations 0005-0010 applied to prod **and** dev. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js`, `test_marks.js` - all green (88 assertions)
+`test_feedback.js`, `test_marks.js` - all green (123 assertions)
 
 ---
 
@@ -59,6 +59,8 @@ Everything else that was waiting on him has been cleared or dropped:
 | 0.13.0 | Confidence per dot point, auto-filing |
 | 0.14.0 | **The feedback board**, and a landing page that matches the product |
 | 0.15.0 | **Phase 6 part one - real marks**, recorded with their conditions |
+| 0.16.0 | **Part two - where the marks went**, per question and per reason |
+| 0.17.0 | **Part three - the loop closes**, gaps pull cards into Review |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -89,19 +91,26 @@ Ordered. Each phase either unblocks or de-risks the next.
   built / being-built log. A predicted band is on neither list on purpose.
 - Still open from this phase: nothing. The waitlist half was scrapped.
 
-**Phase 6 - real marks. PART ONE DONE 09-04 (v0.15.0); parts two and three are NEXT.**
-- *Done:* a Marks mode, a `papers` store and migration 0009. A paper carries the conditions
-  it was sat under (`conditions` is NOT NULL with no default - a paper whose conditions are
-  unknown cannot honestly be compared to anything), and marks are grouped by those
-  conditions and **never averaged across them**. That is a rule, not a setting: there is no
-  code path producing a figure spanning two groups, and `test_marks.js` attacks that rather
-  than confirming it. Marks are summed per group and divided once rather than
-  percentage-averaged, so a 9/10 quiz cannot outweigh a 60/100 exam.
-- *Next:* the marked-script view - which specific words earned or lost each mark - then
-  mistakes feeding the review queue as tighter-scheduled cards. Neither has a data model
-  yet; both want per-question rows hanging off a paper, which is the first thing to design.
-- **No predicted band, ever** - the vision brief corrected Concept 02 on exactly this, and
-  `test_marks.js` now fails if someone adds one.
+**Phase 6 - real marks. ALL THREE PARTS DONE 09-04/05 (v0.15.0 - v0.17.0).**
+- *Part one.* A Marks mode and a `papers` store (migration 0009). A paper carries
+  the conditions it was sat under (`conditions` is NOT NULL with no default - a paper
+  whose conditions are unknown cannot honestly be compared to anything), and marks are
+  grouped by those conditions and **never averaged across them**. A rule, not a setting:
+  no code path produces a figure spanning two groups. Marks are summed per group and
+  divided once rather than percentage-averaged, so a 9/10 quiz cannot outweigh a
+  60/100 exam.
+- *Part two.* Per-question detail and a reason per dropped mark (migration 0010, a
+  JSONB column on papers - a question has no meaning apart from its paper and a table
+  would double the sync surface and invent a merge-conflict class). Only LOST marks are
+  grouped, and losses with no reason are reported as unexplained rather than dropped.
+- *Part three.* A question can name the dot point it tested; gaps roll up per point,
+  and the cards on that point can be pulled to the front of the review queue. Only
+  "didn't know it" counts - running out of time is not a content gap. Cards are pulled
+  forward (`due` = now, interval collapsed) but `ease` is deliberately untouched.
+- *Not built, and the obvious next thing here:* a marked script you can actually read -
+  the photo or text of the paper with the lost marks against it. That needs image
+  capture, which is Phase 8 territory, which is why it stopped here.
+- **No predicted band, ever** - `test_marks.js` fails if someone adds one.
 
 **Phase 7 - Term planning.** Workload per subject per week, collision detection weeks out,
 committed vs available hours. "You are not behind, you are over-committed."
