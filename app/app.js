@@ -2371,6 +2371,176 @@
   }
 
   /* ============================================================
+     12e · syllabus matching
+     ------------------------------------------------------------
+     Scores a piece of text against a subject's syllabus points and returns them
+     ranked. Two things read from it: auto-filing ("which dot point is this note
+     about?") and the assessment unpacker below.
+
+     THERE IS NO MODEL HERE, AND THAT IS THE POINT. The obvious way to build
+     auto-filing is to post the student's note to an API and ask. That means
+     school-age users' private writing leaving the device, a consent question, a
+     per-call cost, and no answer at all when the Wi-Fi is down — which for this
+     app is most of a school day. But the syllabus the note has to be matched
+     against is already sitting in IndexedDB, pasted in by the user. When you
+     already hold the exact target text, ordinary information retrieval is the
+     right tool, not a language model.
+
+     HOW IT SCORES. Plain TF-IDF over the syllabus points as a corpus:
+
+       - Every point becomes a document: its code, its title, and its parent
+         topic's title (so a point called "Applications" still carries the word
+         "biotechnology" from the module above it).
+       - A term's weight is log(N / documents containing it). A word in every
+         point scores zero, which is what makes this work without a stopword
+         list: syllabus verbs like "describe", "analyse" and "outline" appear
+         everywhere, so they cancel themselves out. Rare, specific words —
+         "frameshift", "equilibrium", "osmosis" — carry nearly all the signal.
+       - Scores are divided by sqrt(document length) so a long dot point cannot
+         win on surface area alone.
+       - An outcome code appearing literally in the text (BUS-11-03) is not a
+         guess at all, so it short-circuits everything with a decisive score.
+
+     WHAT IT IS NOT. It matches vocabulary, not meaning: a note that discusses a
+     concept without ever naming it will not be found. That is why every caller
+     presents the result as a *suggestion* with the score attached, and never
+     files anything automatically.
+     ============================================================ */
+  var WORD = /[a-z0-9][a-z0-9'-]*/g;
+  /* A real outcome code carries two number groups (BUS-11-03, BIO 12 06) or a
+     letter-number tail (MA-C1). An earlier, looser pattern also matched "TASK 3",
+     which then short-circuited the scoring with a fake certainty — worse than
+     missing the code entirely. */
+  var CODEISH = /\b[A-Z]{2,5}[-\s]\d{1,2}[-\s][A-Z]?\d{1,2}\b|\b[A-Z]{2,5}-[A-Z]\d{1,2}\b/g;
+
+  /* Light suffix stripping, not a real stemmer. Without it "mutations" in a note
+     never meets "Mutation" in the syllabus, which was the most common way this
+     matcher missed. Deliberately conservative — over-stemming collapses distinct
+     terms and costs more than the plurals it fixes. */
+  function stem(w) {
+    if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';
+    if (w.length > 4 && /(sses|shes|ches|xes)$/.test(w)) return w.slice(0, -2);
+    if (w.length > 3 && /[^s]s$/.test(w)) return w.slice(0, -1);
+    if (w.length > 5 && /ing$/.test(w)) return w.slice(0, -3);
+    if (w.length > 4 && /ed$/.test(w)) return w.slice(0, -2);
+    return w;
+  }
+
+  function tokenise(text) {
+    var out = [];
+    var m = String(text || '').toLowerCase().match(WORD);
+    if (!m) return out;
+    for (var i = 0; i < m.length; i++) {
+      // two-letter words carry almost no topical signal and add noise
+      if (m[i].length >= 3) out.push(stem(m[i]));
+    }
+    return out;
+  }
+
+  /* The searchable text of a point: its own code and title, plus its parent's
+     title so inherited context counts. */
+  function pointText(node) {
+    var parent = node.parentId ? nodeById(node.parentId) : null;
+    return [node.code || '', node.title || '', parent ? parent.title : ''].join(' ');
+  }
+
+  function buildIndex(subjectId) {
+    var points = [];
+    topicsOf(subjectId).forEach(function (t) {
+      childrenOf(t.id).forEach(function (p) { points.push(p); });
+    });
+    var docs = points.map(function (p) {
+      var terms = {};
+      tokenise(pointText(p)).forEach(function (w) { terms[w] = (terms[w] || 0) + 1; });
+      var len = 0;
+      for (var k in terms) if (terms.hasOwnProperty(k)) len += terms[k];
+      return { node: p, terms: terms, len: Math.max(1, len) };
+    });
+    var df = {};
+    docs.forEach(function (d) {
+      for (var w in d.terms) if (d.terms.hasOwnProperty(w)) df[w] = (df[w] || 0) + 1;
+    });
+    return { docs: docs, df: df, n: docs.length };
+  }
+
+  /* Returns [{node, score, matched:[terms], byCode:bool}], best first.
+     Scores are relative, not probabilities — only their order and their gap
+     to the runner-up mean anything. */
+  function matchSyllabus(text, subjectId, limit) {
+    var idx = buildIndex(subjectId);
+    if (!idx.n) return [];
+
+    // an outcome code written out is a statement, not a guess
+    var codes = {};
+    (String(text || '').toUpperCase().match(CODEISH) || []).forEach(function (c) {
+      codes[c.replace(/[\s-]/g, '')] = true;
+    });
+
+    var qTerms = {};
+    tokenise(text).forEach(function (w) { qTerms[w] = true; });
+
+    var scored = idx.docs.map(function (d) {
+      var code = (d.node.code || '').toUpperCase().replace(/[\s-]/g, '');
+      if (code && codes[code]) {
+        return { node: d.node, score: 1000, matched: [d.node.code], byCode: true };
+      }
+      var s = 0, hit = [];
+      for (var w in qTerms) {
+        if (!qTerms.hasOwnProperty(w) || !d.terms[w]) continue;
+        var idf = Math.log(idx.n / idx.df[w]);
+        if (idf <= 0) continue;                 // in every point: no signal
+        s += idf * d.terms[w];
+        hit.push(w);
+      }
+      return { node: d.node, score: s / Math.sqrt(d.len), matched: hit, byCode: false };
+    });
+
+    return scored
+      .filter(function (r) { return r.score > 0; })
+      .sort(function (a, b) { return b.score - a.score; })
+      .slice(0, limit || 5);
+  }
+
+  /* ============================================================
+     12f · unpacking an assessment notification
+     ------------------------------------------------------------
+     The wedge. Every student gets a task sheet weeks out — outcomes, weighting,
+     format, due date — and working out what to actually study from it is a real
+     weekly problem that no generic study app can solve, because it needs the
+     student's own school's paperwork.
+
+     Deliberately a plain-text paste rather than OCR or a file upload: the text
+     never leaves the device, it works offline, and a screenshot of a task sheet
+     is something a student can produce in seconds anyway. OCR is the same
+     pipeline with a different front door and can be added later.
+     ============================================================ */
+  var DUE_RE = /\b(?:due|submission|hand\s*in)\b[^\n]*?(\d{1,2}\s*(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}(?:\s+\d{2,4})?|\d{1,2}[\/.-]\d{1,2}(?:[\/.-]\d{2,4})?)/i;
+  var WEIGHT_RE = /\b(?:weight(?:ing)?|worth|value)\b[^\n]*?(\d{1,3})\s*%|(\d{1,3})\s*%[^\n]{0,20}\b(?:weight|of\s+(?:the\s+)?course|total)/i;
+  var WORDS_RE = /\b(\d{3,5})\s*words?\b/i;
+  var FORMAT_RE = /\b(essay|report|presentation|practical|prac|investigation|depth study|multiple choice|examination|exam|oral|portfolio|test)\b/i;
+
+  function parseTask(text) {
+    var t = String(text || '');
+    var due = t.match(DUE_RE);
+    var w = t.match(WEIGHT_RE);
+    var words = t.match(WORDS_RE);
+    var fmt = t.match(FORMAT_RE);
+    var codes = [];
+    var seen = {};
+    (t.toUpperCase().match(CODEISH) || []).forEach(function (c) {
+      var k = c.replace(/[\s-]/g, '');
+      if (!seen[k]) { seen[k] = true; codes.push(c.trim()); }
+    });
+    return {
+      due: due ? due[1].trim() : null,
+      weight: w ? (w[1] || w[2]) + '%' : null,
+      words: words ? words[1] : null,
+      format: fmt ? fmt[1].toLowerCase() : null,
+      codes: codes
+    };
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
