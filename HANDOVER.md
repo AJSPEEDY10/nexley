@@ -1,41 +1,61 @@
-# Nexley — session handover
+# Nexley - session handover
 
-**Session:** 2026-09-02 → 09-03 · **Ended at:** v0.9.3, SW cache `nexley-v17`, commit `4f1a604`
-**Backend:** migration 0004 applied to prod **and** dev; reporting verified working live.
-**Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main` (GitHub Pages, live in ~30–60s)
-**Live:** landing `https://ajspeedy10.github.io/nexley/` · app `https://ajspeedy10.github.io/nexley/app.html`
-
-> Kept out of the public repo? **No — this file is committed.** It contains no secrets.
-> Private planning notes live in `GROWTH_AND_LAUNCH.md` and `ideas/`, both gitignored.
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.13.0, SW cache `nexley-v22`
+**Backend:** migrations 0005-0007 applied to prod **and** dev. **Sync verified working.**
+**Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
+**Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
+**Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js` - all green
 
 ---
 
-## 🔴 Do these first
+## Nothing is blocked on Alec
 
-1. **SYNC HAS NEVER WORKED. Apply migration 0005.** Found 2026-09-03 by asking the
-   deployed app, signed in as Alec, to do what sync does. Every table answered
-   `42501 permission denied` (subjects, syllabus, notes, profiles) and
-   `localStorage['lastPullAt:<uid>']` was **null** — no full round trip has ever
-   completed on that account. Notes have only ever existed on the device that typed
-   them, and the welcome note's promise that work "syncs to your account" has never
-   been true. Two independent faults, either fatal on its own:
-   - **No table GRANTs.** Exactly trap 8 again, on the *original* tables. 0004's
-     header reasoned they "inherit Supabase's defaults" — that was wrong.
-   - **`id` columns are `uuid`; `uid()` does not emit uuids** (`mtfgzh94-ib5yby`).
-     Fixing only the grants swaps 42501 for `22P02 invalid input syntax for type uuid`.
-   `supabase/migrations/0005_fix_sync_grants_and_id_type.sql` fixes both and is safe to
-   run — the tables are empty *because* sync never worked, so the type change rewrites
-   nothing. Apply to **prod and dev**, then verify with the app, not the client.
-   ⚠️ I could not apply it: browser automation to the Supabase dashboard is blocked in
-   this environment. It needs you.
+Everything that was waiting on him has been cleared or dropped:
 
-2. **Then apply 0006 (cards).** Review mode's table. Until it exists the client skips
-   card sync deliberately and keeps the records unpushed — nothing is lost, and notes
-   sync is not taken down with it.
+- **Sync migrations - DONE 09-04.** 0005 (grants + text ids), 0006 (cards), 0007 (events),
+  on prod and dev. Verified against the server: `sync.run()` returns `ok:true`, all tables
+  read, a record with a client-generated id writes. **Notes left the device for the first
+  time since the app was built.**
+- **PostHog - dropped.** Replaced by first-party analytics in Nexley's own database. No key
+  needed, no third party, no cross-border processor added.
+- **Waitlist - scrapped** by Alec's call.
+- **NESA - settled:** uploads only, private per student. An original question bank is a
+  *later* idea, not started. No NESA email.
+- **iPad - settled:** build for every device. Apple Smart Script was already rejected in
+  August for being M-series-only; the cross-platform path was always the plan.
+- **Entity / monetisation / Google error text - dropped or deferred** by Alec.
+- **AI stance for now:** local matching only. AI marking and voice are NOT built, pending
+  a proper costing conversation.
 
-3. **Ask Alec what the Google error page actually said.** Still open from 09-02.
+### Still worth knowing
+- **Trademark: `NEXL` is registered in AU by NEXL Pty Ltd in classes 9 and 42** - exactly the
+  classes Nexley would need. "Nexley" itself returns 0 results. Same classes, same country,
+  two letters apart: a real deceptive-similarity risk, not a clear block. Not legal advice.
+- **Supabase region is `ap-northeast-1` (Tokyo)**, confirmed in the dashboard. `legal.html`
+  was right; the 2026-08-11 decision log's "Sydney" was wrong.
+- One tombstoned probe row sits in prod `subjects` (`device = 'verify'`) from testing the
+  write path. Invisible in the app. `delete from public.subjects where device = 'verify';`
 
-4. **Alec has not eyeballed any of this on an iPad.**
+---
+
+## Shipped this session
+
+| Version | What |
+|---|---|
+| 0.10.0 | Classwork + Review (SM-2), sync reports its state instead of failing silently |
+| 0.11.0 | First-party analytics replacing PostHog, `legal.html` disclosure |
+| 0.12.0 | **Tasks - the wedge.** Unpack an assessment notification into syllabus points |
+| 0.13.0 | Confidence per dot point, auto-filing |
+
+Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
+
+**Bugs found and fixed along the way:** SM-2 showed `1d/1d/1d` on a new card, so three grade
+buttons did nothing visibly different; `plain()` ran HTML blocks together in every excerpt;
+the rail counted captures the notebook excluded; `legal.html` was styled against six CSS
+variables that never existed; the code pattern read "TASK 3" as an outcome code; the Tasks
+warning used a `.gap` class borrowed from a design artifact that isn't in `app.css`.
+
+---
 
 ---
 
