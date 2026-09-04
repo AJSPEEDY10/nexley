@@ -249,7 +249,7 @@ a{color:var(--structure)}
 .rail-brand .phase{margin-left:auto;font-family:var(--code);font-size:var(--t-2xs);
   letter-spacing:.08em;color:var(--muted)}
 /* the three ways of working — set like the tabs on a syllabus document, not like app chrome */
-.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s-1);margin:-6px -4px -4px;
+.modes{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--s-1);margin:-6px -4px -4px;
   border-bottom:1px solid var(--rule)}
 .mode{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
   padding:7px 0;font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
@@ -660,6 +660,14 @@ a{color:var(--structure)}
 .due-chip.new{border-color:var(--structure);color:var(--structure)}
 
 .paste.short{min-height:78px;height:auto}
+
+/* a warning that carries advice, not just state — used by Tasks for "where the
+   marks are at risk". Amber against the paper so it reads as attention, not alarm. */
+.gap{border:1px solid var(--warn);border-left-width:3px;border-radius:var(--r-md);
+  padding:var(--s-5) var(--s-6);background:var(--warn-soft)}
+.gap .k{color:var(--warn);display:block;margin-bottom:var(--s-3)}
+.gap p{font-size:var(--t-base);color:var(--ink-2);line-height:1.6;max-width:70ch}
+.gap b{color:var(--ink);font-weight:600}
 
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);

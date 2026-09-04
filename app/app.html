@@ -175,6 +175,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button type="button" class="mode on" data-mode="notebook">Notebook</button>
       <button type="button" class="mode" data-mode="classwork">Classwork</button>
       <button type="button" class="mode" data-mode="review">Review</button>
+      <button type="button" class="mode" data-mode="tasks">Tasks</button>
     </div>
 
     <div class="rail-search">
@@ -318,6 +319,36 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </div>
 
     <div class="pane-body" id="cwList"></div>
+  </section>
+
+  <!-- ============ TASKS ============
+       The wedge. Paste the assessment notification your school actually sent you
+       and it is unpacked into the syllabus points it marks you against, with your
+       coverage of each. Plain text on purpose: nothing leaves the device, it works
+       offline, and a student can produce this in seconds. -->
+  <section class="pane" id="tasks" hidden>
+    <header class="pane-head">
+      <div class="bh-text">
+        <span class="eyebrow">Tasks</span>
+        <h2 id="tkTitle">What is this task actually asking for?</h2>
+      </div>
+      <label class="pane-sel">
+        <span>Subject</span>
+        <select id="tkSubject" aria-label="Subject for this task"></select>
+      </label>
+    </header>
+
+    <div class="cw-compose">
+      <textarea id="tkInput" rows="4" spellcheck="false"
+                placeholder="Paste the assessment notification — due date, weighting, format, outcomes…"></textarea>
+      <div class="cw-bar">
+        <span class="hint">Nothing is sent anywhere. This runs on your device.</span>
+        <button class="btn ghost" id="tkClear" type="button">Clear</button>
+        <button class="btn primary" id="tkGo" type="button">Unpack it</button>
+      </div>
+    </div>
+
+    <div class="pane-body" id="tkBody"></div>
   </section>
 
   <!-- ============ REVIEW ============

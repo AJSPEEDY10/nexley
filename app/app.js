@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.11.0';
+  var APP_VERSION = '0.12.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -565,6 +565,7 @@
       // a sync pull or an edit elsewhere has to reach whichever mode is on screen
       if (mode === 'classwork') renderClasswork();
       else if (mode === 'review') renderReview();
+      else if (mode === 'tasks') renderTkSubjects();
     });
   }
 
@@ -1648,6 +1649,7 @@
     }
     $('classwork').hidden = m !== 'classwork';
     $('review').hidden = m !== 'review';
+    $('tasks').hidden = m !== 'tasks';
     $('app').classList.toggle('moded', m !== 'notebook');
 
     if (m === 'classwork') {
@@ -1656,6 +1658,7 @@
       if (!matchMedia('(pointer:coarse)').matches) $('cwInput').focus();
     }
     if (m === 'review') { session = null; renderReview(); }
+    if (m === 'tasks') { renderTasks(); }
     closeNav();
   }
 
@@ -2540,6 +2543,189 @@
     };
   }
 
+  /* ---- the Tasks panel ---- */
+  function renderTkSubjects() {
+    var sel = $('tkSubject');
+    var want = sel.value || state.activeSubject;
+    sel.textContent = '';
+    state.subjects.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;
+      sel.appendChild(o);
+    });
+    if (want && subjectById(want)) sel.value = want;
+    var none = !state.subjects.length;
+    sel.disabled = none;
+    $('tkGo').disabled = none;
+    $('tkInput').disabled = none;
+  }
+
+  function renderTasks() {
+    renderTkSubjects();
+    var body = $('tkBody');
+    body.textContent = '';
+
+    if (!state.subjects.length) {
+      body.appendChild(note('Add a subject and paste its syllabus first. This works by '
+        + 'matching the task against the syllabus you already gave it — with no syllabus '
+        + 'there is nothing to match against.'));
+      return;
+    }
+    body.appendChild(note('Paste the notification your school sent you. Nexley pulls out the '
+      + 'due date, weighting and format, works out which syllabus points it marks you '
+      + 'against, and shows how much you have actually written on each.'));
+  }
+
+  function note(text) {
+    var p = document.createElement('p');
+    p.className = 'rv-note';
+    p.textContent = text;
+    return p;
+  }
+
+  function unpackTask() {
+    var text = $('tkInput').value.trim();
+    var subjectId = $('tkSubject').value;
+    var body = $('tkBody');
+    body.textContent = '';
+    if (!text || !subjectId) return;
+
+    var t = parseTask(text);
+    var topics = topicsOf(subjectId);
+    var hasSyllabus = topics.some(function (x) { return childrenOf(x.id).length; });
+
+    // the facts it found, each shown only if actually present — a blank is more
+    // honest than a confident-looking "—" that reads like a real answer
+    var facts = document.createElement('div');
+    facts.className = 'rv-stats';
+    [[t.due, 'Due'], [t.weight, 'Weighting'], [t.format, 'Format'],
+     [t.words ? t.words + ' words' : null, 'Length']].forEach(function (pair) {
+      if (!pair[0]) return;
+      var d = document.createElement('div');
+      d.className = 'rv-stat';
+      var b = document.createElement('b');
+      b.textContent = pair[0];
+      b.style.fontSize = 'var(--t-xl)';
+      var sp = document.createElement('span');
+      sp.textContent = pair[1];
+      d.appendChild(b); d.appendChild(sp);
+      facts.appendChild(d);
+    });
+    if (facts.children.length) body.appendChild(facts);
+    else body.appendChild(note('No due date, weighting or format found in that text — '
+      + 'the outcomes below are still matched on wording.'));
+
+    if (!hasSyllabus) {
+      body.appendChild(note('This subject has no syllabus yet, so there is nothing to map '
+        + 'the task onto. Add it from the notebook and paste this again.'));
+      return;
+    }
+
+    /* Codes named in the sheet are facts. Everything else is inference from
+       wording, and is labelled as such — the difference matters when a student is
+       deciding what to spend a week on. */
+    var byCode = [], byText = [];
+    matchSyllabus(text, subjectId, 8).forEach(function (r) {
+      (r.byCode ? byCode : byText).push(r);
+    });
+
+    if (byCode.length) {
+      body.appendChild(head('Outcomes this task names', byCode.length + ' stated on the sheet'));
+      byCode.forEach(function (r) { body.appendChild(outcomeRow(r, true)); });
+    }
+    if (byText.length) {
+      body.appendChild(head('Also looks relevant', 'matched on wording, not stated'));
+      byText.slice(0, 5).forEach(function (r) { body.appendChild(outcomeRow(r, false)); });
+    }
+    if (!byCode.length && !byText.length) {
+      body.appendChild(note('Nothing in that text matched this subject’s syllabus. Check '
+        + 'the right subject is selected, or paste more of the sheet — the outcome list is '
+        + 'usually the most useful part.'));
+      return;
+    }
+
+    // the actual advice: where the weighting is at risk
+    var thin = byCode.concat(byText).filter(function (r) {
+      return notesOfNode(r.node.id).filter(function (n) { return n.kind === 'personal'; }).length === 0;
+    });
+    if (thin.length) {
+      var warn = document.createElement('div');
+      warn.className = 'gap';
+      warn.style.marginTop = 'var(--s-6)';
+      var k = document.createElement('span');
+      k.className = 'k';
+      k.textContent = 'Where the marks are at risk';
+      var p = document.createElement('p');
+      p.textContent = thin.length === 1
+        ? 'You have written nothing on ' + (thin[0].node.code || thin[0].node.title)
+          + '. That is what this task is marked against.'
+        : 'You have written nothing on ' + thin.length + ' of the areas this task covers'
+          + (t.weight ? ' — and it is worth ' + t.weight + '.' : '.');
+      warn.appendChild(k); warn.appendChild(p);
+      body.appendChild(warn);
+    }
+  }
+
+  function head(title, sub) {
+    var h = document.createElement('h4');
+    h.style.cssText = 'font-family:var(--code);font-size:var(--t-xs);letter-spacing:.11em;'
+      + 'text-transform:uppercase;color:var(--muted);font-weight:400;'
+      + 'margin:var(--s-7) 0 var(--s-2);padding-bottom:var(--s-3);'
+      + 'border-bottom:1px solid var(--rule-soft)';
+    h.textContent = sub ? title + ' · ' + sub : title;
+    return h;
+  }
+
+  function outcomeRow(r, stated) {
+    var row = document.createElement('div');
+    row.className = 'deckrow';
+
+    var main = document.createElement('div');
+    main.className = 'dfront';
+    main.textContent = r.node.title;
+
+    var meta = document.createElement('div');
+    meta.className = 'dmeta';
+
+    var chip = document.createElement('span');
+    chip.className = 'due-chip' + (stated ? ' new' : '');
+    chip.textContent = r.node.code || 'point';
+    meta.appendChild(chip);
+
+    var mine = notesOfNode(r.node.id).filter(function (n) { return n.kind === 'personal'; });
+    var cov = document.createElement('span');
+    if (mine.length) {
+      cov.textContent = mine.length + (mine.length === 1 ? ' note written' : ' notes written');
+    } else {
+      cov.textContent = 'nothing written yet';
+      cov.style.color = 'var(--warn)';
+    }
+    meta.appendChild(cov);
+
+    if (!stated && r.matched.length) {
+      var why = document.createElement('span');
+      why.textContent = 'matched: ' + r.matched.slice(0, 3).join(', ');
+      meta.appendChild(why);
+    }
+    main.appendChild(meta);
+    row.appendChild(main);
+
+    var acts = document.createElement('div');
+    acts.className = 'dacts';
+    var go = document.createElement('button');
+    go.type = 'button';
+    go.textContent = mine.length ? 'Open notes' : 'Start a note';
+    go.addEventListener('click', function () {
+      setMode('notebook');
+      state.activeSubject = r.node.subjectId;
+      if (mine.length) openNote(mine[0].id);
+      else newNote(r.node.id);
+    });
+    acts.appendChild(go);
+    row.appendChild(acts);
+    return row;
+  }
+
   /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
@@ -2842,6 +3028,17 @@
       $('fileDialog').close();
     });
     $('fileSubject').addEventListener('change', fillFileSyllabus);
+
+    // tasks
+    $('tkGo').addEventListener('click', unpackTask);
+    $('tkClear').addEventListener('click', function () {
+      $('tkInput').value = '';
+      renderTasks();
+      $('tkInput').focus();
+    });
+    $('tkInput').addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); unpackTask(); }
+    });
 
     // review
     $('rvStart').addEventListener('click', startReview);
