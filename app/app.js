@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.16.0';
+  var APP_VERSION = '0.17.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -3398,6 +3398,52 @@
     return { rows: rows, unexplained: Math.round(unexplained * 100) / 100, lost: Math.round(lostAll * 100) / 100 };
   }
 
+  /* Phase 6 part three — the loop closes here.
+     A mark lost to "didn't know it" names a content gap, and a content gap on a
+     dot point you have review cards for is the single most actionable thing in
+     the app: the exam has already told you the schedule was wrong about that
+     card. So losses are rolled up per syllabus point and the cards on those
+     points can be pulled forward.
+
+     Only 'unknown' counts toward this. Running out of time is not a content gap
+     and re-reviewing the card would be treating the wrong illness — that
+     distinction is the entire reason part two records a reason at all. */
+  function gapsByPoint(papers) {
+    var byPoint = {};
+    papers.forEach(function (p) {
+      questionsOf(p).forEach(function (q) {
+        if (q.reason !== 'unknown') return;
+        var lost = lostOn(q);
+        if (!lost || !q.syllabusId) return;
+        if (!byPoint[q.syllabusId]) byPoint[q.syllabusId] = { syllabusId: q.syllabusId, lost: 0, count: 0 };
+        byPoint[q.syllabusId].lost += lost;
+        byPoint[q.syllabusId].count++;
+      });
+    });
+    var rows = Object.keys(byPoint).map(function (k) { return byPoint[k]; });
+    rows.sort(function (a, b) { return b.lost - a.lost; });
+    return rows;
+  }
+
+  function cardsOnPoint(syllabusId) {
+    return state.cards.filter(function (c) { return c.syllabusId === syllabusId && !c.deleted; });
+  }
+
+  /* Pulled forward, not reset. `due` moves to now and the interval collapses, so
+     the card comes back in the next session — but `ease` is left alone. Ease is
+     earned by how you grade the card in review, and docking it here would punish
+     the same mistake twice: once by bringing the card forward and again by making
+     every future interval shorter for a lapse the review queue never saw. */
+  function pullForward(cards) {
+    var now = Date.now();
+    return Promise.all(cards.map(function (c) {
+      if (c.due <= now && (c.interval || 0) === 0) return null;   // already waiting
+      c.due = now;
+      c.interval = 0;
+      return put('cards', stamp(c));
+    }).filter(Boolean));
+  }
+
   function renderLossBreakdown(papers) {
     var res = lossByReason(papers);
     if (!res.lost) return null;
@@ -3448,6 +3494,9 @@
       wrap.appendChild(row);
     });
 
+    var gaps = renderGaps(papers);
+    if (gaps) wrap.appendChild(gaps);
+
     if (res.unexplained > 0) {
       var u = document.createElement('p');
       u.className = 'mk-lossnote';
@@ -3456,6 +3505,71 @@
         + 'so they are not in the split above.';
       wrap.appendChild(u);
     }
+    return wrap;
+  }
+
+  function renderGaps(papers) {
+    var rows = gapsByPoint(papers).filter(function (r) { return nodeById(r.syllabusId); });
+    if (!rows.length) return null;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'mk-gaps';
+
+    var h = document.createElement('h4');
+    h.textContent = 'The content gaps, by dot point';
+    wrap.appendChild(h);
+
+    var lead = document.createElement('p');
+    lead.className = 'mk-lossnote';
+    lead.textContent = 'Only the marks you lost to not knowing it. Running out of time is a '
+      + 'different problem and is not counted here.';
+    wrap.appendChild(lead);
+
+    rows.forEach(function (r) {
+      var node = nodeById(r.syllabusId);
+      var cards = cardsOnPoint(r.syllabusId);
+
+      var row = document.createElement('div');
+      row.className = 'mk-gap';
+
+      var name = document.createElement('span');
+      name.className = 'mk-gapname';
+      name.textContent = (node.code ? node.code + ' · ' : '') + node.title;
+      row.appendChild(name);
+
+      var lost = document.createElement('span');
+      lost.className = 'mk-lossn';
+      lost.textContent = trimNum(r.lost) + ' marks';
+      row.appendChild(lost);
+
+      if (!cards.length) {
+        // honest about why there is no button, rather than just not having one
+        var none = document.createElement('span');
+        none.className = 'mk-gapnote';
+        none.textContent = 'no cards yet';
+        row.appendChild(none);
+      } else {
+        var waiting = cards.filter(function (c) { return c.due <= Date.now(); }).length;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ghost mk-gapbtn';
+        b.textContent = waiting === cards.length
+          ? 'Already in the queue'
+          : 'Bring ' + cards.length + (cards.length === 1 ? ' card' : ' cards') + ' forward';
+        b.disabled = waiting === cards.length;
+        b.addEventListener('click', function () {
+          b.disabled = true;
+          pullForward(cards)
+            .then(function () { return refresh(); })
+            .then(function () {
+              renderMarks();
+              toast('Moved to the front of the review queue.');
+            });
+        });
+        row.appendChild(b);
+      }
+      wrap.appendChild(row);
+    });
     return wrap;
   }
 
@@ -3472,7 +3586,7 @@
     editingPaper = p || null;
     draftQuestions = (p && p.questions ? p.questions : []).map(function (q) {
       return { id: q.id, label: q.label, mark: q.mark, outOf: q.outOf,
-               reason: q.reason || null, note: q.note || null };
+               reason: q.reason || null, syllabusId: q.syllabusId || null, note: q.note || null };
     });
     $('pprHeading').textContent = p ? 'Edit this paper' : 'Record a paper';
     $('pprTitle').value = p ? p.title : '';
@@ -3591,8 +3705,33 @@
         why.appendChild(o);
       });
       why.value = q.reason || '';
-      why.addEventListener('change', function () { q.reason = this.value || null; });
+      why.addEventListener('change', function () {
+        q.reason = this.value || null;
+        updateQuestionState(row, q);
+      });
       row.appendChild(why);
+
+      /* Only offered on a question you lost marks to not knowing — that is the
+         only case where linking it to a dot point does anything. Asking for it on
+         every question would be four taps of admin per paper for no payoff. */
+      var pts = mkSubject ? syllabusPoints(mkSubject) : [];
+      if (pts.length) {
+        var point = document.createElement('select');
+        point.className = 'q-point';
+        point.setAttribute('aria-label', 'Which dot point this question tested');
+        var pb = document.createElement('option');
+        pb.value = ''; pb.textContent = 'dot point?';
+        point.appendChild(pb);
+        pts.forEach(function (n) {
+          var o = document.createElement('option');
+          o.value = n.id;
+          o.textContent = (n.code ? n.code + ' · ' : '') + n.title;
+          point.appendChild(o);
+        });
+        point.value = q.syllabusId || '';
+        point.addEventListener('change', function () { q.syllabusId = this.value || null; });
+        row.appendChild(point);
+      }
 
       var rm = document.createElement('button');
       rm.type = 'button';
@@ -3615,11 +3754,28 @@
 
   /* A question with full marks has nothing to explain, so its "why" is hidden
      rather than sitting there empty and looking unanswered. */
+  // every dot point in a subject, flattened, in syllabus order
+  function syllabusPoints(subjectId) {
+    var out = [];
+    topicsOf(subjectId).forEach(function (t) {
+      childrenOf(t.id).forEach(function (c) { out.push(c); });
+    });
+    return out;
+  }
+
   function updateQuestionState(row, q) {
     var lost = lostOn(q);
     row.classList.toggle('full', !lost && q.outOf > 0);
     var why = row.querySelector('.q-why');
     if (why) why.disabled = !lost;
+    /* The dot point only matters for a content gap. Shown greyed rather than
+       removed so the row does not reflow every time a number changes. */
+    var point = row.querySelector('.q-point');
+    if (point) {
+      var isGap = lost > 0 && q.reason === 'unknown';
+      point.disabled = !isGap;
+      point.classList.toggle('off', !isGap);
+    }
   }
 
   /* The tally is the honesty guard: it says how much of the paper the breakdown

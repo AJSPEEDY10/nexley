@@ -780,6 +780,17 @@ a{color:var(--structure)}
 .mk-lossfix{font-family:var(--text);font-size:var(--t-md);line-height:1.55;
   color:var(--ink-2);margin-top:var(--s-3)}
 
+/* the content gaps, and the button that closes the loop into Review */
+.mk-gaps{margin-top:var(--s-7);padding-top:var(--s-6);border-top:1px solid var(--rule-soft);
+  max-width:56ch}
+.mk-gaps h4{font-family:var(--display);font-weight:400;font-size:var(--t-xl)}
+.mk-gap{display:flex;align-items:center;gap:var(--s-5);flex-wrap:wrap;
+  padding:11px 0;border-bottom:1px solid var(--rule-soft)}
+.mk-gap:last-child{border-bottom:0}
+.mk-gapname{font-family:var(--text);font-size:var(--t-md);color:var(--ink);flex:1;min-width:150px}
+.mk-gapnote{font-family:var(--code);font-size:var(--t-sm);color:var(--muted)}
+.mk-gapbtn{flex:none;font-size:var(--t-sm)}
+
 /* the per-question editor. One line per question on a laptop; it wraps on a
    phone rather than turning into a horizontally scrolling table. */
 .qlist{display:flex;flex-direction:column;gap:var(--s-3)}
@@ -792,6 +803,9 @@ a{color:var(--structure)}
 .q-num{width:64px;text-align:right}
 .q-slash{color:var(--muted);font-family:var(--code);font-size:var(--t-sm)}
 .q-why{flex:1;min-width:132px;max-width:200px}
+.q-point{flex:2;min-width:150px;max-width:280px}
+/* a dot point only matters for a content gap */
+.q-point.off{opacity:.35}
 /* a question answered perfectly has nothing to explain */
 .qrow.full .q-why{opacity:.35}
 .q-rm{background:none;border:0;color:var(--muted);font-size:var(--t-lg);

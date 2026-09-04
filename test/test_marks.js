@@ -172,6 +172,48 @@ LOSS_REASONS.forEach(function (x) {
   ok('"' + x.id + '" has a label and a fix', !!x.label && !!x.fix && x.fix.length > 10);
 });
 
+/* ---------------------------------------------------------------
+   Phase 6 part three — mistakes feeding the review queue
+   --------------------------------------------------------------- */
+eval(grab('  function gapsByPoint(papers)', '  function renderLossBreakdown'));
+
+const qp = (mark, outOf, reason, syllabusId) =>
+  ({ id: 'q', label: 'Q', mark, outOf, reason: reason || null, syllabusId: syllabusId || null });
+
+console.log('\n18. Only content gaps reach the review queue');
+/* THE distinction the whole feature rests on. Running out of time is not a
+   content gap; re-reviewing the card would be treating the wrong illness, and
+   would also make the review queue useless by filling it with things you know. */
+let gp = gapsByPoint([{ questions: [
+  qp(0, 5, 'unknown', 'p1'),
+  qp(0, 9, 'time',    'p1'),
+  qp(0, 4, 'careless','p2')
+] }]);
+ok('only the "didn\'t know it" loss counts', gp.length === 1 && gp[0].syllabusId === 'p1');
+ok('and only its marks, not the timed loss too', gp[0].lost === 5, String(gp[0].lost));
+
+console.log('\n19. A gap with no dot point cannot be actioned, so it is not listed');
+gp = gapsByPoint([{ questions: [qp(0, 6, 'unknown', null)] }]);
+ok('unlinked gaps are left out', gp.length === 0);
+
+console.log('\n20. Gaps accumulate per point, across papers, ranked by damage');
+gp = gapsByPoint([
+  { questions: [qp(1, 4, 'unknown', 'p1')] },
+  { questions: [qp(0, 3, 'unknown', 'p1'), qp(0, 8, 'unknown', 'p2')] }
+]);
+ok('two points', gp.length === 2);
+ok('worst point first', gp[0].syllabusId === 'p2' && gp[0].lost === 8);
+ok('the other accumulates across both papers', gp[1].lost === 6, String(gp[1].lost));
+ok('question counts follow', gp[1].count === 2);
+
+console.log('\n21. A question answered in full is never a gap');
+gp = gapsByPoint([{ questions: [qp(5, 5, 'unknown', 'p1')] }]);
+ok('full marks means nothing was lost', gp.length === 0);
+
+console.log('\n22. Nothing recorded');
+ok('no questions, no gaps', gapsByPoint([{ questions: [] }]).length === 0);
+ok('a paper with no questions key is safe', gapsByPoint([{}]).length === 0);
+
 console.log('\n==============================================');
 console.log('  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
