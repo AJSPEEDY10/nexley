@@ -1,16 +1,27 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.13.0, SW cache `nexley-v22`
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.14.0, SW cache `nexley-v23`
 **Backend:** migrations 0005-0007 applied to prod **and** dev. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
-**Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js` - all green
+**Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
+`test_feedback.js` - all green (62 assertions)
 
 ---
 
-## Nothing is blocked on Alec
+## One thing is blocked on Alec
 
-Everything that was waiting on him has been cleared or dropped:
+**Migration 0008 (`feedback`) has not been applied.** Everything else in the
+feedback board is committed and verified, and it is deliberately safe to deploy
+ahead of the migration - a missing table is isolated exactly like `cards` was, so
+sync still returns `ok` and notes/subjects/syllabus are untouched. But until 0008
+is run on prod **and** dev, every piece of feedback anyone sends sits in their
+IndexedDB reading "Waiting to send" and nobody's reply can ever come back.
+
+Apply it by hand in the SQL editor (there is no CLI - see Useful facts), then
+verify against the server, not the dashboard.
+
+Everything else that was waiting on him has been cleared or dropped:
 
 - **Sync migrations - DONE 09-04.** 0005 (grants + text ids), 0006 (cards), 0007 (events),
   on prod and dev. Verified against the server: `sync.run()` returns `ok:true`, all tables
@@ -46,6 +57,7 @@ Everything that was waiting on him has been cleared or dropped:
 | 0.11.0 | First-party analytics replacing PostHog, `legal.html` disclosure |
 | 0.12.0 | **Tasks - the wedge.** Unpack an assessment notification into syllabus points |
 | 0.13.0 | Confidence per dot point, auto-filing |
+| 0.14.0 | **The feedback board**, and a landing page that matches the product |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -63,11 +75,20 @@ warning used a `.gap` class borrowed from a design artifact that isn't in `app.c
 
 Ordered. Each phase either unblocks or de-risks the next.
 
-**Phase 5 - public site (partly done).** `app/index.html` is already a landing page and is
-the GEO foundation. The waitlist half was scrapped. Remaining: a feedback board for beta
-users, and revisiting what the public page says now the product does more.
+**Phase 5 - public site. DONE 09-04**, apart from applying migration 0008.
+- *Feedback board.* Its own table, not `bug_reports`: that one is write-only on
+  purpose (no select policy, so note text can never leak back out of a crash
+  report) and feedback has to be readable or it is a hole that never answers.
+  INSERT and SELECT are the only grants, so `status` and `reply` can only be
+  written from the dashboard - a user cannot mark their own idea shipped. Sync
+  pushes it with a plain `insert`, not an upsert, because Postgres needs UPDATE
+  privilege to *plan* an `on conflict do update` even when nothing conflicts.
+- *Landing page.* It was still selling Classwork and spaced review as "on the
+  way" two versions after both shipped. Now describes what exists, with a
+  built / being-built log. A predicted band is on neither list on purpose.
+- Still open from this phase: nothing. The waitlist half was scrapped.
 
-**Phase 6 - real marks (NEXT).** Record papers sat *with their conditions*, because an
+**Phase 6 - real marks (NEXT - this is where to start).** Record papers sat *with their conditions*, because an
 open-notes mark and an exam mark are not the same mark and must never be quietly averaged.
 Then the marked-script view: which specific words earned or lost each mark. Mistakes feed
 into the review queue as tighter-scheduled cards. **No predicted band, ever** - the vision
@@ -192,3 +213,10 @@ before committing.** Use a fresh port every time - see the traps.
   `NexleyAnalytics.sanitize/track/events/flush/pending`, `NexleyDB.all/get/put`.
 - **Adding an analytics event takes two edits** - the `ALLOWED` map in `analytics.js` and the
   CHECK constraint in migration 0007. A test asserts the two lists match.
+- **The feedback board fires no analytics event**, deliberately: adding one needs a
+  migration to widen 0007's CHECK constraint, and that was not worth bundling into a
+  feature that already carries a migration of its own. Worth adding later - "how many
+  people ever open the board" is the number that says whether it works.
+- **A second reply on the same feedback item is only visible because seen-state is keyed
+  by id AND rev.** The dashboard bumping `rev` on every update (0003's auto-touch branch)
+  is what makes that work, so do not "simplify" the key to just the id.
