@@ -176,6 +176,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button type="button" class="mode" data-mode="classwork">Classwork</button>
       <button type="button" class="mode" data-mode="review">Review</button>
       <button type="button" class="mode" data-mode="tasks">Tasks</button>
+      <button type="button" class="mode" data-mode="marks">Marks</button>
     </div>
 
     <div class="rail-search">
@@ -359,6 +360,29 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     <div class="pane-body" id="tkBody"></div>
   </section>
 
+  <!-- Marks. Papers are grouped by the conditions they were sat under and NEVER
+       averaged across them — see app.js 12h for why that is a rule and not a
+       setting. There is no predicted band here and there is not going to be one. -->
+  <section class="pane" id="marks" hidden>
+    <header class="pane-head">
+      <div class="bh-text">
+        <span class="eyebrow">Marks</span>
+        <h2>What you actually got, and under what conditions.</h2>
+      </div>
+      <label class="pane-sel">
+        <span>Subject</span>
+        <select id="mkSubject" aria-label="Subject for these marks"></select>
+      </label>
+    </header>
+
+    <div class="cw-bar mk-bar">
+      <span class="hint">Marks sat under different conditions are kept apart.</span>
+      <button class="btn primary" id="mkAdd" type="button">Record a paper</button>
+    </div>
+
+    <div class="pane-body" id="mkBody"></div>
+  </section>
+
   <!-- ============ REVIEW ============
        SM-2 over cards made from the user's own notes. Two views: the session
        (one card at a time) and the deck (everything, plus suggestions). -->
@@ -535,6 +559,59 @@ Module 2: Body systems and movement
       <button type="submit" class="btn primary">File it</button>
     </div>
   </form>
+</dialog>
+
+<!-- ============ RECORD A PAPER ============ -->
+<dialog id="pprDialog">
+  <div class="dlgbody">
+    <h3 id="pprHeading">Record a paper</h3>
+
+    <label class="fld">
+      <span>What was it?</span>
+      <input type="text" id="pprTitle" placeholder="Trial paper 1" autocomplete="off">
+    </label>
+
+    <div class="fld">
+      <span>How did you sit it?</span>
+      <div class="chips" id="pprConditions"></div>
+      <p class="dlgnote" id="pprHint"></p>
+    </div>
+
+    <div class="fld-row">
+      <label class="fld">
+        <span>Mark</span>
+        <input type="number" id="pprMark" inputmode="decimal" step="0.25" min="0" placeholder="62">
+      </label>
+      <label class="fld">
+        <span>Out of</span>
+        <input type="number" id="pprOutOf" inputmode="decimal" step="0.25" min="0" placeholder="80">
+      </label>
+      <label class="fld">
+        <span>Worth (%)</span>
+        <input type="number" id="pprWeight" inputmode="decimal" step="1" min="0" max="100" placeholder="optional">
+      </label>
+    </div>
+
+    <label class="fld">
+      <span>When did you sit it?</span>
+      <input type="date" id="pprDate">
+    </label>
+
+    <label class="fld">
+      <span>What went wrong, or right?</span>
+      <textarea id="pprReflection" class="paste" style="min-height:80px"
+        placeholder="Ran out of time on the last two extended responses…"></textarea>
+    </label>
+
+    <p class="dlgerr" id="pprError" hidden></p>
+
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="pprDelete" hidden>Remove</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="pprCancel">Cancel</button>
+      <button type="button" class="btn primary" id="pprSave">Save</button>
+    </div>
+  </div>
 </dialog>
 
 <!-- ============ FEEDBACK ============ -->

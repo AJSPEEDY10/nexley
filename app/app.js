@@ -17,12 +17,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.14.0';
+  var APP_VERSION = '0.15.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
-  var DB_VER = 5;
+  var DB_VER = 6;
   var BACKUP_KEEP = 7;
   var BACKUP_EVERY = 20 * 60 * 60 * 1000;
   var MAX_TABS = 8;
@@ -95,6 +95,15 @@
          and something written offline must not be lost waiting for Wi-Fi. */
       if (!d.objectStoreNames.contains('feedback')) {
         d.createObjectStore('feedback', { keyPath: 'id' });
+      }
+    }
+
+    if (from < 6) {
+      // real marks, each carrying the conditions it was sat under
+      if (!d.objectStoreNames.contains('papers')) {
+        var pp = d.createObjectStore('papers', { keyPath: 'id' });
+        pp.createIndex('subjectId', 'subjectId', { unique: false });
+        pp.createIndex('sat', 'sat', { unique: false });
       }
     }
   }
@@ -222,10 +231,11 @@
      2 · backups
      ============================================================ */
   function snapshot(reason) {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
+                        all('papers')]).then(function (r) {
       return put('backups', {
         id: uid(), at: Date.now(), reason: reason || 'auto', appVersion: APP_VERSION,
-        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4]
       });
     }).then(function () {
       return all('backups');
@@ -250,8 +260,10 @@
         var jobs = (b.subjects || []).map(function (s) { return put('subjects', s); })
           .concat((b.notes || []).map(function (n) { return put('notes', n); }))
           .concat((b.syllabus || []).map(function (s) { return put('syllabus', s); }))
-          // snapshots taken before 0.10.0 have no cards key — leave the deck alone
-          .concat((b.cards || []).map(function (c) { return put('cards', c); }));
+          // snapshots taken before 0.10.0 have no cards key, and before 0.15.0 no
+          // papers key — leave those stores alone rather than emptying them
+          .concat((b.cards || []).map(function (c) { return put('cards', c); }))
+          .concat((b.papers || []).map(function (pp) { return put('papers', pp); }));
         return Promise.all(jobs);
       }).then(function () {
         state.activeNote = null;
@@ -322,7 +334,7 @@
      ============================================================ */
   var state = {
     account: null, deviceId: null,
-    subjects: [], notes: [], syllabus: [], cards: [],
+    subjects: [], notes: [], syllabus: [], cards: [], papers: [],
     activeSubject: null, activeNode: null, activeNote: null,
     tabs: [], collapsed: {},
     query: '', dirty: false,
@@ -557,13 +569,15 @@
   }
 
   function refresh(opts) {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
+                        all('papers')]).then(function (r) {
       return migrateColours(live(r[0])).then(function () { return r; });
     }).then(function (r) {
       state.subjects = live(r[0]).sort(function (a, b) { return a.name.localeCompare(b.name); });
       state.notes = live(r[1]).sort(function (a, b) { return b.updated - a.updated; });
       state.syllabus = live(r[2]).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       state.cards = live(r[3]);
+      state.papers = live(r[4]).sort(function (a, b) { return b.sat - a.sat; });
       // drop tabs whose notes have gone
       state.tabs = state.tabs.filter(noteById);
       renderSubjects();
@@ -576,6 +590,7 @@
       if (mode === 'classwork') renderClasswork();
       else if (mode === 'review') renderReview();
       else if (mode === 'tasks') renderTkSubjects();
+      else if (mode === 'marks') renderMarks();
     });
   }
 
@@ -1879,6 +1894,7 @@
     $('classwork').hidden = m !== 'classwork';
     $('review').hidden = m !== 'review';
     $('tasks').hidden = m !== 'tasks';
+    $('marks').hidden = m !== 'marks';
     $('app').classList.toggle('moded', m !== 'notebook');
 
     if (m === 'classwork') {
@@ -1888,6 +1904,7 @@
     }
     if (m === 'review') { session = null; renderReview(); }
     if (m === 'tasks') { renderTasks(); }
+    if (m === 'marks') { renderMarks(); }
     closeNav();
   }
 
@@ -3095,16 +3112,334 @@
   }
 
   /* ============================================================
+     12h · marks
+     ------------------------------------------------------------
+     Real papers, actually sat, each recorded WITH the conditions it was sat
+     under — because an open-notes mark and an exam mark are not the same mark.
+
+     THE ONE RULE THIS SECTION EXISTS TO ENFORCE: marks are never averaged
+     across conditions. Not "averaged with a warning", not "averaged unless you
+     turn it off" — there is no code path here that produces a single number
+     spanning two condition groups. That average would flatter, and always in
+     the same direction: open-book and take-home marks pull it up and hide the
+     exam-condition gap, which is the exact gap worth knowing about.
+
+     Also deliberately absent: any predicted band, grade or estimate. This shows
+     what happened. It does not forecast.
+     ============================================================ */
+  var CONDITIONS = [
+    { id: 'exam',       label: 'Exam conditions', hint: 'Timed, closed book, supervised' },
+    { id: 'class_test',  label: 'Class test',      hint: 'In class, timed, but not a formal exam' },
+    { id: 'open_notes',  label: 'Open notes',      hint: 'You could look things up' },
+    { id: 'take_home',   label: 'Take home',       hint: 'Done in your own time' },
+    { id: 'practice',    label: 'Practice',        hint: 'Sat on your own, unmarked by anyone else' }
+  ];
+
+  function conditionMeta(id) {
+    for (var i = 0; i < CONDITIONS.length; i++) if (CONDITIONS[i].id === id) return CONDITIONS[i];
+    return { id: id, label: id, hint: '' };
+  }
+
+  /* Marks are summed and divided ONCE per group, rather than averaging each
+     paper's percentage. A 9/10 quiz and a 60/100 exam are not equal evidence,
+     and averaging their percentages (90% and 60% -> 75%) pretends they are.
+     Summing gives 69/110 = 63%, which is what actually happened. */
+  function groupByConditions(papers) {
+    var groups = [];
+    CONDITIONS.forEach(function (c) {
+      var mine = papers.filter(function (p) { return p.conditions === c.id; });
+      if (!mine.length) return;
+      var mark = 0, outOf = 0;
+      mine.forEach(function (p) { mark += p.mark; outOf += p.outOf; });
+      groups.push({
+        condition: c.id,
+        label: c.label,
+        count: mine.length,
+        mark: mark,
+        outOf: outOf,
+        pct: outOf > 0 ? Math.round((mark / outOf) * 1000) / 10 : null,
+        papers: mine.slice().sort(function (a, b) { return b.sat - a.sat; })
+      });
+    });
+    return groups;
+  }
+
+  function paperPct(p) {
+    if (!p.outOf) return null;
+    return Math.round((p.mark / p.outOf) * 1000) / 10;
+  }
+
+  var mkSubject = null;
+
+  function papersOf(subjectId) {
+    return state.papers.filter(function (p) { return p.subjectId === subjectId; });
+  }
+
+  function renderMkSubjects() {
+    var sel = $('mkSubject');
+    var want = sel.value || mkSubject || state.activeSubject;
+    sel.textContent = '';
+    state.subjects.forEach(function (s2) {
+      var o = document.createElement('option');
+      o.value = s2.id; o.textContent = s2.name;
+      sel.appendChild(o);
+    });
+    if (want && subjectById(want)) sel.value = want;
+    mkSubject = sel.value || null;
+    var none = !state.subjects.length;
+    sel.disabled = none;
+    $('mkAdd').disabled = none;
+  }
+
+  function renderMarks() {
+    renderMkSubjects();
+    var body = $('mkBody');
+    body.textContent = '';
+
+    if (!state.subjects.length) {
+      body.appendChild(note('Add a subject first — a mark has to belong to one.'));
+      return;
+    }
+
+    var mine = papersOf(mkSubject);
+    if (!mine.length) {
+      body.appendChild(note('No papers recorded for this subject yet. Add one and it will be '
+        + 'grouped by the conditions you sat it under — marks from different conditions are '
+        + 'never mixed together, because an open-notes mark and an exam mark are not the '
+        + 'same mark.'));
+      return;
+    }
+
+    var groups = groupByConditions(mine);
+
+    /* Deliberately reads as several separate figures rather than one headline.
+       If there is more than one group, the app says so out loud — the absence of
+       a single number is a decision, and an unexplained absence looks like a
+       missing feature rather than an intentional one. */
+    groups.forEach(function (g) {
+      body.appendChild(conditionBlock(g));
+    });
+
+    if (groups.length > 1) {
+      var p2 = document.createElement('p');
+      p2.className = 'mk-why';
+      p2.textContent = 'These are kept apart on purpose. Averaging them together would '
+        + 'produce a number that describes nothing you ever sat, and it would flatter you — '
+        + 'the open-book marks would pull it up and hide the exam-condition gap.';
+      body.appendChild(p2);
+    }
+  }
+
+  function conditionBlock(g) {
+    var wrap = document.createElement('section');
+    wrap.className = 'mk-group';
+
+    var head2 = document.createElement('header');
+    head2.className = 'mk-ghead';
+
+    var name = document.createElement('h3');
+    name.textContent = g.label;
+    head2.appendChild(name);
+
+    var fig = document.createElement('b');
+    fig.className = 'mk-pct';
+    fig.textContent = g.pct === null ? '—' : g.pct + '%';
+    head2.appendChild(fig);
+
+    var sub = document.createElement('span');
+    sub.className = 'mk-sub';
+    // the raw marks stay visible next to the percentage: 69/110 is the fact,
+    // 63% is the derived thing
+    sub.textContent = trimNum(g.mark) + '/' + trimNum(g.outOf) + ' · '
+      + g.count + (g.count === 1 ? ' paper' : ' papers');
+    head2.appendChild(sub);
+
+    wrap.appendChild(head2);
+
+    g.papers.forEach(function (p) { wrap.appendChild(paperRow(p)); });
+    return wrap;
+  }
+
+  // 12.00 -> "12", 12.50 -> "12.5". Marks are usually whole numbers and a
+  // trailing ".00" on every one of them makes a list of them hard to scan.
+  function trimNum(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return String(Math.round(n * 100) / 100);
+  }
+
+  function paperRow(p) {
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'mk-row';
+    row.addEventListener('click', function () { openPaperDialog(p); });
+
+    var title = document.createElement('span');
+    title.className = 'mk-title';
+    title.textContent = p.title;
+    row.appendChild(title);
+
+    if (p.weight !== null && p.weight !== undefined) {
+      var w = document.createElement('span');
+      w.className = 'mk-weight';
+      w.textContent = trimNum(p.weight) + '%';
+      w.title = 'Worth ' + trimNum(p.weight) + '% of the course';
+      row.appendChild(w);
+    }
+
+    var when2 = document.createElement('span');
+    when2.className = 'mk-when';
+    when2.textContent = when(p.sat);
+    row.appendChild(when2);
+
+    var score = document.createElement('span');
+    score.className = 'mk-score';
+    score.textContent = trimNum(p.mark) + '/' + trimNum(p.outOf);
+    row.appendChild(score);
+
+    var pc = document.createElement('span');
+    pc.className = 'mk-rowpct';
+    var v = paperPct(p);
+    pc.textContent = v === null ? '' : v + '%';
+    row.appendChild(pc);
+
+    return row;
+  }
+
+  /* ---------- add / edit ---------- */
+
+  var editingPaper = null;
+
+  function openPaperDialog(p) {
+    editingPaper = p || null;
+    $('pprHeading').textContent = p ? 'Edit this paper' : 'Record a paper';
+    $('pprTitle').value = p ? p.title : '';
+    $('pprMark').value = p ? p.mark : '';
+    $('pprOutOf').value = p ? p.outOf : '';
+    $('pprWeight').value = (p && p.weight !== null && p.weight !== undefined) ? p.weight : '';
+    $('pprReflection').value = (p && p.reflection) || '';
+    $('pprDate').value = isoDay(p ? p.sat : Date.now());
+    pprConditions = p ? p.conditions : 'exam';
+    renderPprConditions();
+    $('pprDelete').hidden = !p;
+    $('pprError').hidden = true;
+    $('pprDialog').showModal();
+    setTimeout(function () { $('pprTitle').focus(); }, 60);
+  }
+
+  // <input type="date"> wants yyyy-mm-dd in LOCAL time. toISOString() converts to
+  // UTC first, so in Sydney anything before 10am comes back as the previous day.
+  function isoDay(ms) {
+    var d = new Date(ms);
+    var m = String(d.getMonth() + 1);
+    var day = String(d.getDate());
+    return d.getFullYear() + '-' + (m.length < 2 ? '0' + m : m) + '-' + (day.length < 2 ? '0' + day : day);
+  }
+  // and back again, at midday, so a timezone shift can never move the date
+  function dayToMs(str) {
+    var parts = String(str || '').split('-');
+    if (parts.length !== 3) return Date.now();
+    return new Date(+parts[0], +parts[1] - 1, +parts[2], 12, 0, 0).getTime();
+  }
+
+  var pprConditions = 'exam';
+  function renderPprConditions() {
+    var wrap = $('pprConditions');
+    wrap.textContent = '';
+    CONDITIONS.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (pprConditions === c.id ? ' on' : '');
+      b.textContent = c.label;
+      b.title = c.hint;
+      b.setAttribute('aria-pressed', pprConditions === c.id ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        pprConditions = c.id;
+        renderPprConditions();
+        $('pprHint').textContent = c.hint;
+      });
+      wrap.appendChild(b);
+    });
+    $('pprHint').textContent = conditionMeta(pprConditions).hint;
+  }
+
+  function pprFail(msg) {
+    var e = $('pprError');
+    e.textContent = msg;
+    e.hidden = false;
+    return false;
+  }
+
+  /* Validated here as well as in the database, and the messages say what to do
+     rather than what is wrong. A mark above the total is the one that matters:
+     it is nearly always a typo in `out of`, and left alone it would produce a
+     percentage over 100 that then poisons the whole condition group. */
+  function savePaper() {
+    var title = $('pprTitle').value.trim();
+    var mark = parseFloat($('pprMark').value);
+    var outOf = parseFloat($('pprOutOf').value);
+    var weightRaw = $('pprWeight').value.trim();
+    var weight = weightRaw === '' ? null : parseFloat(weightRaw);
+
+    if (!title) return pprFail('Give it a name — "Trial paper 1" is enough to find it later.');
+    if (isNaN(mark) || mark < 0) return pprFail('What mark did you get?');
+    if (isNaN(outOf) || outOf <= 0) return pprFail('What was it out of?');
+    if (mark > outOf) return pprFail('That mark is higher than the total. Check the "out of".');
+    if (weight !== null && (isNaN(weight) || weight < 0 || weight > 100)) {
+      return pprFail('Weighting is a percentage of the course, between 0 and 100. Leave it blank if you do not know.');
+    }
+
+    var rec = editingPaper || { id: uid() };
+    rec.subjectId = mkSubject;
+    rec.title = title;
+    rec.sat = dayToMs($('pprDate').value);
+    rec.conditions = pprConditions;
+    rec.mark = mark;
+    rec.outOf = outOf;
+    rec.weight = weight;
+    rec.reflection = $('pprReflection').value.trim() || null;
+
+    put('papers', stamp(rec))
+      .then(function () { $('pprDialog').close(); return refresh(); })
+      .then(function () {
+        renderMarks();
+        toast(editingPaper ? 'Updated.' : 'Recorded.');
+        editingPaper = null;
+        if (window.NexleySync) window.NexleySync.run();
+      });
+    return true;
+  }
+
+  function deletePaper() {
+    if (!editingPaper) return;
+    // every other delete in this app asks first; a mark is a fact you cannot
+    // reconstruct from memory a term later, so this one asks too
+    if (!confirm('Remove "' + editingPaper.title + '"?\n\nIt is flagged as removed '
+        + 'rather than destroyed, so a snapshot can still bring it back.')) return;
+    // tombstone, like every other delete in the app — never a hard delete
+    softDelete('papers', editingPaper)
+      .then(function () { $('pprDialog').close(); return refresh(); })
+      .then(function () {
+        renderMarks();
+        toast('Removed.');
+        editingPaper = null;
+        if (window.NexleySync) window.NexleySync.run();
+      });
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
-    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]).then(function (r) {
+    return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
+                        all('papers')]).then(function (r) {
       var payload = {
-        app: 'nexley', format: 4, appVersion: APP_VERSION,
+        // format 5 adds papers. An older Nexley reading this file ignores the key
+        // rather than failing, and importing an older file simply brings no papers.
+        app: 'nexley', format: 5, appVersion: APP_VERSION,
         exported: new Date().toISOString(), device: state.deviceId,
         account: state.account ? { name: state.account.name, email: state.account.email } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
-        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4]
       };
       var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -3132,13 +3467,15 @@
       }
 
       snapshot('before-import').then(function () {
-        return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards')]);
+        return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
+                            all('papers')]);
       }).then(function (cur) {
         var index = {}, kept = 0, skipped = 0, jobs = [];
         cur[0].forEach(function (s) { index['s:' + s.id] = s; });
         cur[1].forEach(function (n) { index['n:' + n.id] = n; });
         cur[2].forEach(function (y) { index['y:' + y.id] = y; });
         cur[3].forEach(function (c) { index['c:' + c.id] = c; });
+        (cur[4] || []).forEach(function (pp) { index['p:' + pp.id] = pp; });
 
         function consider(store, prefix, rec) {
           var mine = index[prefix + rec.id];
@@ -3156,6 +3493,8 @@
         });
         // format 4 and later; an older file simply has none
         (data.cards || []).forEach(function (c) { consider('cards', 'c:', c); });
+        // absent from format 4 and earlier, so an old export imports cleanly
+        (data.papers || []).forEach(function (pp) { consider('papers', 'p:', pp); });
 
         return Promise.all(jobs).then(refresh).then(function () {
           toast('Imported ' + kept + ' newer records. ' + skipped + ' already up to date.');
@@ -3339,6 +3678,12 @@
     $('bugBtnGate').addEventListener('click', function (e) { e.preventDefault(); openBugDialog(); });
     $('bugCancel').addEventListener('click', function () { $('bugDialog').close(); });
     $('bugSend').addEventListener('click', sendBugReport);
+
+    $('mkSubject').addEventListener('change', function () { mkSubject = this.value; renderMarks(); });
+    $('mkAdd').addEventListener('click', function () { openPaperDialog(null); });
+    $('pprCancel').addEventListener('click', function () { $('pprDialog').close(); editingPaper = null; });
+    $('pprSave').addEventListener('click', savePaper);
+    $('pprDelete').addEventListener('click', deletePaper);
 
     $('fbBtn').addEventListener('click', openFeedbackDialog);
     $('fbClose').addEventListener('click', function () { $('fbDialog').close(); });

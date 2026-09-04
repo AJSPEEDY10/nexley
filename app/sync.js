@@ -13,6 +13,9 @@
  *              order->sort_order, created->created_at, updated->updated_at, rev, device, deleted
  *   notes:     id, subjectId->subject_id, syllabusId->syllabus_id, kind, title, body, font,
  *              created->created_at, updated->updated_at, rev, device, deleted
+ *   papers:    id, subjectId->subject_id, title, sat->sat_at, conditions,
+ *              mark, outOf->out_of, weight->weight_pct, reflection,
+ *              created->created_at, updated->updated_at, rev, device, deleted
  *   feedback:  id, kind, body, status, reply, appVersion->app_version,
  *              created->created_at, updated->updated_at, rev, device, deleted
  *              (push is INSERT-only — see syncFeedback)
@@ -97,6 +100,18 @@
     };
   }
 
+  function toRemotePaper(p, userId) {
+    return {
+      id: p.id, user_id: userId, subject_id: p.subjectId || null,
+      title: p.title || '', sat_at: new Date(p.sat).toISOString(),
+      conditions: p.conditions, mark: p.mark, out_of: p.outOf,
+      weight_pct: (p.weight === null || p.weight === undefined) ? null : p.weight,
+      reflection: p.reflection || null,
+      created_at: new Date(p.created).toISOString(), updated_at: new Date(p.updated).toISOString(),
+      rev: p.rev || 1, device: p.device || null, deleted: !!p.deleted
+    };
+  }
+
   function toRemoteFeedback(f, userId) {
     return {
       id: f.id, user_id: userId, kind: f.kind, body: f.body || '',
@@ -136,6 +151,21 @@
       ease: r.ease, interval: r.interval_days, reps: r.reps, lapses: r.lapses,
       due: Date.parse(r.due_at),
       lastReviewed: r.last_reviewed_at ? Date.parse(r.last_reviewed_at) : null,
+      created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
+      rev: r.rev, device: r.device, deleted: r.deleted || null
+    };
+  }
+
+  /* Numerics come back from PostgREST as strings, so mark/out_of are parsed here
+     rather than at every call site. A mark that failed to parse would render as
+     NaN% and quietly corrupt an average, so it is worth doing once, centrally. */
+  function fromRemotePaper(r) {
+    return {
+      id: r.id, subjectId: r.subject_id, title: r.title,
+      sat: Date.parse(r.sat_at), conditions: r.conditions,
+      mark: parseFloat(r.mark), outOf: parseFloat(r.out_of),
+      weight: (r.weight_pct === null || r.weight_pct === undefined) ? null : parseFloat(r.weight_pct),
+      reflection: r.reflection || null,
       created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
       rev: r.rev, device: r.device, deleted: r.deleted || null
     };
@@ -229,6 +259,18 @@
 
      A row is "never sent" when it has no pushedRev. There is no re-push path,
      because there is nothing local that can legitimately change. */
+  var papersTableMissing = false;
+  function syncPapers(userId, since, count) {
+    if (papersTableMissing) return Promise.resolve();
+    return pushTable('papers', toRemotePaper, 'papers', userId)
+      .then(function () { return pullTable('papers', fromRemotePaper, 'papers', userId, since).then(count); })
+      .catch(function (err) {
+        if (!isMissingTable(err)) throw err;
+        papersTableMissing = true;
+        console.warn('[sync] papers table not present yet — skipping until migration 0009 is applied');
+      });
+  }
+
   var feedbackTableMissing = false;
   function pushFeedback(userId) {
     return window.NexleyDB.all('feedback').then(function (recs) {
@@ -284,6 +326,7 @@
         .then(function () { return pullTable('syllabus', fromRemoteSyllabus, 'syllabus', userId, since).then(count); })
         .then(function () { return pullTable('notes', fromRemoteNote, 'notes', userId, since).then(count); })
         .then(function () { return syncCards(userId, since, count); })
+        .then(function () { return syncPapers(userId, since, count); })
         .then(function () { return syncFeedback(userId, since, count); })
         .then(function () {
           localStorage.setItem(pullKey(userId), new Date().toISOString());

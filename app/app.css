@@ -721,6 +721,69 @@ a{color:var(--structure)}
 .paste:focus{outline:none;border-color:var(--structure)}
 
 /* ============================================================
+   MARKS — papers grouped by the conditions they were sat under.
+   The layout carries the rule: each condition is its own block with its own
+   figure and its own rule above it, so there is nowhere for a combined number
+   to sit even visually. See app.js 12h.
+   ============================================================ */
+.mk-bar{padding:0 var(--gutter) var(--s-5)}
+
+.mk-group{padding:var(--s-6) 0}
+.mk-group + .mk-group{border-top:1px solid var(--rule)}
+
+.mk-ghead{display:flex;align-items:baseline;gap:var(--s-5);flex-wrap:wrap;
+  padding-bottom:var(--s-5)}
+.mk-ghead h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
+  letter-spacing:-.015em;flex:none}
+
+/* the percentage is derived; the raw marks beside it are the fact */
+.mk-pct{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
+  color:var(--structure);margin-left:auto}
+.mk-sub{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);flex:none}
+
+.mk-row{display:flex;align-items:baseline;gap:var(--s-5);width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--rule-soft);
+  padding:11px 0;cursor:pointer;color:inherit;font-family:inherit}
+.mk-row:hover{background:var(--card)}
+.mk-row:last-child{border-bottom:0}
+.mk-title{font-family:var(--text);font-size:var(--t-md);color:var(--ink);
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-weight{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
+  color:var(--muted);border:1px solid var(--rule);border-radius:var(--r-pill);
+  padding:2px 7px;flex:none}
+.mk-when{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);flex:none}
+.mk-score{font-family:var(--code);font-size:var(--t-sm);color:var(--ink-2);flex:none;
+  min-width:7ch;text-align:right}
+.mk-rowpct{font-family:var(--code);font-size:var(--t-sm);color:var(--ink);flex:none;
+  min-width:6ch;text-align:right}
+
+/* said out loud, because an absent number looks like a missing feature */
+.mk-why{max-width:56ch;margin-top:var(--s-7);padding-top:var(--s-6);
+  border-top:1px solid var(--rule-soft);
+  font-family:var(--text);font-size:var(--t-md);line-height:1.65;color:var(--muted)}
+
+/* dialog form fields — shared with any later dialog that needs labelled inputs */
+.fld{display:flex;flex-direction:column;gap:var(--s-3)}
+.fld > span{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.fld input[type=text],.fld input[type=number],.fld input[type=date]{
+  border:1px solid var(--rule);border-radius:var(--r-md);background:var(--paper);
+  color:var(--ink);padding:9px 11px;font-family:inherit;font-size:var(--t-md);width:100%}
+.fld input:focus{outline:none;border-color:var(--structure)}
+.fld-row{display:flex;gap:var(--s-5);flex-wrap:wrap}
+.fld-row .fld{flex:1;min-width:92px}
+
+.dlgerr{font-family:var(--text);font-size:var(--t-md);line-height:1.55;
+  color:var(--bad);background:var(--bad-soft);border-radius:var(--r-md);
+  padding:10px 12px}
+
+@media (pointer:coarse){
+  /* iOS zooms the page when a focused input is under 16px */
+  .fld input[type=text],.fld input[type=number],.fld input[type=date]{font-size:1rem}
+  .mk-row{padding:14px 0}
+}
+
+/* ============================================================
    FEEDBACK — the board. Every value here is a scale token; the only new idea
    is the status pill, and it borrows the semantic status colours rather than
    the brand accent, because "Shipped" means state, not Nexley.
