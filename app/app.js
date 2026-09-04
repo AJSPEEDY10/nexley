@@ -260,9 +260,17 @@
     return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
   };
 
+  /* textContent runs blocks straight together — a note of "<h3>Why?</h3><p>Because…</p>"
+     came out as "Why?Because…" in every excerpt, search snippet and card suggestion.
+     Blocks get a space between them before the text is flattened. */
+  var BLOCKS = /^(P|DIV|H1|H2|H3|H4|H5|H6|LI|UL|OL|BR|TR|BLOCKQUOTE|PRE|SECTION)$/;
   function plain(html) {
     var d = document.createElement('div');
     d.innerHTML = html || '';
+    var walk = d.querySelectorAll('*');
+    for (var i = 0; i < walk.length; i++) {
+      if (BLOCKS.test(walk[i].tagName)) walk[i].appendChild(document.createTextNode(' '));
+    }
     return (d.textContent || '').replace(/\s+/g, ' ').trim();
   }
 
@@ -586,13 +594,18 @@
   /* ============================================================
      7 · rail
      ============================================================ */
+  /* Counts exclude captures, because clicking the row shows the notebook and the
+     notebook excludes them. A rail reading "3" above a list of 2 is the app
+     contradicting itself, and the number is the thing people trust least once it
+     has been wrong once. */
   function renderSubjects() {
     var wrap = $('subjectList');
+    var pool = notebookNotes();
     wrap.textContent = '';
     wrap.appendChild(subjectRow({ id: null, name: 'All notes', colour: 'var(--muted)' },
-      state.notes.length, false));
+      pool.length, false));
     state.subjects.forEach(function (s) {
-      var count = state.notes.filter(function (n) { return n.subjectId === s.id; }).length;
+      var count = pool.filter(function (n) { return n.subjectId === s.id; }).length;
       wrap.appendChild(subjectRow(s, count, true));
     });
   }
