@@ -1921,7 +1921,25 @@
     });
   }
 
-  /* Returns the card mutated in place. Grade: 0 again, 3 hard, 4 good, 5 easy. */
+  /* Returns the card mutated in place. Grade: 0 again, 3 hard, 4 good, 5 easy.
+
+     WHERE THIS DEPARTS FROM TEXTBOOK SM-2, AND WHY.
+     Original SM-2 sets the interval from the repetition count alone: first success
+     1 day, second 6 days, thereafter interval x ease. The grade only moves the ease
+     factor, which does not affect anything until the third review.
+
+     That is defensible on paper and unusable in a UI. On a new card it makes Hard,
+     Good and Easy all schedule for tomorrow, so the buttons show "1d / 1d / 1d" —
+     three controls that visibly do the same thing. A grading choice that changes
+     nothing teaches people not to grade honestly, which corrupts the one input the
+     algorithm actually depends on.
+
+     So the early intervals are grade-dependent (the same fix Anki's graduating
+     intervals make), and later intervals scale the multiplier by grade. The ease
+     formula below is untouched SM-2. */
+  var FIRST = { 3: 1, 4: 3, 5: 5 };     // days, by grade, on the first success
+  var SECOND = { 3: 4, 4: 6, 5: 9 };    // days, by grade, on the second
+
   function schedule(card, grade) {
     if (grade < 3) {
       card.lapses = (card.lapses || 0) + 1;
@@ -1932,12 +1950,18 @@
       card.due = Date.now() + 10 * 60 * 1000;
     } else {
       card.reps = (card.reps || 0) + 1;
-      if (card.reps === 1) card.interval = 1;
-      else if (card.reps === 2) card.interval = 6;
-      else card.interval = Math.round(card.interval * card.ease);
+      if (card.reps === 1) {
+        card.interval = FIRST[grade];
+      } else if (card.reps === 2) {
+        card.interval = SECOND[grade];
+      } else {
+        // Hard advances slowly regardless of a high ease; Easy gets a bonus on top.
+        var mult = grade === 3 ? 1.2 : (grade === 5 ? card.ease * 1.3 : card.ease);
+        card.interval = Math.max(card.interval + 1, Math.round(card.interval * mult));
+      }
       card.due = Date.now() + card.interval * DAY;
     }
-    // SM-2's ease update, applied on every grade including a lapse
+    // SM-2's ease update, unchanged, applied on every grade including a lapse
     var q = grade;
     card.ease = Math.max(MIN_EASE,
       (card.ease || 2.5) + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
