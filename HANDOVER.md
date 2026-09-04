@@ -9,17 +9,17 @@
 
 ---
 
-## One thing is blocked on Alec
+## Nothing is blocked on Alec
 
-**Migration 0008 (`feedback`) has not been applied.** Everything else in the
-feedback board is committed and verified, and it is deliberately safe to deploy
-ahead of the migration - a missing table is isolated exactly like `cards` was, so
-sync still returns `ok` and notes/subjects/syllabus are untouched. But until 0008
-is run on prod **and** dev, every piece of feedback anyone sends sits in their
-IndexedDB reading "Waiting to send" and nobody's reply can ever come back.
+**Migration 0008 (`feedback`) was applied to dev and prod on 09-04, and v0.14.0 is
+deployed.** Verified against the server (not the dashboard) in the live signed-in app:
+select works, a report sent from the deployed UI is in the table as `status='new'`, and
+`update` / `delete` / `upsert` are all refused `42501` - which is the live proof of why
+sync pushes this table with a plain insert rather than an upsert.
 
-Apply it by hand in the SQL editor (there is no CLI - see Useful facts), then
-verify against the server, not the dashboard.
+One test row sits in prod `feedback` ("Smoke test of the feedback pipeline...") - delete
+it, or reply to it to watch the reply land back in the app:
+`update public.feedback set status='noted', reply='...' where id='...';`
 
 Everything else that was waiting on him has been cleared or dropped:
 
