@@ -4,13 +4,10 @@
  * is involved: usage data goes to the same backend that already holds the notes,
  * and to nowhere else.
  *
- * ⚠ THE HOSTING REGION IS UNCONFIRMED. app/legal.html says Tokyo; the August
- * decision log says Sydney. They cannot both be right, and the privacy policy
- * makes this claim to users. Confirm it in the Supabase dashboard (Project
- * Settings -> General -> Region) and correct whichever is wrong. It does not
- * change whether this file is the right design — removing a third-party
- * processor is an improvement either way — but it does change what legal.html
- * must say about cross-border disclosure under APP 8.
+ * REGION: ap-northeast-1, Northeast Asia (Tokyo) — confirmed 2026-09-04 in the
+ * Supabase dashboard. legal.html was right; the August decision log's "Sydney"
+ * was wrong. This is still an overseas disclosure under APP 8, which is exactly
+ * why adding PostHog on top would have been a second one.
  *
  * ---------------------------------------------------------------------------
  * WHY NOT POSTHOG (this file used to load it).

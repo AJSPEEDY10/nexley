@@ -10,9 +10,8 @@
 -- new recipient. We give up PostHog's dashboards and write SQL instead, which at
 -- this stage is a good trade.
 --
--- NOTE: this project's hosting region is currently unconfirmed — legal.html says
--- Tokyo, the August decision log says Sydney. That does not affect the reasoning
--- above, but it does affect what legal.html must disclose. Confirm and correct.
+-- Region confirmed 2026-09-04: ap-northeast-1 (Tokyo). Already disclosed
+-- correctly in legal.html.
 --
 -- WHAT MAKES IT SAFE.
 -- The shape is the guarantee, not a promise to be careful:
