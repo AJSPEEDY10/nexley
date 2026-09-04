@@ -669,6 +669,31 @@ a{color:var(--structure)}
 .gap p{font-size:var(--t-base);color:var(--ink-2);line-height:1.6;max-width:70ch}
 .gap b{color:var(--ink);font-weight:600}
 
+/* auto-filing suggestion — sits between the toolbar and the writing surface so
+   it is noticed without interrupting, and disappears the moment it is answered. */
+.filehint{display:flex;align-items:center;gap:var(--s-4);flex-wrap:wrap;
+  margin:0 0 var(--s-5);padding:var(--s-4) var(--s-5);
+  border:1px solid var(--structure);border-left-width:3px;border-radius:var(--r-md);
+  background:var(--structure-soft)}
+.fh-text{font-size:var(--t-base);color:var(--ink);flex:1;min-width:14ch}
+.fh-why{font-family:var(--code);font-size:var(--t-xs);color:var(--muted)}
+.filehint button{border:1px solid var(--rule);background:var(--card);
+  border-radius:var(--r-sm);padding:var(--s-2) var(--s-4);font-size:var(--t-sm);
+  color:var(--ink-2);cursor:pointer}
+.fh-yes{border-color:var(--structure)!important;color:var(--structure)!important}
+.filehint button:hover{border-color:var(--structure);color:var(--ink)}
+
+/* confidence bands. Colour carries the reading, but never alone — every use
+   pairs it with a word, because a coloured dot on its own is unreadable to
+   anyone with a colour vision deficiency and meaningless to everyone else. */
+.conf{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.09em;
+  text-transform:uppercase;padding:1px var(--s-3);border-radius:var(--r-sm);
+  border:1px solid currentColor;white-space:nowrap}
+.conf.untouched{color:var(--muted)}
+.conf.shaky{color:var(--bad)}
+.conf.building{color:var(--warn)}
+.conf.solid{color:var(--good)}
+
 /* toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
   background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:var(--r-md);

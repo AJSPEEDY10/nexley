@@ -284,6 +284,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
               title="Turn the selected text into a review card">+ Card</button>
     </div>
 
+    <!-- auto-filing suggestion. Only appears for an unfiled note the local matcher
+         is confident about, and never files anything on its own. -->
+    <div class="filehint" id="fileHint" hidden></div>
+
     <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
          aria-label="Note body"></div>
 

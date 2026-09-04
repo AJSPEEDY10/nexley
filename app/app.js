@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.12.0';
+  var APP_VERSION = '0.13.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -709,9 +709,17 @@
     }).length;
     var pct = Math.round((covered / points.length) * 100);
 
+    // Coverage says how much you have written. It deliberately does NOT fold in
+    // confidence: they answer different questions, and averaging them would hide
+    // both. Anything shaky is reported alongside, as a separate count.
+    var shaky = points.filter(function (p) {
+      return confidenceOf(p.id).band === 'shaky';
+    }).length;
+
     $('coverage').hidden = false;
     $('covFill').style.width = pct + '%';
-    $('covLabel').textContent = covered + ' / ' + points.length + ' written · ' + pct + '%';
+    $('covLabel').textContent = covered + ' / ' + points.length + ' written · ' + pct + '%'
+      + (shaky ? '  ·  ' + shaky + ' shaky' : '');
   }
 
   function topicBlock(t) {
@@ -797,6 +805,15 @@
     nm.textContent = p.title;
     tw.appendChild(nm);
     row.appendChild(tw);
+
+    var conf = confidenceOf(p.id);
+    if (conf.band !== 'untouched') {
+      var cb = document.createElement('span');
+      cb.className = 'conf ' + conf.band;
+      cb.textContent = conf.label;
+      cb.title = confidenceWhy(conf);
+      row.appendChild(cb);
+    }
 
     var ed = document.createElement('button');
     ed.type = 'button';
@@ -1070,7 +1087,7 @@
 
     renderSyllabusPicker(n);
     setKindButtons(n.kind || 'personal');
-    renderCrumb(n);
+    renderCrumbAndHint(n);
     applyFont(n.font || 'standard');
     markSaved();
     countWords();
@@ -1106,6 +1123,8 @@
     $('kindPersonal').classList.toggle('on', kind !== 'syllabus');
     $('kindSyllabus').classList.toggle('on', kind === 'syllabus');
   }
+
+  function renderCrumbAndHint(n) { renderCrumb(n); renderFilingHint(n); }
 
   function renderCrumb(n) {
     var s = subjectById(n.subjectId);
@@ -1169,7 +1188,8 @@
       // a save landing after the user moved on must not rewrite the new note's chrome
       if (state.activeNote !== n.id) return;
       markSaved();
-      renderCrumb(n);
+      // the note has grown since it opened, so the suggestion may have changed
+      renderCrumbAndHint(n);
     });
   }
 
@@ -2541,6 +2561,145 @@
       format: fmt ? fmt[1].toLowerCase() : null,
       codes: codes
     };
+  }
+
+  /* ============================================================
+     12g · confidence per syllabus point
+     ------------------------------------------------------------
+     One reading per dot point that every other feature can consult: coverage,
+     the review queue, Tasks, and later anything that recommends what to study.
+
+     DERIVED, NEVER STORED. The obvious design is a `confidence` field updated
+     whenever something happens. That creates a number that can drift out of step
+     with the evidence, needs its own migration and sync path, and is impossible
+     to explain when it looks wrong. Computing it on demand from cards and notes
+     means it cannot be stale and every value can name its own evidence.
+
+     BANDS, NOT PERCENTAGES. A number like "73% confident" reads exactly like the
+     predicted mark this project has promised never to show, and it implies a
+     precision the underlying data cannot support — a handful of self-graded
+     cards is not a measurement. Four honest bands instead, each with the
+     evidence attached.
+
+     ABSENCE IS NOT WEAKNESS. A point with nothing written is "untouched", not
+     "weak". Those are different facts and conflating them would make the whole
+     reading dishonest: you cannot be bad at something you have never attempted.
+     ============================================================ */
+  function confidenceOf(nodeId) {
+    var cards = state.cards.filter(function (c) { return c.syllabusId === nodeId; });
+    var notes = notesOfNode(nodeId).filter(function (n) { return n.kind === 'personal'; });
+
+    if (!cards.length && !notes.length) {
+      return { band: 'untouched', label: 'Nothing written', score: null,
+               notes: 0, cards: 0, due: 0 };
+    }
+
+    var due = cards.filter(function (c) { return (c.due || 0) <= Date.now(); }).length;
+    var reviewed = cards.filter(function (c) { return c.reps > 0; });
+
+    /* Only reviewed cards say anything. A deck of new cards means work has been
+       prepared, not that it is known. */
+    var score;
+    if (!reviewed.length) {
+      score = notes.length ? 0.25 : 0.15;
+    } else {
+      var sum = 0;
+      reviewed.forEach(function (c) {
+        // ease spans 1.3 (constantly failed) to ~2.8 (easy); reps cap at 5
+        var byEase = Math.max(0, Math.min(1, ((c.ease || 2.5) - 1.3) / 1.5));
+        var byReps = Math.min(1, (c.reps || 0) / 5);
+        var lapsePenalty = Math.min(0.4, (c.lapses || 0) * 0.12);
+        sum += Math.max(0, (byEase * 0.5 + byReps * 0.5) - lapsePenalty);
+      });
+      score = sum / reviewed.length;
+      // overdue cards mean the reading is going stale, whatever it was
+      if (due) score *= Math.max(0.6, 1 - (due / cards.length) * 0.4);
+    }
+
+    var band = score >= 0.7 ? 'solid' : (score >= 0.4 ? 'building' : 'shaky');
+    var label = band === 'solid' ? 'Holding' : (band === 'building' ? 'Building' : 'Shaky');
+    return { band: band, label: label, score: score,
+             notes: notes.length, cards: cards.length, due: due };
+  }
+
+  /* Plain-English evidence for a reading, so it is never a bare verdict. */
+  function confidenceWhy(c) {
+    if (c.band === 'untouched') return 'No notes and no cards here yet.';
+    var bits = [];
+    bits.push(c.notes ? c.notes + (c.notes === 1 ? ' note' : ' notes') : 'no notes');
+    bits.push(c.cards ? c.cards + (c.cards === 1 ? ' card' : ' cards') : 'no cards');
+    if (c.due) bits.push(c.due + ' due for review');
+    return bits.join(' · ');
+  }
+
+  /* ============================================================
+     12h · auto-filing
+     ------------------------------------------------------------
+     An unfiled note is offered the dot point it most likely belongs to. Runs on
+     the same local matcher as Tasks — no model, no network, nothing leaves the
+     device, and it works with no signal.
+
+     ALWAYS A SUGGESTION, NEVER AN ACTION. It files nothing on its own. The
+     matcher reads vocabulary, not meaning, so it is confidently wrong often
+     enough that silent filing would scatter someone's notes into places they
+     never chose and would not think to look.
+     ============================================================ */
+  var MIN_SUGGEST = 0.35;   // below this the top hit is usually noise
+
+  function suggestFiling(note) {
+    if (!note || note.syllabusId || !note.subjectId) return null;
+    var text = (note.title || '') + ' ' + plain(note.body || '');
+    if (text.trim().length < 25) return null;      // too little to judge
+    var hits = matchSyllabus(text, note.subjectId, 2);
+    if (!hits.length || hits[0].score < MIN_SUGGEST) return null;
+    // a near-tie is not a suggestion, it is a coin toss
+    if (hits[1] && hits[1].score > hits[0].score * 0.8) return null;
+    return hits[0];
+  }
+
+  function renderFilingHint(note) {
+    var box = $('fileHint');
+    if (!box) return;
+    var hit = suggestFiling(note);
+    if (!hit) { box.hidden = true; return; }
+
+    box.textContent = '';
+    box.hidden = false;
+
+    var t = document.createElement('span');
+    t.className = 'fh-text';
+    t.textContent = 'Looks like ' + (hit.node.code ? hit.node.code + ' · ' : '') + hit.node.title;
+    box.appendChild(t);
+
+    var why = document.createElement('span');
+    why.className = 'fh-why';
+    why.textContent = 'matched: ' + hit.matched.slice(0, 3).join(', ');
+    box.appendChild(why);
+
+    var yes = document.createElement('button');
+    yes.type = 'button';
+    yes.className = 'fh-yes';
+    yes.textContent = 'File it here';
+    yes.addEventListener('click', function () {
+      var n = activeNoteObj();
+      if (!n) return;
+      n.syllabusId = hit.node.id;
+      put('notes', stamp(n)).then(function () { return refresh({ keepEditor: true }); })
+        .then(function () {
+          renderSyllabusPicker(n);
+          renderCrumb(n);
+          box.hidden = true;
+          toast('Filed against ' + (hit.node.code || hit.node.title) + '.');
+        });
+    });
+    box.appendChild(yes);
+
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'fh-no';
+    no.textContent = 'Not this';
+    no.addEventListener('click', function () { box.hidden = true; });
+    box.appendChild(no);
   }
 
   /* ---- the Tasks panel ---- */
