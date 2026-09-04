@@ -59,57 +59,87 @@ warning used a `.gap` class borrowed from a design artifact that isn't in `app.c
 
 ---
 
-## What was done
+## The plan from here
 
-Fourteen commits, all pushed and live. In order:
+Ordered. Each phase either unblocks or de-risks the next.
 
-| Commit | What |
+**Phase 5 - public site (partly done).** `app/index.html` is already a landing page and is
+the GEO foundation. The waitlist half was scrapped. Remaining: a feedback board for beta
+users, and revisiting what the public page says now the product does more.
+
+**Phase 6 - real marks (NEXT).** Record papers sat *with their conditions*, because an
+open-notes mark and an exam mark are not the same mark and must never be quietly averaged.
+Then the marked-script view: which specific words earned or lost each mark. Mistakes feed
+into the review queue as tighter-scheduled cards. **No predicted band, ever** - the vision
+brief corrected Concept 02 on exactly this.
+
+**Phase 7 - Term planning.** Workload per subject per week, collision detection weeks out,
+committed vs available hours. "You are not behind, you are over-committed."
+
+**Phase 8 - native wrap.** Capacitor, cloud build (no Mac needed), TestFlight, private
+invites. Deliberately late: store review blocks daily iteration, so the PWA stays the
+development vehicle until the product is worth freezing. Handwriting capture lands here -
+target every device, not M-series iPads only.
+
+**Phase 9 - the gated ones.** AI tutor and AI marking (needs the costing/consent
+conversation), Commons and study rooms (needs a safety design), question bank (later idea).
+Each is blocked by a decision, not by engineering.
+
+### Design directions - decision still open
+Five full prototypes built 09-03. Alec's call was "combine the best of everything,
+professional, easy to navigate, not vibecoded". The token system in `app.css` is the
+foundation for that; individual screens have not been restyled yet.
+
+| Direction | Link |
 |---|---|
-| `d148e5d` | Redesign pass 2b — rail mode switch, note marginalia |
-| `d669e06` | Pass 2 finish — Newsreader display face, subject palette, ruled-line fixes |
-| `17a61b5` | Sign-up / first-run path — five bugs |
-| `8429989` | Pre-signup intro |
-| `9079aaa` | Link-preview + description metadata |
-| `7f158f4` | Landing page |
-| `549073b` | Analytics — built, left OFF |
-| `71ece61` | Landing page becomes the front door; app moves to `/app.html` |
-| `1e7332e` | Crash reporting + Report a problem |
-| `7019875` | Fix auth redirects landing on the landing page |
-| `9f6a739` | Explicit Sign in link on the landing page |
-| `71bd3d0` | This handover file |
-| `01fa9b2` | Migration 0004 applied — fix the missing GRANTs, and stop reports vanishing |
-| `4f1a604` | Handover updated after the migration went in |
-
-### Design (Pass 2 is finished)
-- **Rail mode switch** — Notebook / Classwork / Review. The last two are honest "not built
-  yet" stubs so the nav holds their shape and isn't restructured twice. Not persisted.
-- **Marginalia** — at ≥880px editor width the note apparatus becomes a real left margin
-  against a margin rule. Driven by a **container query on `.editor`** with a `.ed-page`
-  wrapper inside it.
-- **Newsreader** self-hosted (`app/fonts/`, SIL OFL), precached and served cache-first.
-  Display voice only — the writing surface stays on Iowan/Palatino deliberately.
-- **Subject palette** retuned mid-tone; old defaults remapped by index on load.
-
-### Onboarding & auth
-- Pre-signup **intro** (3 panels, once per device, `nexley-intro-seen`).
-- **Five sign-up bugs fixed:** `enterApp` ran twice per email sign-up; Google sign-ups were
-  never seeded (empty app on first run); a sync pull never repainted (second device looked
-  like your notes were gone); "check your email to confirm" was set then immediately hidden;
-  `lastPullAt` was one shared key across accounts.
-- **Landing page is now the site root; the app is at `/app.html`.** Installed home-screen
-  icons still have the old `start_url`, so the landing page detects installed mode and
-  replaces itself with the app before paint. In-app "What is Nexley?" passes `?from=app` to
-  opt out of that bounce.
-
-### Reporting
-- `app/errors.js` — automatic capture (`onerror`, `unhandledrejection`) + a **Report a
-  problem** button in the rail *and on the sign-in screen*. Scrubbed so note content can't
-  leak. Dedupes, caps at 8/session, queues offline.
-- `app/analytics.js` — PostHog, **OFF**. No key ⇒ nothing loads.
+| Marking Ledger | https://claude.ai/code/artifact/0b60cb0e-21e9-4aaa-8fd5-4095b6364f04 |
+| Dark Regions | https://claude.ai/code/artifact/f58e7806-a38c-4d0b-aada-ee3c9de17dd0 |
+| Ten Weeks Out | https://claude.ai/code/artifact/c90b2a37-d391-4c8a-90d6-2a56e514c703 |
+| Season Four | https://claude.ai/code/artifact/a00c8fb0-0f3a-4a45-adee-ab6b20b9cebd |
+| One Block | https://claude.ai/code/artifact/280486ef-8b6a-45d1-a5c8-5ea6b4d491b5 |
+| **The Nexley Register** - every idea ever + the full plan | https://claude.ai/code/artifact/3885dc36-ed28-454f-bd37-519677bad4fd |
 
 ---
 
-## Traps this session hit — don't re-learn these
+## Architecture, in one page
+
+- **Offline-first.** IndexedDB is the source of truth for the UI, always. Sync pushes and
+  pulls in the background and never blocks a read or a save.
+- **Code and data are separate.** A deploy replaces files in the SW cache; it never touches
+  IndexedDB. A deploy cannot delete a note.
+- **Deletes are tombstones.** Nothing is hard-deleted, so a deletion syncs instead of the
+  record resurrecting. No table grants DELETE - structural, not a rule the client is trusted
+  to follow.
+- **Every record is sync-shaped:** stable id, `updated`, `rev`, `device`, `deleted`.
+- **Modes:** Notebook / Classwork / Review / Tasks. A capture is a note with
+  `kind:'capture'`, so Classwork needed no migration; filing one flips the kind and sets a
+  syllabus point, keeping the id and the original date.
+- **Everything local.** Matcher, confidence and auto-filing are plain TF-IDF over the
+  syllabus the user already pasted. No model, no network, works with no signal.
+
+### Files
+`app/app.js` is the app - one file, numbered sections, no build step. `sync.js`, `auth.js`,
+`errors.js`, `analytics.js`, `config.js` are separate concerns. `app.css` holds the token
+system: **every measurement resolves to a scale token.** If a value you need is not on a
+scale, take the nearest step rather than inventing one.
+
+### Tests
+```
+node test/test_parser.js       # syllabus paste parsing        13 tests
+node test/test_matcher.js      # TF-IDF matcher + task parser  22 tests
+node test/test_confidence.js   # confidence bands               9 tests
+```
+Tests extract functions from `app.js` by string-slicing and `eval`, so **renaming a function
+or changing a section header can break extraction.** Run them after any refactor.
+
+### Testing the app itself
+There is no way past the sign-in gate offline. Copy `app.html`, point the `auth.js` script
+tag at a stub that fakes `window.NexleyAuth`, serve it, drive it. **Delete the harness files
+before committing.** Use a fresh port every time - see the traps.
+
+---
+
+## Traps — don't re-learn these
 
 1. **`clamp()`/`calc()` need whitespace around `+` and `-`.** `clamp(1.55rem,1.25rem+1.4vw,2rem)`
    is a parse error, the declaration is dropped silently, and you inherit. The note title
@@ -141,65 +171,24 @@ Fourteen commits, all pushed and live. In order:
 
 ---
 
-## What needs doing next
-
-**⚠️ The build order below is on hold.** On 09-03 Alec asked for five full redesign
-directions to choose from before anything else ships. They are built and published:
-
-| Direction | What it argues | Link |
-|---|---|---|
-| Marking Ledger | The app as an evidenced record; outcomes with receipts, marks with reasons | https://claude.ai/code/artifact/0b60cb0e-21e9-4aaa-8fd5-4095b6364f04 |
-| Dark Regions | The knowledge map *is* the interface; gaps found from absence | https://claude.ai/code/artifact/f58e7806-a38c-4d0b-aada-ee3c9de17dd0 |
-| Ten Weeks Out | The term as a workload problem; collisions caught weeks early | https://claude.ai/code/artifact/c90b2a37-d391-4c8a-90d6-2a56e514c703 |
-| Season Four | The syllabus as the skill tree it already is; live, competitive | https://claude.ai/code/artifact/a00c8fb0-0f3a-4a45-adee-ab6b20b9cebd |
-| One Block | Strip everything; protect one block of attention at a time | https://claude.ai/code/artifact/280486ef-8b6a-45d1-a5c8-5ea6b4d491b5 |
-
-Commit `8df8853` (Classwork + Review + sync reporting, v0.10.0) is **committed locally
-and deliberately not pushed** — a redesign may restructure it. Nothing is deployed from
-it. `git push` when the direction is settled, or rebuild on top of whichever wins.
-
-**Agreed build order, once a direction is picked:**
-
-1. **Classwork mode** — quick-capture for what happens in class, graduating into notebook
-   notes once filed against the syllabus. The rail stub is already there waiting.
-2. **SM-2 spaced repetition ("Review")** — a due-today queue built from the user's own
-   coverage. Stub also already in the rail.
-3. **AI auto-filing** — the app detects what you're writing and suggests where to file it,
-   with manual override. ⚠️ **Needs a privacy/consent answer before it is built**: it means
-   sending student note text to an external model, and it is the one item with a running
-   cost. Nexley's `legal.html` currently promises notes are not used to train any AI model.
-
-**Smaller / open:**
-- **PostHog**: needs Alec to create a project and supply the key. **`legal.html` must change
-  in the same commit** — the paragraph to paste is in the header of `app/analytics.js`.
-- Snapshot / dialog polish (last design item).
-- `og:` URLs are pinned to the Pages address — update if Nexley gets its own domain.
-- **Nexley has not been trademark-checked.**
-- Deferred by Alec, do not start without him asking: **textbook-photo OCR import**, and the
-  **branding decision** (is "classwork" the same feature as "notebook"? one app vs several?).
-- `MEMORY.md` is near its read limit and wants compacting.
+10. **Two Supabase editor tabs can point at the same saved query.** Emptying one and saving
+    it silently overwrites what the other just saved. Check the URL, not the tab title.
 
 ---
 
 ## Useful facts
 
-- **Deploy PAT `nexley-deploy` expires 2026-09-29.** After that pushes fail until renewed.
+- **Deploy is `git push origin main`.** GitHub Pages, live in ~30-60s. **PAT `nexley-deploy`
+  expires 2026-09-29** - pushes fail after that until renewed.
 - Supabase: prod `qvijxnhigqfoinuitrue`, dev `yvlcpngoplecigblxnkb`. Local
-  (`127.0.0.1`/`localhost`) automatically points at **dev** — see `config.js`.
-- Both Supabase projects auto-pause after ~7 days idle on the free tier.
-- **There is no Supabase CLI and no linked config.** Migrations are applied by hand in the
-  dashboard SQL editor, and `supabase/migrations/` is a record of what was run, not
-  something that runs itself. Apply to **both** prod and dev. Alec is already logged into
-  the dashboard in Chrome, so this is doable with browser automation: paste into the editor
-  (Monaco — `window.monaco.editor.getModels()[0].setValue(sql)` beats typing it), Run, then
-  **verify against the server** rather than trusting the client.
-- Testable hooks: `NexleyErrors._capture/report/diagnostics/pending/flush`,
-  `NexleyAnalytics.sanitize/track/events`, `NexleyDB.all/get/put`, `NexleySync.run`.
-- To test the sign-up path without making real accounts: copy `app.html`, `sed` the
-  `auth.js` script tag to a stub that fakes `window.NexleyAuth` + a `from()` query builder
-  over in-memory tables. That harness caught a bug where the seed logic read `state`
-  instead of the store and **seeded a General/Welcome pair on top of a returning user's
-  real notebook**. Delete the harness files before committing.
-
-Deeper detail lives in Claude's memory: `project_nexley_deployment`,
-`project_nexley_redesign`, `project_nexley_bug_reporting`, `project_nexley_ideas`.
+  (`127.0.0.1`/`localhost`) automatically points at **dev** - see `config.js`.
+  **Region: `ap-northeast-1` (Tokyo).** Both auto-pause after ~7 days idle on the free tier.
+- **No Supabase CLI.** Migrations are applied by hand in the dashboard SQL editor;
+  `supabase/migrations/` is a record of what was run, not something that runs itself. Apply
+  to **both** prod and dev. The Chrome extension can load SQL into the editor
+  (`window.monaco.editor.getModels()[0].setValue(sql)`) but is blocked from executing it;
+  ComputerControl clicks Run. **Verify against the server afterwards, never the dashboard.**
+- Testable hooks: `NexleySync.run/status`, `NexleyErrors._capture/report/diagnostics/pending`,
+  `NexleyAnalytics.sanitize/track/events/flush/pending`, `NexleyDB.all/get/put`.
+- **Adding an analytics event takes two edits** - the `ALLOWED` map in `analytics.js` and the
+  CHECK constraint in migration 0007. A test asserts the two lists match.
