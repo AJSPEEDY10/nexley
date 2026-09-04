@@ -17,12 +17,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.13.0';
+  var APP_VERSION = '0.14.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
-  var DB_VER = 4;
+  var DB_VER = 5;
   var BACKUP_KEEP = 7;
   var BACKUP_EVERY = 20 * 60 * 60 * 1000;
   var MAX_TABS = 8;
@@ -86,6 +86,15 @@
         var c = d.createObjectStore('cards', { keyPath: 'id' });
         c.createIndex('subjectId', 'subjectId', { unique: false });
         c.createIndex('due', 'due', { unique: false });
+      }
+    }
+
+    if (from < 5) {
+      /* Feedback the user has sent, and what came back. Held locally for the same
+         reason everything else is: it has to be readable on a train with no signal,
+         and something written offline must not be lost waiting for Wi-Fi. */
+      if (!d.objectStoreNames.contains('feedback')) {
+        d.createObjectStore('feedback', { keyPath: 'id' });
       }
     }
   }
@@ -444,6 +453,7 @@
       .then(function (res) { return maybeSeed(res); })
       .then(function (seeded) {
         track('app_opened');
+        renderFeedbackBadge();
         if (!seeded) return;
         // push the welcome note up now rather than waiting for the 5-minute tick,
         // so it's already there when they open the app on a second device
@@ -1639,6 +1649,205 @@
         + 'Worth doing now if this persists.');
     }
     alert(lines.join('\n\n'));
+  }
+
+  /* ============================================================
+     12b3 · feedback
+     ------------------------------------------------------------
+     "Report a problem" (12b) is write-only by design — bug_reports has no select
+     policy, so a crash report can never be read back and note text can never leak
+     out of it. That shape is right for crashes and wrong for opinions: a beta user
+     who sends an idea into a hole that never answers does not send a second one.
+
+     So feedback is its own table (migration 0008) with select-own, and this is the
+     board: what you sent, what state it is in, and what Alec said back. The status
+     and the reply are the server's to write — the client is granted no UPDATE at
+     all, so nothing here can mark its own idea "shipped".
+     ============================================================ */
+  var FB_KINDS = [
+    { id: 'idea',      label: 'An idea' },
+    { id: 'problem',   label: 'Something broken' },
+    { id: 'confusing', label: 'Confusing' },
+    { id: 'praise',    label: 'This worked' }
+  ];
+
+  /* What each status says to the person who wrote it. Deliberately plain: "Sent"
+     means it arrived and nobody has looked yet, and saying so is better than a
+     hopeful "Received!" that implies more than happened. */
+  var FB_STATUS = {
+    new:      { label: 'Sent',        tone: 'wait' },
+    noted:    { label: 'Read',        tone: 'wait' },
+    planned:  { label: 'Planned',     tone: 'go'   },
+    building: { label: 'Being built', tone: 'go'   },
+    shipped:  { label: 'Shipped',     tone: 'done' },
+    declined: { label: 'Not planned', tone: 'off'  }
+  };
+
+  var FB_MAX = 4000;                        // matches the CHECK in migration 0008
+  var FB_SEEN_KEY = 'nexley-feedback-seen'; // id -> rev of the reply already read
+
+  var fbKind = 'idea';
+  var fbCache = [];
+
+  /* Seen-state lives in localStorage rather than on the record, because a sync pull
+     writes the server's row over the local one wholesale — any local-only field on
+     it would be silently erased the moment a reply arrived, which is exactly when
+     it matters. */
+  function fbSeen() {
+    try { return JSON.parse(localStorage.getItem(FB_SEEN_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function fbMarkSeen(rows) {
+    try {
+      var seen = fbSeen();
+      rows.forEach(function (r) { if (r.reply) seen[r.id] = r.rev || 1; });
+      localStorage.setItem(FB_SEEN_KEY, JSON.stringify(seen));
+    } catch (e) {}
+  }
+  function fbUnread(rows) {
+    var seen = fbSeen();
+    return rows.filter(function (r) {
+      return r.reply && seen[r.id] !== (r.rev || 1);
+    }).length;
+  }
+
+  /* A quiet dot on the rail button. The only unsolicited attention the app asks
+     for, and only ever because a real person wrote back. */
+  function renderFeedbackBadge() {
+    return all('feedback').then(function (rows) {
+      fbCache = live(rows);
+      var dot = $('fbDot');
+      if (dot) dot.hidden = fbUnread(fbCache) === 0;
+    }).catch(function () {});
+  }
+
+  function openFeedbackDialog() {
+    $('fbText').value = '';
+    $('fbSend').disabled = false;
+    $('fbSend').textContent = 'Send';
+    fbKind = 'idea';
+    renderFeedbackKinds();
+    renderFeedbackList();
+    $('fbDialog').showModal();
+    setTimeout(function () { $('fbText').focus(); }, 60);
+  }
+
+  function renderFeedbackKinds() {
+    var wrap = $('fbKinds');
+    wrap.textContent = '';
+    FB_KINDS.forEach(function (k) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (fbKind === k.id ? ' on' : '');
+      b.textContent = k.label;
+      b.setAttribute('aria-pressed', fbKind === k.id ? 'true' : 'false');
+      b.addEventListener('click', function () { fbKind = k.id; renderFeedbackKinds(); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function renderFeedbackList() {
+    var wrap = $('fbList');
+    wrap.textContent = '';
+    return all('feedback').then(function (rows) {
+      fbCache = live(rows).sort(function (a, b) { return b.created - a.created; });
+      if (!fbCache.length) {
+        var e = document.createElement('p');
+        e.className = 'dlgnote';
+        e.textContent = 'Nothing sent yet. Anything you write here reaches the person ' +
+          'building Nexley, and the reply turns up in this list.';
+        wrap.appendChild(e);
+        return;
+      }
+      fbCache.forEach(function (r) { wrap.appendChild(feedbackRow(r)); });
+      // opening the list IS reading it
+      fbMarkSeen(fbCache);
+      var dot = $('fbDot');
+      if (dot) dot.hidden = true;
+    });
+  }
+
+  function feedbackRow(r) {
+    var row = document.createElement('div');
+    row.className = 'fbitem';
+
+    var head = document.createElement('div');
+    head.className = 'fbhead';
+
+    /* A row that has never reached the server says so. The app has been wrong about
+       exactly this once already — sync spent its whole life claiming notes were on
+       the account when nothing had ever left the device — so "Sent" is never shown
+       for something still sitting in IndexedDB. */
+    var sent = !!r.pushedRev;
+    var meta = FB_STATUS[r.status] || FB_STATUS['new'];
+
+    var st = document.createElement('span');
+    st.className = 'fbstatus ' + (sent ? meta.tone : 'wait');
+    st.textContent = sent ? meta.label : 'Waiting to send';
+    head.appendChild(st);
+
+    var kind = document.createElement('span');
+    kind.className = 'fbkind';
+    kind.textContent = (FB_KINDS.filter(function (k) { return k.id === r.kind; })[0] || {}).label || r.kind;
+    head.appendChild(kind);
+
+    var date = document.createElement('span');
+    date.className = 'fbdate';
+    date.textContent = when(r.created);
+    head.appendChild(date);
+
+    row.appendChild(head);
+
+    var body = document.createElement('p');
+    body.className = 'fbbody';
+    body.textContent = r.body;
+    row.appendChild(body);
+
+    if (r.reply) {
+      var rep = document.createElement('div');
+      rep.className = 'fbreply';
+      var who = document.createElement('b');
+      who.textContent = 'Reply';
+      rep.appendChild(who);
+      var txt = document.createElement('p');
+      txt.textContent = r.reply;
+      rep.appendChild(txt);
+      row.appendChild(rep);
+    }
+    return row;
+  }
+
+  function sendFeedback() {
+    var text = $('fbText').value.trim();
+    if (!text) { $('fbText').focus(); return; }
+    if (text.length > FB_MAX) text = text.slice(0, FB_MAX);
+    $('fbSend').disabled = true;
+    $('fbSend').textContent = 'Sending…';
+
+    var rec = stamp({
+      id: uid(), kind: fbKind, body: text,
+      status: 'new', reply: null, appVersion: APP_VERSION
+    });
+
+    /* Written locally first, always. Sending is the part allowed to fail; keeping
+       what you wrote is not. */
+    put('feedback', rec)
+      .then(function () {
+        $('fbText').value = '';
+        return window.NexleySync ? window.NexleySync.run() : null;
+      })
+      .catch(function () { return null; })
+      .then(function () { return renderFeedbackList(); })
+      .then(function () {
+        $('fbSend').disabled = false;
+        $('fbSend').textContent = 'Send';
+        return get('feedback', rec.id);
+      })
+      .then(function (saved) {
+        // honest either way, same rule as the bug reporter
+        toast(saved && saved.pushedRev ? 'Thanks — sent.'
+                                       : 'Saved — it will send as soon as it can.');
+      });
   }
 
   /* ============================================================
@@ -3131,6 +3340,10 @@
     $('bugCancel').addEventListener('click', function () { $('bugDialog').close(); });
     $('bugSend').addEventListener('click', sendBugReport);
 
+    $('fbBtn').addEventListener('click', openFeedbackDialog);
+    $('fbClose').addEventListener('click', function () { $('fbDialog').close(); });
+    $('fbSend').addEventListener('click', sendFeedback);
+
     $('lockBtn').addEventListener('click', function () {
       if (state.dirty) saveNow();
       window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
@@ -3287,7 +3500,11 @@
        exactly like your notes being gone. Repaint when a pull actually changed
        something, but never on top of unsaved typing. */
     window.addEventListener('nexley-sync-pulled', function () {
-      if (!state.account || state.dirty) return;
+      if (!state.account) return;
+      // a reply can arrive on any pull, and the dot is the only sign of it
+      renderFeedbackBadge();
+      if ($('fbDialog').open) renderFeedbackList();
+      if (state.dirty) return;
       refresh({ keepEditor: !!state.activeNote });
     });
 

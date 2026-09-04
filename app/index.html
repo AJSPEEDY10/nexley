@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nexley — a syllabus study notebook</title>
-<meta name="description" content="Nexley is a study notebook that files your notes against the actual syllabus, so you can see what you've covered and what you haven't. Works offline.">
+<meta name="description" content="Nexley files your notes, your classwork and your assessments against the actual syllabus, so you can see what you have covered and what you have not. Spaced review built from your own notes. Works offline.">
 <meta name="theme-color" content="#1E4D3E">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Nexley">
 <meta property="og:title" content="Nexley — a syllabus study notebook">
-<meta property="og:description" content="File your notes against the actual syllabus dot point, see the gaps in your own coverage, and write with no signal.">
+<meta property="og:description" content="File your notes against the actual syllabus dot point, unpack an assessment notification into what it actually covers, and revise what you are weakest on. Works with no signal.">
 <meta property="og:url" content="https://ajspeedy10.github.io/nexley/">
 <meta property="og:image" content="https://ajspeedy10.github.io/nexley/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -95,6 +95,26 @@ try{
     .block h2{grid-row:span 2;margin-top:2px}
   }
 
+  /* the log. Two columns of the same list — what exists, and what is being built —
+     because a beta user's first question is which half a thing is in, and the
+     honest answer to that is the whole pitch of an early product. */
+  .log{padding:44px 0;border-top:1px solid var(--rule-soft)}
+  .log h2{font-family:var(--display);font-size:clamp(1.5rem, 1.2rem + 1.1vw, 1.95rem);
+    letter-spacing:-.015em;line-height:1.2}
+  .log-grid{display:grid;grid-template-columns:1fr;gap:30px;margin-top:24px}
+  @media (min-width:660px){ .log-grid{grid-template-columns:1fr 1fr;gap:40px} }
+  .log h3{font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);font-weight:400;
+    padding-bottom:10px;border-bottom:1px solid var(--rule-soft)}
+  .log ul{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:11px}
+  .log li{font-family:var(--text);font-size:1rem;line-height:1.5;color:var(--ink-2);
+    display:flex;gap:10px;align-items:baseline}
+  .log li i{flex:none;width:6px;height:6px;border-radius:999px;background:var(--good);
+    transform:translateY(-2px)}
+  .log li.soon i{background:none;border:1px solid var(--muted)}
+  .log .caveat{font-family:var(--text);font-size:.9375rem;line-height:1.6;
+    color:var(--muted);max-width:58ch;margin-top:22px}
+
   /* honest status, set like a note in the margin of a textbook */
   .status{border:1px solid var(--rule);border-radius:10px;padding:22px 24px;
     background:var(--card);margin-top:36px;display:flex;flex-direction:column;gap:10px}
@@ -168,6 +188,48 @@ try{
   </section>
 
   <section class="block">
+    <h2>Capture in class, file it later.</h2>
+    <p>Classwork mode is for what actually happens in a lesson — a diagram off the board,
+      a worked example, something the teacher said would be in the exam. Write it fast and
+      unsorted. Nexley suggests the dot point it belongs to when you have a minute, and
+      filing it keeps the original date.</p>
+    <div class="idemo idemo-quiet">
+      <p>The matching runs on your own device against the syllabus you pasted in. No
+        model, no account required for it, nothing sent anywhere to work out where a
+        note goes.</p>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>An assessment notification, unpacked.</h2>
+    <p>Paste the notification your school gave you. Nexley pulls out the due date and
+      lines the task up against the specific dot points it is actually testing — including
+      the ones you have written nothing on yet. The night before stops being a guess about
+      what is on it.</p>
+    <div class="idemo">
+      <div class="idemo-row"><span class="idemo-code">Due 12 Sep</span>
+        <span class="idemo-name">Depth study — energy systems</span><i class="pip has"></i></div>
+      <div class="idemo-row"><span class="idemo-code">HM-11-05</span>
+        <span class="idemo-name">ATP resynthesis</span><i class="pip has"></i></div>
+      <div class="idemo-row"><span class="idemo-code">HM-11-06</span>
+        <span class="idemo-name">Force summation</span><i class="pip"></i></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>Review what you are weakest on.</h2>
+    <p>Cards are made from your own notes and scheduled by spaced repetition, so
+      something you nearly forgot comes back sooner and something solid gets out of your
+      way. It is built on your coverage, which means it revises your subject rather than
+      somebody else's idea of it.</p>
+    <div class="idemo idemo-quiet">
+      <p>You can also set how confident you are on each dot point by hand. Nexley never
+        predicts a band or a mark — it shows you what you have done and what you have
+        not, and that is a different, more useful thing.</p>
+    </div>
+  </section>
+
+  <section class="block">
     <h2>Written for a tablet with no signal.</h2>
     <p>Everything saves to your device first and syncs to your account when there is a
       connection. School Wi-Fi dropping out mid-lesson is not your problem. Add it to your
@@ -178,13 +240,46 @@ try{
     </div>
   </section>
 
+  <section class="log">
+    <h2>What is built, and what is next.</h2>
+    <div class="log-grid">
+      <div>
+        <h3>Working now</h3>
+        <ul>
+          <li><i></i>Syllabus import, with outcome codes</li>
+          <li><i></i>Notes filed to a dot point, and coverage</li>
+          <li><i></i>Classwork capture and auto-filing</li>
+          <li><i></i>Assessment notifications unpacked into tasks</li>
+          <li><i></i>Spaced review built from your notes</li>
+          <li><i></i>Confidence per dot point</li>
+          <li><i></i>Offline, and sync across your devices</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Being built</h3>
+        <ul>
+          <li class="soon"><i></i>Real marks, recorded with the conditions you sat them under</li>
+          <li class="soon"><i></i>Which words on a marked script earned or lost each mark</li>
+          <li class="soon"><i></i>Term planning — workload per week, and collisions weeks out</li>
+          <li class="soon"><i></i>Handwriting capture, on every device rather than one</li>
+        </ul>
+      </div>
+    </div>
+    <p class="caveat">One thing that is deliberately not on either list: a predicted
+      band. An open-notes mark and an exam mark are not the same mark and will never be
+      quietly averaged into a number that tells you what you are going to get.</p>
+  </section>
+
   <div class="status">
     <h3>Where this is up to</h3>
     <p>Nexley works and is being used daily, but it is early — a small number of people
       are on it and features are still landing every week. Your notes are yours: they live
       on your own device, sync to your own account, and nobody else can read them.</p>
-    <p>Two things on the way: a quick-capture mode for what actually happens in class, and
-      spaced-repetition review built from your own coverage.</p>
+    <p>If you are one of those people: there is a <b>Feedback</b> button in the app.
+      What you send goes straight to the person building it, and you will see in that
+      same list what happened to it — read, planned, being built, shipped, or not
+      planned and why. It is the shortest path from something annoying you to something
+      changing.</p>
   </div>
 
   <footer class="foot">

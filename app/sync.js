@@ -13,6 +13,9 @@
  *              order->sort_order, created->created_at, updated->updated_at, rev, device, deleted
  *   notes:     id, subjectId->subject_id, syllabusId->syllabus_id, kind, title, body, font,
  *              created->created_at, updated->updated_at, rev, device, deleted
+ *   feedback:  id, kind, body, status, reply, appVersion->app_version,
+ *              created->created_at, updated->updated_at, rev, device, deleted
+ *              (push is INSERT-only — see syncFeedback)
  *   cards:     id, subjectId->subject_id, syllabusId->syllabus_id, noteId->note_id,
  *              front, back, ease, interval->interval_days, reps, lapses,
  *              due->due_at, lastReviewed->last_reviewed_at,
@@ -94,6 +97,15 @@
     };
   }
 
+  function toRemoteFeedback(f, userId) {
+    return {
+      id: f.id, user_id: userId, kind: f.kind, body: f.body || '',
+      app_version: f.appVersion || null,
+      created_at: new Date(f.created).toISOString(), updated_at: new Date(f.updated).toISOString(),
+      rev: f.rev || 1, device: f.device || null, deleted: !!f.deleted
+    };
+  }
+
   function fromRemoteSubject(r) {
     return {
       id: r.id, name: r.name, code: r.code, colour: r.color,
@@ -124,6 +136,19 @@
       ease: r.ease, interval: r.interval_days, reps: r.reps, lapses: r.lapses,
       due: Date.parse(r.due_at),
       lastReviewed: r.last_reviewed_at ? Date.parse(r.last_reviewed_at) : null,
+      created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
+      rev: r.rev, device: r.device, deleted: r.deleted || null
+    };
+  }
+
+  /* status and reply are NOT sent — they are the server's to set, and the table
+     grants the client no UPDATE at all (see migration 0008). What comes back down
+     is therefore always Alec's answer, never an echo of something the device
+     decided for itself. */
+  function fromRemoteFeedback(r) {
+    return {
+      id: r.id, kind: r.kind, body: r.body, status: r.status, reply: r.reply || null,
+      appVersion: r.app_version,
       created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
       rev: r.rev, device: r.device, deleted: r.deleted || null
     };
@@ -194,6 +219,45 @@
       });
   }
 
+  /* Feedback pushes with a plain INSERT, not the usual upsert.
+     Migration 0008 grants the client INSERT and SELECT only, deliberately: with no
+     UPDATE grant, nobody can rewrite a piece of feedback after sending it or mark
+     their own idea "shipped". Postgres requires UPDATE privilege to PLAN an
+     `insert ... on conflict do update`, so an upsert here would fail on every row
+     even when nothing conflicts. Hence the split: insert what has never been sent,
+     and let the pull bring the status and reply back down.
+
+     A row is "never sent" when it has no pushedRev. There is no re-push path,
+     because there is nothing local that can legitimately change. */
+  var feedbackTableMissing = false;
+  function pushFeedback(userId) {
+    return window.NexleyDB.all('feedback').then(function (recs) {
+      var fresh = recs.filter(function (r) { return !r.pushedRev; });
+      if (!fresh.length) return;
+      var rows = fresh.map(function (r) { return toRemoteFeedback(r, userId); });
+      return client().from('feedback').insert(rows).then(function (res) {
+        if (res.error) throw res.error;
+        return Promise.all(fresh.map(function (r) {
+          r.pushedRev = r.rev;
+          return window.NexleyDB.put('feedback', r);
+        }));
+      });
+    });
+  }
+
+  function syncFeedback(userId, since, count) {
+    if (feedbackTableMissing) return Promise.resolve();
+    return pushFeedback(userId)
+      .then(function () { return pullTable('feedback', fromRemoteFeedback, 'feedback', userId, since).then(count); })
+      .catch(function (err) {
+        // same isolation as cards: a table that hasn't been migrated yet must not
+        // take notes and subjects down with it. Any OTHER error still propagates.
+        if (!isMissingTable(err)) throw err;
+        feedbackTableMissing = true;
+        console.warn('[sync] feedback table not present yet — skipping until migration 0008 is applied');
+      });
+  }
+
   /* Resolves with {ok, pulled}. `ok` says a full round trip actually completed —
      app.js needs that to tell "brand new account, seed it" apart from "returning
      user whose pull hasn't landed yet", which is the difference between a welcome
@@ -220,6 +284,7 @@
         .then(function () { return pullTable('syllabus', fromRemoteSyllabus, 'syllabus', userId, since).then(count); })
         .then(function () { return pullTable('notes', fromRemoteNote, 'notes', userId, since).then(count); })
         .then(function () { return syncCards(userId, since, count); })
+        .then(function () { return syncFeedback(userId, since, count); })
         .then(function () {
           localStorage.setItem(pullKey(userId), new Date().toISOString());
           ok = true;

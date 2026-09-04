@@ -720,6 +720,61 @@ a{color:var(--structure)}
   font-size:var(--t-sm);line-height:1.65;color:var(--ink)}
 .paste:focus{outline:none;border-color:var(--structure)}
 
+/* ============================================================
+   FEEDBACK — the board. Every value here is a scale token; the only new idea
+   is the status pill, and it borrows the semantic status colours rather than
+   the brand accent, because "Shipped" means state, not Nexley.
+   ============================================================ */
+#fbDialog{width:min(560px,94vw)}
+
+/* the unread dot on the rail button. The one piece of unsolicited attention the
+   app asks for, so it is the highlighter mark and nothing louder. */
+.fbdot{display:inline-block;width:6px;height:6px;border-radius:var(--r-pill);
+  background:var(--mark);margin-left:var(--s-2);vertical-align:middle}
+
+.chips{display:flex;flex-wrap:wrap;gap:var(--s-3)}
+.chip{font-family:var(--ui);font-size:var(--t-xs);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);background:var(--paper);
+  border:1px solid var(--rule);border-radius:var(--r-pill);
+  padding:6px 11px;cursor:pointer}
+.chip:hover{color:var(--structure);border-color:var(--structure-soft)}
+.chip.on{color:var(--structure);background:var(--structure-soft);
+  border-color:var(--structure)}
+
+.fbhead-title{font-family:var(--display);font-weight:400;font-size:var(--t-xl);
+  padding-top:var(--s-5);border-top:1px solid var(--rule-soft)}
+
+.fblist{display:flex;flex-direction:column;gap:var(--s-5);
+  max-height:40vh;overflow-y:auto}
+
+.fbitem{border:1px solid var(--rule);border-radius:var(--r-md);
+  padding:13px 14px;background:var(--paper);
+  display:flex;flex-direction:column;gap:var(--s-3)}
+
+.fbhead{display:flex;align-items:center;gap:var(--s-4);flex-wrap:wrap}
+.fbkind,.fbdate{font-family:var(--code);font-size:var(--t-sm);color:var(--muted)}
+.fbdate{margin-left:auto}
+
+.fbstatus{font-family:var(--ui);font-size:var(--t-2xs);letter-spacing:.08em;
+  text-transform:uppercase;border-radius:var(--r-pill);padding:3px 9px}
+.fbstatus.wait{color:var(--muted);background:var(--surface)}
+.fbstatus.go{color:var(--structure);background:var(--structure-soft)}
+.fbstatus.done{color:var(--good);background:var(--good-soft)}
+.fbstatus.off{color:var(--muted);background:var(--surface);
+  text-decoration:line-through;text-decoration-thickness:1px}
+
+.fbbody{font-family:var(--text);font-size:var(--t-md);line-height:1.6;color:var(--ink-2);
+  white-space:pre-wrap;word-break:break-word}
+
+/* A reply is the whole point of the table existing, so it gets the one indented,
+   marked treatment in the dialog rather than reading as more metadata. */
+.fbreply{border-left:2px solid var(--mark);padding-left:var(--s-5);
+  display:flex;flex-direction:column;gap:var(--s-2)}
+.fbreply b{font-family:var(--ui);font-size:var(--t-2xs);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);font-weight:400}
+.fbreply p{font-family:var(--text);font-size:var(--t-md);line-height:1.6;color:var(--ink);
+  white-space:pre-wrap;word-break:break-word}
+
 /* dialog */
 dialog{border:1px solid var(--rule);border-radius:var(--r-lg);background:var(--card);
   color:var(--ink);padding:0;width:min(440px,92vw);

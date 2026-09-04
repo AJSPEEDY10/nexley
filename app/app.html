@@ -198,6 +198,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
       <button class="linkbtn" id="importBtn" type="button">Import</button>
+      <!-- Feedback and "Report a problem" are deliberately two different things.
+           A crash report is write-only and unanswerable by design (bug_reports has
+           no select policy). Feedback is the one that talks back. -->
+      <button class="linkbtn" id="fbBtn" type="button">Feedback<i class="fbdot" id="fbDot" hidden></i></button>
       <button class="linkbtn" id="bugBtn" type="button">Report a problem</button>
       <button class="linkbtn" id="lockBtn" type="button">Lock</button>
       <button class="linkbtn" id="themeBtn" type="button" title="Day / night">Theme: system</button>
@@ -531,6 +535,36 @@ Module 2: Body systems and movement
       <button type="submit" class="btn primary">File it</button>
     </div>
   </form>
+</dialog>
+
+<!-- ============ FEEDBACK ============ -->
+<dialog id="fbDialog">
+  <div class="dlgbody">
+    <h3>Feedback</h3>
+    <p class="dlgnote">Nexley is early and being built week by week. What is missing,
+      what is annoying, what you would use if it existed — all of it is worth sending.
+      You will see what happened to it in the list below.</p>
+
+    <div class="chips" id="fbKinds"></div>
+    <textarea id="fbText" class="paste" style="min-height:110px"
+      placeholder="I want to see everything due in the next fortnight on one screen…"></textarea>
+
+    <p class="dlgnote"><b>Your notes are not attached</b> — only what you type here,
+      and which version of the app you are on.</p>
+
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn primary" id="fbSend">Send</button>
+    </div>
+
+    <h4 class="fbhead-title">What you have sent</h4>
+    <div class="fblist" id="fbList"></div>
+
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="fbClose">Close</button>
+    </div>
+  </div>
 </dialog>
 
 <!-- ============ REPORT A PROBLEM ============ -->
