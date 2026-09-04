@@ -12,14 +12,12 @@
 (function () {
   var isLocal = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 
-  /* Product analytics — OFF. Set NEXLEY_POSTHOG_KEY to a PostHog *project* key
-     (public, safe in client code — never a personal API key) to switch it on.
-     Leave it unset for local testing so development never pollutes real numbers.
-     READ THE HEADER OF analytics.js FIRST: app/legal.html must be updated in the
-     same commit, because it currently promises no third-party tracking and this
-     app is used by under-13s. */
-  // window.NEXLEY_POSTHOG_KEY = 'phc_...';
-  // window.NEXLEY_POSTHOG_HOST = 'https://us.i.posthog.com';
+  /* Product analytics is FIRST-PARTY and always on for signed-in users — it
+     writes to the `events` table in this same Supabase project (Sydney), so
+     there is no key to configure and no third party involved. See
+     app/analytics.js for what is collected and the four layers that keep note
+     content out of it. Nothing is recorded if the browser sends Do Not Track or
+     Global Privacy Control, or while signed out. */
 
   if (isLocal) {
     window.NEXLEY_SUPABASE_URL = 'https://yvlcpngoplecigblxnkb.supabase.co';

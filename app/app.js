@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.10.0';
+  var APP_VERSION = '0.11.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -1894,7 +1894,7 @@
     c.kind = 'personal';
     put('notes', stamp(c)).then(function () {
       $('fileDialog').close();
-      track('capture_filed', { filed: !!c.syllabusId });
+      track('capture_filed', { filed: c.syllabusId ? 'syllabus' : 'unfiled' });
       return refresh({ keepEditor: true });
     }).then(function () {
       renderClasswork();
@@ -1950,6 +1950,7 @@
      So the early intervals are grade-dependent (the same fix Anki's graduating
      intervals make), and later intervals scale the multiplier by grade. The ease
      formula below is untouched SM-2. */
+  var GRADE_NAME = { 0: 'again', 3: 'hard', 4: 'good', 5: 'easy' };
   var FIRST = { 3: 1, 4: 3, 5: 5 };     // days, by grade, on the first success
   var SECOND = { 3: 4, 4: 6, 5: 9 };    // days, by grade, on the second
 
@@ -2022,6 +2023,7 @@
     if (!card) { session.queue.shift(); return renderReview(); }
 
     schedule(card, grade);
+    track('card_graded', { grade: GRADE_NAME[grade] });
     session.queue.shift();
     // a failed card goes back into this session, behind whatever is left
     if (grade < 3) session.queue.push(card.id);
@@ -2265,7 +2267,7 @@
       var keep = document.createElement('button');
       keep.type = 'button';
       keep.textContent = 'Review it';
-      keep.addEventListener('click', function () { openCardDialog(null, sg); });
+      keep.addEventListener('click', function () { openCardDialog(null, sg, 'suggestion'); });
       acts.appendChild(keep);
       row.appendChild(acts);
       panel.appendChild(row);
@@ -2274,8 +2276,10 @@
 
   /* ---- card dialog ---- */
   var editingCard = null;
-  function openCardDialog(card, prefill) {
+  var cardOrigin = 'manual';
+  function openCardDialog(card, prefill, origin) {
     editingCard = card || null;
+    cardOrigin = origin || 'manual';
     var src = card || prefill || {};
     $('cardHeading').textContent = card ? 'Edit card' : 'New card';
     $('cardFront').value = src.front || '';
@@ -2318,7 +2322,7 @@
         noteId: $('cardForm').dataset.note || null,
         front: front, back: back
       }));
-      track('card_made', {});
+      track('card_made', { from: cardOrigin });
     }
     var wasEdit = !!editingCard;
     editingCard = null;
@@ -2363,7 +2367,7 @@
     openCardDialog(null, {
       front: front, back: back,
       subjectId: n.subjectId, syllabusId: n.syllabusId, noteId: n.id
-    });
+    }, 'selection');
   }
 
   /* ============================================================

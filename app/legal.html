@@ -49,7 +49,24 @@ any formal company registration. Contact: <a href="mailto:alecjordaan12@gmail.co
   <li>If you sign in with Google, we receive your name, email address and Google account ID from Google.</li>
   <li>The study content you create: subjects, syllabus structure, and notes.</li>
   <li>Problem reports — see below.</li>
+  <li>A small record of which parts of the app you use — see below.</li>
 </ul>
+
+<h3>Usage statistics</h3>
+<p>While you are signed in, Nexley records a short list of things that happen — the app
+being opened, a note created, a syllabus imported, a review session started, a card
+graded. Each record is an event name, the time, and at most one number or one word from a
+fixed list (for example <i>good</i> for how you graded a card). We use it to see which
+parts of the app are actually used and whether people come back.</p>
+<p><b>Your notes are never included</b> — not their content, their titles, your subject
+names, or what you search for. This is enforced by the app and by the database, not just
+by policy: the events table has no column that could hold text you wrote, and the database
+rejects any record bigger than a couple of hundred characters. Records are stored
+write-only — nobody can read them back through the app.</p>
+<p>These records stay in Nexley's own database. They are not sent to any analytics company
+or any other third party. <b>If your browser sends a Do Not Track or Global Privacy Control
+signal, nothing is recorded at all</b>, and nothing is ever recorded while you are signed
+out.</p>
 
 <h3>Problem reports</h3>
 <p>When the app hits an error, it sends us a report so the fault can be found and fixed.
@@ -65,6 +82,11 @@ are stored write-only: nobody can read them back through the app, and they are u
 to fix faults.</p>
 
 <h3>How it's stored and protected</h3>
+<!-- ⚠ UNVERIFIED CLAIM. "Tokyo, Japan" contradicts the 2026-08-11 decision log, which
+     records the Supabase region as Sydney. One of the two is wrong and this page is the
+     one users read. Check Supabase dashboard -> Project Settings -> General -> Region and
+     correct whichever is wrong. If it really is Japan, the cross-border disclosure wording
+     under APP 8 should say so explicitly rather than leaving it implied by this sentence. -->
 <p>Your data is stored in a managed Postgres database (Supabase, hosted in Tokyo, Japan) protected
 by row-level security — a database-enforced rule that only your own account can ever read or write
 your own rows, on every table, with no exception. A local copy is also kept on your device so the
@@ -74,6 +96,8 @@ app keeps working offline; the two are kept in sync whenever you have a connecti
 <ul>
   <li>We do not sell your data.</li>
   <li>We do not run third-party advertising or ad-tracking on this app.</li>
+  <li>We do not send your data to any analytics company. The usage statistics
+    described above stay in Nexley's own database.</li>
   <li>We do not use your notes to train any AI model.</li>
 </ul>
 
