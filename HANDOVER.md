@@ -1,11 +1,11 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.14.0, SW cache `nexley-v23`
-**Backend:** migrations 0005-0007 applied to prod **and** dev. **Sync verified working.**
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.15.0, SW cache `nexley-v24`
+**Backend:** migrations 0005-0009 applied to prod **and** dev. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js` - all green (62 assertions)
+`test_feedback.js`, `test_marks.js` - all green (88 assertions)
 
 ---
 
@@ -58,6 +58,7 @@ Everything else that was waiting on him has been cleared or dropped:
 | 0.12.0 | **Tasks - the wedge.** Unpack an assessment notification into syllabus points |
 | 0.13.0 | Confidence per dot point, auto-filing |
 | 0.14.0 | **The feedback board**, and a landing page that matches the product |
+| 0.15.0 | **Phase 6 part one - real marks**, recorded with their conditions |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -88,11 +89,19 @@ Ordered. Each phase either unblocks or de-risks the next.
   built / being-built log. A predicted band is on neither list on purpose.
 - Still open from this phase: nothing. The waitlist half was scrapped.
 
-**Phase 6 - real marks (NEXT - this is where to start).** Record papers sat *with their conditions*, because an
-open-notes mark and an exam mark are not the same mark and must never be quietly averaged.
-Then the marked-script view: which specific words earned or lost each mark. Mistakes feed
-into the review queue as tighter-scheduled cards. **No predicted band, ever** - the vision
-brief corrected Concept 02 on exactly this.
+**Phase 6 - real marks. PART ONE DONE 09-04 (v0.15.0); parts two and three are NEXT.**
+- *Done:* a Marks mode, a `papers` store and migration 0009. A paper carries the conditions
+  it was sat under (`conditions` is NOT NULL with no default - a paper whose conditions are
+  unknown cannot honestly be compared to anything), and marks are grouped by those
+  conditions and **never averaged across them**. That is a rule, not a setting: there is no
+  code path producing a figure spanning two groups, and `test_marks.js` attacks that rather
+  than confirming it. Marks are summed per group and divided once rather than
+  percentage-averaged, so a 9/10 quiz cannot outweigh a 60/100 exam.
+- *Next:* the marked-script view - which specific words earned or lost each mark - then
+  mistakes feeding the review queue as tighter-scheduled cards. Neither has a data model
+  yet; both want per-question rows hanging off a paper, which is the first thing to design.
+- **No predicted band, ever** - the vision brief corrected Concept 02 on exactly this, and
+  `test_marks.js` now fails if someone adds one.
 
 **Phase 7 - Term planning.** Workload per subject per week, collision detection weeks out,
 committed vs available hours. "You are not behind, you are over-committed."
@@ -179,20 +188,30 @@ before committing.** Use a fresh port every time - see the traps.
    with `String(window.NexleySync.run).indexOf('<new code>')` before trusting a result.
 7. **Never write `throw new Error('Could not save ' + note.title)`** — that defeats the
    error scrubber, which relies on quoted-span redaction.
-8. **RLS policies are not privileges.** A policy decides *which rows* a role may touch; it
+8. **`window.confirm` blocks the renderer**, which kills browser automation dead - the
+   tab stops answering and has to be closed. Stub it (`window.confirm = () => true`) before
+   driving any delete or restore path in a harness. The app should keep using it; this is a
+   testing note, not a reason to change the app.
+9. **RLS policies are not privileges.** A policy decides *which rows* a role may touch; it
    does not grant permission to touch the table at all. That is a separate table-level
    `GRANT`, and without it every write fails with `42501 permission denied for table …`
    no matter how permissive the policy is. The original tables inherit Supabase's defaults
    and never needed one, which is exactly why this is easy to miss on a new table. Postgres
    names the fix in its own error hint — read it.
-9. **Never let a client silently discard a failed write.** `errors.js` used to treat `42501`
+10. **A new store has FIVE homes, not one.** Adding `papers` needed: the IndexedDB
+   migration, `refresh()`, `snapshot()`, `restore()`, `exportAll()` and the import merge.
+   Miss `snapshot()`/`restore()` and a restore silently wipes the new store - which is
+   exactly the class of bug this app's architecture exists to prevent, and it was live in
+   the working tree for about twenty minutes on 09-04 before a browser pass caught it.
+   `grep -n "all('cards')" app/app.js` finds every place a new store belongs.
+11. **Never let a client silently discard a failed write.** `errors.js` used to treat `42501`
    as an expected refusal and drop the batch, which made a misconfigured backend
    indistinguishable from a working one — the queue drained, the UI said "sent", nothing
    was stored. Discard only on a confirmed write.
 
 ---
 
-10. **Two Supabase editor tabs can point at the same saved query.** Emptying one and saving
+12. **Two Supabase editor tabs can point at the same saved query.** Emptying one and saving
     it silently overwrites what the other just saved. Check the URL, not the tab title.
 
 ---
