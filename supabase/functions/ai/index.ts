@@ -58,7 +58,14 @@ const GROQ_KEY = Deno.env.get('GROQ_API_KEY') ?? '';
 const CF_ACCOUNT = Deno.env.get('CF_ACCOUNT_ID') ?? '';
 const CF_TOKEN = Deno.env.get('CF_API_TOKEN') ?? '';
 
-const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'llama-3.3-70b-versatile';
+/* Checked against the live console 2026-09-05: llama-3.3-70b-versatile and
+   llama-3.1-8b-instant are now Enterprise / "contact sales" and a normal account
+   gets 404 for them — which is exactly how this failed the first time. The
+   gpt-oss models are the ones actually reachable on the developer plan, and the
+   120B is both bigger than the 70B originally chosen and about $0.0006 per
+   marking request. Model IDs rotate; when this 404s again, read
+   console.groq.com/docs/models rather than guessing. */
+const GROQ_MODEL = Deno.env.get('GROQ_MODEL') ?? 'openai/gpt-oss-120b';
 const CF_MODEL = Deno.env.get('CF_MODEL') ?? '@cf/meta/llama-3.1-8b-instruct';
 
 /* The allow-headers list has to name every header the browser will send, or the
@@ -212,6 +219,15 @@ Deno.serve(async (req) => {
     const msg = e instanceof Error ? e.message : 'unknown';
     console.error('model call failed', msg, 'chars=' + (system.length + user.length));
     if (msg === 'not_configured') return json({ error: 'not_configured' }, 503);
-    return json({ error: 'provider_unavailable' }, 502);
+    /* Return the provider's status code, not just "unavailable". It says which
+       thing is wrong — 401 is the key, 404 is the model id, 429 is the rate
+       limit — and diagnosing that from the caller cost a round trip through the
+       dashboard logs the first time. Safe to expose: it describes the REQUEST,
+       never the student's text, which is why only the code travels. */
+    const code = /^provider_(\d+)$/.exec(msg);
+    return json({
+      error: 'provider_unavailable',
+      provider_status: code ? Number(code[1]) : null
+    }, 502);
   }
 });
