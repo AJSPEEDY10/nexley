@@ -17,12 +17,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.17.0';
+  var APP_VERSION = '0.18.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
   var OLD_DB_NAME = 'summit-edu';   // pre-0.4.1 name; contents adopted once on first open
-  var DB_VER = 6;
+  var DB_VER = 7;
   var BACKUP_KEEP = 7;
   var BACKUP_EVERY = 20 * 60 * 60 * 1000;
   var MAX_TABS = 8;
@@ -104,6 +104,15 @@
         var pp = d.createObjectStore('papers', { keyPath: 'id' });
         pp.createIndex('subjectId', 'subjectId', { unique: false });
         pp.createIndex('sat', 'sat', { unique: false });
+      }
+    }
+
+    if (from < 7) {
+      // what is actually coming, and what it will cost
+      if (!d.objectStoreNames.contains('commitments')) {
+        var cm = d.createObjectStore('commitments', { keyPath: 'id' });
+        cm.createIndex('subjectId', 'subjectId', { unique: false });
+        cm.createIndex('due', 'due', { unique: false });
       }
     }
   }
@@ -232,10 +241,11 @@
      ============================================================ */
   function snapshot(reason) {
     return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
-                        all('papers')]).then(function (r) {
+                        all('papers'), all('commitments')]).then(function (r) {
       return put('backups', {
         id: uid(), at: Date.now(), reason: reason || 'auto', appVersion: APP_VERSION,
-        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4],
+        commitments: r[5]
       });
     }).then(function () {
       return all('backups');
@@ -263,7 +273,8 @@
           // snapshots taken before 0.10.0 have no cards key, and before 0.15.0 no
           // papers key — leave those stores alone rather than emptying them
           .concat((b.cards || []).map(function (c) { return put('cards', c); }))
-          .concat((b.papers || []).map(function (pp) { return put('papers', pp); }));
+          .concat((b.papers || []).map(function (pp) { return put('papers', pp); }))
+          .concat((b.commitments || []).map(function (cm) { return put('commitments', cm); }));
         return Promise.all(jobs);
       }).then(function () {
         state.activeNote = null;
@@ -334,7 +345,7 @@
      ============================================================ */
   var state = {
     account: null, deviceId: null,
-    subjects: [], notes: [], syllabus: [], cards: [], papers: [],
+    subjects: [], notes: [], syllabus: [], cards: [], papers: [], commitments: [],
     activeSubject: null, activeNode: null, activeNote: null,
     tabs: [], collapsed: {},
     query: '', dirty: false,
@@ -570,7 +581,7 @@
 
   function refresh(opts) {
     return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
-                        all('papers')]).then(function (r) {
+                        all('papers'), all('commitments')]).then(function (r) {
       return migrateColours(live(r[0])).then(function () { return r; });
     }).then(function (r) {
       state.subjects = live(r[0]).sort(function (a, b) { return a.name.localeCompare(b.name); });
@@ -578,6 +589,7 @@
       state.syllabus = live(r[2]).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       state.cards = live(r[3]);
       state.papers = live(r[4]).sort(function (a, b) { return b.sat - a.sat; });
+      state.commitments = live(r[5]).sort(function (a, b) { return a.due - b.due; });
       // drop tabs whose notes have gone
       state.tabs = state.tabs.filter(noteById);
       renderSubjects();
@@ -589,7 +601,7 @@
       // a sync pull or an edit elsewhere has to reach whichever mode is on screen
       if (mode === 'classwork') renderClasswork();
       else if (mode === 'review') renderReview();
-      else if (mode === 'tasks') renderTkSubjects();
+      else if (mode === 'tasks') { renderTkSubjects(); renderPlan(); }
       else if (mode === 'marks') renderMarks();
     });
   }
@@ -2947,6 +2959,7 @@
 
   function renderTasks() {
     renderTkSubjects();
+    renderPlan();
     var body = $('tkBody');
     body.textContent = '';
 
@@ -2959,6 +2972,27 @@
     body.appendChild(note('Paste the notification your school sent you. Nexley pulls out the '
       + 'due date, weighting and format, works out which syllabus points it marks you '
       + 'against, and shows how much you have actually written on each.'));
+  }
+
+  /* The first line that reads like a name. Sheets usually open with the school,
+     the subject and the year before they say what the task is, so the first line
+     is often useless — but guessing harder than "the first substantial line" would
+     be guessing, and this lands in an editable field. */
+  /* NSW sheets almost always open with the year level and the subject before
+     they say what the task actually is, and "Year 11 Human Movement" is useless
+     as a deadline in a plan. Narrow rule, deliberately: skip the lines that are
+     unambiguously headers, take the next real one, and let the student fix it in
+     the dialog — this lands in an editable field, not straight into the plan. */
+  var HEADERISH = /^(year|stage|yr)\s*\d+\b|^(term|semester)\s*\d+\b|^assessment (notification|task sheet)$/i;
+  function taskTitle(text) {
+    var lines = String(text || '').split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim();
+      if (l.length < 4 || l.length > 80) continue;
+      if (HEADERISH.test(l)) continue;
+      return l;
+    }
+    return 'Assessment task';
   }
 
   function note(text) {
@@ -2999,6 +3033,25 @@
     if (facts.children.length) body.appendChild(facts);
     else body.appendChild(note('No due date, weighting or format found in that text — '
       + 'the outcomes below are still matched on wording.'));
+
+    /* The unpacker used to be a dead end: it told you what the task covered and
+       then forgot it existed. This is the join to the plan. It opens the dialog
+       prefilled rather than saving straight away, because the date and the title
+       are inferred and a student should see them before they become a deadline. */
+    var save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'btn primary tk-save';
+    save.textContent = 'Save this to the plan';
+    save.addEventListener('click', function () {
+      openCommitmentDialog(null, {
+        title: taskTitle(text),
+        subjectId: subjectId,
+        due: parseDueDate(t.due) || Date.now(),
+        weight: parseWeightPct(t.weight),
+        hours: null
+      });
+    });
+    body.appendChild(save);
 
     if (!hasSyllabus) {
       body.appendChild(note('This subject has no syllabus yet, so there is nothing to map '
@@ -3109,6 +3162,375 @@
     acts.appendChild(go);
     row.appendChild(acts);
     return row;
+  }
+
+  /* ============================================================
+     12g2 · term planning
+     ------------------------------------------------------------
+     Tasks could already unpack a notification into the syllabus points it tests,
+     but it never saved anything, so nothing could answer the question a student
+     actually has in week 4: is what is coming physically possible.
+
+     WHAT THIS DOES AND DOES NOT CLAIM. Hours are attributed to the week a thing
+     is DUE. That is a fact about a deadline, not a model of when you would do
+     the work — the app has no idea when you would start, and pretending to know
+     would produce a confident schedule built on an invented assumption. What it
+     can say honestly is: this much work has to be FINISHED by this week, and if
+     that is more than a week holds, it cannot all start in that week.
+
+     Which is the real finding, and the reason for the framing: a week with 14
+     hours landing in it is not a sign you are behind. It is a sign you were
+     over-committed weeks ago, and the only fix available now is to start earlier.
+     ============================================================ */
+  var MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
+                'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+  /* parseTask returns what the sheet SAID — "12 September", "20%" — because that
+     is the honest thing to show next to the words it came from. The planner needs
+     a date and a number, so the conversion happens here, at the boundary, and
+     returns null rather than guessing when it cannot tell.
+
+     THE YEAR PROBLEM: a notification almost never states one. Assuming the
+     current year puts a December task in the past every January, and assuming
+     next year puts a February task eleven months away. So: nearest future
+     occurrence, and the date lands in the dialog where it can be corrected
+     before anything is saved — a wrong guess is visible, not silent. */
+  function parseDueDate(str, now) {
+    if (!str) return null;
+    var t = String(str).toLowerCase().trim();
+    now = now || Date.now();
+    var today = new Date(now);
+    var day = null, month = null, year = null;
+
+    var m = t.match(/^(\d{1,2})\s*(?:st|nd|rd|th)?\s+([a-z]{3,9})(?:\s+(\d{2,4}))?$/);
+    if (m) {
+      day = parseInt(m[1], 10);
+      month = MONTHS.indexOf(m[2].slice(0, 3));
+      if (m[3]) year = parseInt(m[3].length === 2 ? '20' + m[3] : m[3], 10);
+    } else {
+      // 12/9, 12-9-2026, 12.9.26 — day first, which is what an Australian sheet means
+      m = t.match(/^(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/);
+      if (!m) return null;
+      day = parseInt(m[1], 10);
+      month = parseInt(m[2], 10) - 1;
+      if (m[3]) year = parseInt(m[3].length === 2 ? '20' + m[3] : m[3], 10);
+    }
+    if (month < 0 || month > 11 || !day || day > 31) return null;
+
+    if (year === null) {
+      year = today.getFullYear();
+      var candidate = new Date(year, month, day, 12, 0, 0);
+      // more than a week in the past almost certainly means next year
+      if (candidate.getTime() < now - 7 * 24 * 3600 * 1000) year++;
+    }
+    var d = new Date(year, month, day, 12, 0, 0);
+    if (d.getDate() !== day || d.getMonth() !== month) return null;   // 31 Feb
+    return d.getTime();
+  }
+
+  function parseWeightPct(str) {
+    if (!str) return null;
+    var m = String(str).match(/(\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    var v = parseFloat(m[1]);
+    return (isNaN(v) || v < 0 || v > 100) ? null : v;
+  }
+
+  var CAPACITY_KEY = 'nexley-hours-per-week';
+  var DEFAULT_CAPACITY = 10;
+
+  /* Per-device on purpose. How many hours you have in a week is a fact about
+     your life this term, not study content — it is one number, re-entered in a
+     tap, and it is genuinely different on a laptop you use at school and an
+     iPad you use at home. Nothing is lost if it never syncs. */
+  function capacity() {
+    try {
+      var v = parseFloat(localStorage.getItem(CAPACITY_KEY));
+      if (!isNaN(v) && v > 0) return v;
+    } catch (e) {}
+    return DEFAULT_CAPACITY;
+  }
+  function setCapacity(v) {
+    try { localStorage.setItem(CAPACITY_KEY, String(v)); } catch (e) {}
+  }
+
+  // Monday 00:00 local. Local, not UTC: a Sunday-night deadline in Sydney must
+  // not land in the following week because the timestamp crossed midnight in UTC.
+  function weekStartOf(ms) {
+    var d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    var day = (d.getDay() + 6) % 7;   // Monday = 0
+    d.setDate(d.getDate() - day);
+    return d.getTime();
+  }
+  var WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  /* Unestimated commitments are counted but NOT added to the hours. A week
+     reading "9 hours, plus 2 not estimated" is true. The same week reading
+     "9 hours" is a lie by omission, and it is the one that gets someone to
+     Friday having planned around a number that was never real. */
+  function planWeeks(commitments, fromMs, weeks) {
+    var start = weekStartOf(fromMs);
+    var out = [];
+    for (var i = 0; i < weeks; i++) {
+      var wStart = start + i * WEEK_MS;
+      var wEnd = wStart + WEEK_MS;
+      var items = commitments.filter(function (c) {
+        return !c.done && c.due >= wStart && c.due < wEnd;
+      }).sort(function (a, b) { return a.due - b.due; });
+
+      var hours = 0, unestimated = 0;
+      items.forEach(function (c) {
+        if (c.hours === null || c.hours === undefined) unestimated++;
+        else hours += c.hours;
+      });
+
+      out.push({
+        start: wStart, end: wEnd, items: items,
+        hours: Math.round(hours * 100) / 100,
+        unestimated: unestimated,
+        count: items.length
+      });
+    }
+    return out;
+  }
+
+  // over capacity means the work cannot all fit in the week it is due in — it
+  // has to start earlier. It does not mean you are behind.
+  function isOverCommitted(week, cap) {
+    return week.hours > cap;
+  }
+
+  function renderPlan() {
+    var body = $('tkPlan');
+    if (!body) return;
+    body.textContent = '';
+
+    var live2 = state.commitments.filter(function (c) { return !c.done; });
+    if (!live2.length) {
+      body.appendChild(note('Nothing saved yet. Unpack a notification above and save it, or '
+        + 'add one by hand — once Nexley knows what is coming it can tell you which weeks '
+        + 'do not fit.'));
+      return;
+    }
+
+    var cap = capacity();
+    var weeks = planWeeks(state.commitments, Date.now(), 8);
+
+    var head2 = document.createElement('div');
+    head2.className = 'pl-head';
+    var lab = document.createElement('label');
+    lab.className = 'pl-cap';
+    var sp = document.createElement('span');
+    sp.textContent = 'Hours a week you actually have';
+    var inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '1'; inp.max = '80'; inp.step = '1';
+    inp.value = cap;
+    inp.addEventListener('change', function () {
+      var v = parseFloat(this.value);
+      if (!isNaN(v) && v > 0) { setCapacity(v); renderPlan(); }
+    });
+    lab.appendChild(sp); lab.appendChild(inp);
+    head2.appendChild(lab);
+    body.appendChild(head2);
+
+    var any = false;
+    weeks.forEach(function (w) {
+      if (!w.count) return;
+      any = true;
+      body.appendChild(weekBlock(w, cap));
+    });
+
+    if (!any) {
+      body.appendChild(note('Nothing due in the next eight weeks. That is not a trap — it '
+        + 'is just what you have told Nexley about so far.'));
+    }
+
+    var later = live2.filter(function (c) { return c.due >= weekStartOf(Date.now()) + 8 * WEEK_MS; });
+    if (later.length) {
+      body.appendChild(note(later.length + (later.length === 1 ? ' task is' : ' tasks are')
+        + ' further out than eight weeks and are not shown above.'));
+    }
+  }
+
+  function weekBlock(w, cap) {
+    var over = isOverCommitted(w, cap);
+
+    var wrap = document.createElement('section');
+    wrap.className = 'pl-week' + (over ? ' over' : '');
+
+    var head2 = document.createElement('header');
+    head2.className = 'pl-whead';
+
+    var when2 = document.createElement('b');
+    when2.textContent = weekLabel(w.start);
+    head2.appendChild(when2);
+
+    var load = document.createElement('span');
+    load.className = 'pl-load';
+    var bits = [];
+    if (w.hours) bits.push(trimNum(w.hours) + 'h due');
+    if (w.unestimated) bits.push(w.unestimated + ' not estimated');
+    if (!bits.length) bits.push(w.count + (w.count === 1 ? ' task' : ' tasks'));
+    load.textContent = bits.join(' · ');
+    head2.appendChild(load);
+
+    wrap.appendChild(head2);
+
+    if (over) {
+      /* The sentence the whole phase exists for. It is not "you are behind" —
+         nothing here knows whether you are behind. It is a fact about arithmetic. */
+      var warn = document.createElement('p');
+      warn.className = 'pl-over';
+      warn.textContent = trimNum(w.hours) + ' hours have to be finished this week and you have '
+        + trimNum(cap) + '. You are not behind — this week was over-committed the day these '
+        + 'were set. It has to start earlier.';
+      wrap.appendChild(warn);
+    }
+
+    w.items.forEach(function (c) { wrap.appendChild(commitmentRow(c)); });
+    return wrap;
+  }
+
+  function weekLabel(startMs) {
+    var thisWeek = weekStartOf(Date.now());
+    if (startMs === thisWeek) return 'This week';
+    if (startMs === thisWeek + WEEK_MS) return 'Next week';
+    var d = new Date(startMs);
+    return 'Week of ' + d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+
+  function commitmentRow(c) {
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'pl-row';
+    row.addEventListener('click', function () { openCommitmentDialog(c); });
+
+    var dot = document.createElement('i');
+    dot.className = 'dot';
+    var subj = subjectById(c.subjectId);
+    dot.style.background = subj ? subj.colour : 'var(--muted)';
+    row.appendChild(dot);
+
+    var title = document.createElement('span');
+    title.className = 'pl-title';
+    title.textContent = c.title;
+    row.appendChild(title);
+
+    if (c.weight !== null && c.weight !== undefined) {
+      var w = document.createElement('span');
+      w.className = 'mk-weight';
+      w.textContent = trimNum(c.weight) + '%';
+      row.appendChild(w);
+    }
+
+    var hrs = document.createElement('span');
+    hrs.className = 'pl-hours';
+    hrs.textContent = (c.hours === null || c.hours === undefined) ? 'no estimate' : trimNum(c.hours) + 'h';
+    if (c.hours === null || c.hours === undefined) hrs.classList.add('none');
+    row.appendChild(hrs);
+
+    var due = document.createElement('span');
+    due.className = 'pl-due';
+    due.textContent = new Date(c.due).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    row.appendChild(due);
+
+    return row;
+  }
+
+  /* ---------- add / edit a commitment ---------- */
+
+  var editingCommitment = null;
+
+  function openCommitmentDialog(c, prefill) {
+    editingCommitment = c || null;
+    var p2 = c || prefill || {};
+    $('cmHeading').textContent = c ? 'Edit this task' : 'Add a task';
+    $('cmTitle').value = p2.title || '';
+    $('cmDate').value = isoDay(p2.due || Date.now());
+    $('cmWeight').value = (p2.weight === null || p2.weight === undefined) ? '' : p2.weight;
+    $('cmHours').value = (p2.hours === null || p2.hours === undefined) ? '' : p2.hours;
+    $('cmDone').checked = !!p2.done;
+    $('cmDoneRow').hidden = !c;
+    $('cmDelete').hidden = !c;
+    $('cmError').hidden = true;
+    renderCmSubjects(p2.subjectId);
+    $('cmDialog').showModal();
+    setTimeout(function () { $('cmTitle').focus(); }, 60);
+  }
+
+  function renderCmSubjects(want) {
+    var sel = $('cmSubject');
+    sel.textContent = '';
+    state.subjects.forEach(function (s2) {
+      var o = document.createElement('option');
+      o.value = s2.id; o.textContent = s2.name;
+      sel.appendChild(o);
+    });
+    if (want && subjectById(want)) sel.value = want;
+    else if ($('tkSubject').value) sel.value = $('tkSubject').value;
+  }
+
+  function cmFail(msg) {
+    var e = $('cmError');
+    e.textContent = msg;
+    e.hidden = false;
+    return false;
+  }
+
+  function saveCommitment() {
+    var title = $('cmTitle').value.trim();
+    if (!title) return cmFail('What is it called? "Depth study" is enough.');
+
+    var weightRaw = $('cmWeight').value.trim();
+    var weight = weightRaw === '' ? null : parseFloat(weightRaw);
+    if (weight !== null && (isNaN(weight) || weight < 0 || weight > 100)) {
+      return cmFail('Weighting is a percentage of the course, 0 to 100. Leave it blank if you do not know.');
+    }
+
+    var hoursRaw = $('cmHours').value.trim();
+    /* Blank stays blank. It is tempting to default this to something so the
+       weekly total looks complete, but an invented estimate is exactly what makes
+       a planner untrustworthy — and the app already handles "not estimated"
+       properly, so there is nothing to gain by faking it. */
+    var hours = hoursRaw === '' ? null : parseFloat(hoursRaw);
+    if (hours !== null && (isNaN(hours) || hours < 0 || hours > 500)) {
+      return cmFail('Hours should be a number of hours. Leave it blank if you have no idea yet.');
+    }
+
+    var rec = editingCommitment || { id: uid() };
+    rec.subjectId = $('cmSubject').value || null;
+    rec.title = title;
+    rec.due = dayToMs($('cmDate').value);
+    rec.weight = weight;
+    rec.hours = hours;
+    rec.done = $('cmDone').checked;
+    rec.notes = rec.notes || null;
+
+    put('commitments', stamp(rec))
+      .then(function () { $('cmDialog').close(); return refresh(); })
+      .then(function () {
+        renderPlan();
+        toast(editingCommitment ? 'Updated.' : 'Saved.');
+        editingCommitment = null;
+        if (window.NexleySync) window.NexleySync.run();
+      });
+    return true;
+  }
+
+  function deleteCommitment() {
+    if (!editingCommitment) return;
+    if (!confirm('Remove "' + editingCommitment.title + '"?\n\nIt is flagged as removed '
+        + 'rather than destroyed, so a snapshot can still bring it back.')) return;
+    softDelete('commitments', editingCommitment)
+      .then(function () { $('cmDialog').close(); return refresh(); })
+      .then(function () {
+        renderPlan();
+        toast('Removed.');
+        editingCommitment = null;
+        if (window.NexleySync) window.NexleySync.run();
+      });
   }
 
   /* ============================================================
@@ -3900,15 +4322,16 @@
      ============================================================ */
   function exportAll() {
     return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
-                        all('papers')]).then(function (r) {
+                        all('papers'), all('commitments')]).then(function (r) {
       var payload = {
         // format 5 adds papers. An older Nexley reading this file ignores the key
         // rather than failing, and importing an older file simply brings no papers.
-        app: 'nexley', format: 5, appVersion: APP_VERSION,
+        app: 'nexley', format: 6, appVersion: APP_VERSION,
         exported: new Date().toISOString(), device: state.deviceId,
         account: state.account ? { name: state.account.name, email: state.account.email } : null,
         // tombstones included on purpose: a future sync needs to know what was deleted
-        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4]
+        subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4],
+        commitments: r[5]
       };
       var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -3937,7 +4360,7 @@
 
       snapshot('before-import').then(function () {
         return Promise.all([all('subjects'), all('notes'), all('syllabus'), all('cards'),
-                            all('papers')]);
+                            all('papers'), all('commitments')]);
       }).then(function (cur) {
         var index = {}, kept = 0, skipped = 0, jobs = [];
         cur[0].forEach(function (s) { index['s:' + s.id] = s; });
@@ -3945,6 +4368,7 @@
         cur[2].forEach(function (y) { index['y:' + y.id] = y; });
         cur[3].forEach(function (c) { index['c:' + c.id] = c; });
         (cur[4] || []).forEach(function (pp) { index['p:' + pp.id] = pp; });
+        (cur[5] || []).forEach(function (cm) { index['m:' + cm.id] = cm; });
 
         function consider(store, prefix, rec) {
           var mine = index[prefix + rec.id];
@@ -3964,6 +4388,8 @@
         (data.cards || []).forEach(function (c) { consider('cards', 'c:', c); });
         // absent from format 4 and earlier, so an old export imports cleanly
         (data.papers || []).forEach(function (pp) { consider('papers', 'p:', pp); });
+        // absent from format 5 and earlier
+        (data.commitments || []).forEach(function (cm) { consider('commitments', 'm:', cm); });
 
         return Promise.all(jobs).then(refresh).then(function () {
           toast('Imported ' + kept + ' newer records. ' + skipped + ' already up to date.');
@@ -4151,6 +4577,11 @@
     $('mkSubject').addEventListener('change', function () { mkSubject = this.value; renderMarks(); });
     $('mkAdd').addEventListener('click', function () { openPaperDialog(null); });
     $('pprCancel').addEventListener('click', function () { $('pprDialog').close(); editingPaper = null; });
+    $('tkAdd').addEventListener('click', function () { openCommitmentDialog(null); });
+    $('cmCancel').addEventListener('click', function () { $('cmDialog').close(); editingCommitment = null; });
+    $('cmSave').addEventListener('click', saveCommitment);
+    $('cmDelete').addEventListener('click', deleteCommitment);
+
     $('pprAddQ').addEventListener('click', addQuestion);
     $('pprOutOf').addEventListener('input', renderQuestionTally);
     $('pprSave').addEventListener('click', savePaper);

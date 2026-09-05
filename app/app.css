@@ -721,6 +721,61 @@ a{color:var(--structure)}
 .paste:focus{outline:none;border-color:var(--structure)}
 
 /* ============================================================
+   THE PLAN — weeks, and what lands in them.
+   An over-committed week is marked with the warn colour, not the danger one:
+   it is a fact about arithmetic, not a failure.
+   ============================================================ */
+.pl-body{border-top:1px solid var(--rule);padding-top:var(--s-6)}
+.pl-bar{display:flex;align-items:baseline;gap:var(--s-5);margin-bottom:var(--s-5)}
+.pl-bar h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
+  letter-spacing:-.015em;flex:1}
+
+.pl-head{display:flex;justify-content:flex-end;margin-bottom:var(--s-6)}
+.pl-cap{display:flex;align-items:center;gap:var(--s-4)}
+.pl-cap span{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted)}
+.pl-cap input{width:62px;text-align:right;border:1px solid var(--rule);
+  border-radius:var(--r-md);background:var(--paper);color:var(--ink);
+  padding:6px 9px;font-family:inherit;font-size:var(--t-base)}
+.pl-cap input:focus{outline:none;border-color:var(--structure)}
+
+.pl-week{padding:var(--s-6) 0;max-width:60ch}
+.pl-week + .pl-week{border-top:1px solid var(--rule-soft)}
+.pl-whead{display:flex;align-items:baseline;gap:var(--s-5)}
+.pl-whead b{font-family:var(--display);font-weight:400;font-size:var(--t-xl)}
+.pl-load{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);margin-left:auto}
+.pl-week.over .pl-load{color:var(--warn)}
+
+.pl-over{font-family:var(--text);font-size:var(--t-md);line-height:1.6;
+  color:var(--warn);background:var(--warn-soft);border-radius:var(--r-md);
+  padding:10px 12px;margin-top:var(--s-4)}
+
+.pl-row{display:flex;align-items:center;gap:var(--s-4);width:100%;text-align:left;
+  background:none;border:0;border-bottom:1px solid var(--rule-soft);
+  padding:10px 0;cursor:pointer;color:inherit;font-family:inherit}
+.pl-row:hover{background:var(--card)}
+.pl-row:last-child{border-bottom:0}
+.pl-row .dot{width:7px;height:7px;border-radius:var(--r-pill);flex:none}
+.pl-title{font-family:var(--text);font-size:var(--t-md);color:var(--ink);
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-hours{font-family:var(--code);font-size:var(--t-sm);color:var(--ink-2);flex:none}
+.pl-hours.none{color:var(--muted);font-style:italic}
+.pl-due{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);flex:none;
+  min-width:9ch;text-align:right}
+
+.tk-save{margin-top:var(--s-6)}
+.fld-sel{border:1px solid var(--rule);border-radius:var(--r-md);background:var(--paper);
+  color:var(--ink);padding:9px 11px;font-family:inherit;font-size:var(--t-md);width:100%}
+.fld-check{flex-direction:row;align-items:center;gap:var(--s-4)}
+.fld-check > span{font-family:var(--text);font-size:var(--t-md);text-transform:none;
+  letter-spacing:0;color:var(--ink-2)}
+
+@media (pointer:coarse){
+  .pl-row{padding:13px 0}
+  .pl-cap input,.fld-sel{font-size:1rem}
+}
+
+/* ============================================================
    MARKS — papers grouped by the conditions they were sat under.
    The layout carries the rule: each condition is its own block with its own
    figure and its own rule above it, so there is nowhere for a combined number

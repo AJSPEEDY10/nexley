@@ -16,6 +16,9 @@
  *   papers:    id, subjectId->subject_id, title, sat->sat_at, conditions,
  *              mark, outOf->out_of, weight->weight_pct, reflection, questions,
  *              created->created_at, updated->updated_at, rev, device, deleted
+ *   commits:   id, subjectId->subject_id, title, due->due_at, weight->weight_pct,
+ *              hours->hours_estimate, done, notes,
+ *              created->created_at, updated->updated_at, rev, device, deleted
  *   feedback:  id, kind, body, status, reply, appVersion->app_version,
  *              created->created_at, updated->updated_at, rev, device, deleted
  *              (push is INSERT-only — see syncFeedback)
@@ -113,6 +116,18 @@
     };
   }
 
+  function toRemoteCommitment(c, userId) {
+    return {
+      id: c.id, user_id: userId, subject_id: c.subjectId || null,
+      title: c.title || '', due_at: new Date(c.due).toISOString(),
+      weight_pct: (c.weight === null || c.weight === undefined) ? null : c.weight,
+      hours_estimate: (c.hours === null || c.hours === undefined) ? null : c.hours,
+      done: !!c.done, notes: c.notes || null,
+      created_at: new Date(c.created).toISOString(), updated_at: new Date(c.updated).toISOString(),
+      rev: c.rev || 1, device: c.device || null, deleted: !!c.deleted
+    };
+  }
+
   function toRemoteFeedback(f, userId) {
     return {
       id: f.id, user_id: userId, kind: f.kind, body: f.body || '',
@@ -169,6 +184,21 @@
       // a paper written by 0.15.0 has no questions key at all
       reflection: r.reflection || null,
       questions: r.questions || [],
+      created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
+      rev: r.rev, device: r.device, deleted: r.deleted || null
+    };
+  }
+
+  /* hours_estimate stays NULL rather than becoming 0 on the way back. Null means
+     "not estimated yet" and is counted separately; 0 would mean "this is free",
+     and silently turning one into the other is how a planner starts lying. */
+  function fromRemoteCommitment(r) {
+    return {
+      id: r.id, subjectId: r.subject_id, title: r.title,
+      due: Date.parse(r.due_at),
+      weight: (r.weight_pct === null || r.weight_pct === undefined) ? null : parseFloat(r.weight_pct),
+      hours: (r.hours_estimate === null || r.hours_estimate === undefined) ? null : parseFloat(r.hours_estimate),
+      done: !!r.done, notes: r.notes || null,
       created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
       rev: r.rev, device: r.device, deleted: r.deleted || null
     };
@@ -274,6 +304,18 @@
       });
   }
 
+  var commitmentsTableMissing = false;
+  function syncCommitments(userId, since, count) {
+    if (commitmentsTableMissing) return Promise.resolve();
+    return pushTable('commitments', toRemoteCommitment, 'commitments', userId)
+      .then(function () { return pullTable('commitments', fromRemoteCommitment, 'commitments', userId, since).then(count); })
+      .catch(function (err) {
+        if (!isMissingTable(err)) throw err;
+        commitmentsTableMissing = true;
+        console.warn('[sync] commitments table not present yet — skipping until migration 0011 is applied');
+      });
+  }
+
   var feedbackTableMissing = false;
   function pushFeedback(userId) {
     return window.NexleyDB.all('feedback').then(function (recs) {
@@ -330,6 +372,7 @@
         .then(function () { return pullTable('notes', fromRemoteNote, 'notes', userId, since).then(count); })
         .then(function () { return syncCards(userId, since, count); })
         .then(function () { return syncPapers(userId, since, count); })
+        .then(function () { return syncCommitments(userId, since, count); })
         .then(function () { return syncFeedback(userId, since, count); })
         .then(function () {
           localStorage.setItem(pullKey(userId), new Date().toISOString());

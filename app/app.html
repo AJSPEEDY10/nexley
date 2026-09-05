@@ -358,6 +358,16 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </div>
 
     <div class="pane-body" id="tkBody"></div>
+
+    <!-- Phase 7. Hours are attributed to the week a thing is DUE — a fact about a
+         deadline, not a guess at when you would do the work. See app.js 12g2. -->
+    <div class="pane-body pl-body">
+      <div class="pl-bar">
+        <h3>The next eight weeks</h3>
+        <button class="btn ghost" id="tkAdd" type="button">+ Add a task</button>
+      </div>
+      <div id="tkPlan"></div>
+    </div>
   </section>
 
   <!-- Marks. Papers are grouped by the conditions they were sat under and NEVER
@@ -559,6 +569,54 @@ Module 2: Body systems and movement
       <button type="submit" class="btn primary">File it</button>
     </div>
   </form>
+</dialog>
+
+<!-- ============ A TASK THAT IS COMING ============ -->
+<dialog id="cmDialog">
+  <div class="dlgbody">
+    <h3 id="cmHeading">Add a task</h3>
+
+    <label class="fld">
+      <span>What is it?</span>
+      <input type="text" id="cmTitle" placeholder="Depth study" autocomplete="off">
+    </label>
+
+    <label class="fld">
+      <span>Subject</span>
+      <select id="cmSubject" class="fld-sel"></select>
+    </label>
+
+    <div class="fld-row">
+      <label class="fld">
+        <span>Due</span>
+        <input type="date" id="cmDate">
+      </label>
+      <label class="fld">
+        <span>Worth (%)</span>
+        <input type="number" id="cmWeight" inputmode="decimal" step="1" min="0" max="100" placeholder="optional">
+      </label>
+      <label class="fld">
+        <span>Hours</span>
+        <input type="number" id="cmHours" inputmode="decimal" step="0.5" min="0" placeholder="no idea?">
+      </label>
+    </div>
+    <p class="dlgnote">Leave hours blank if you genuinely do not know — Nexley counts those
+      separately rather than pretending they are free.</p>
+
+    <label class="fld fld-check" id="cmDoneRow" hidden>
+      <input type="checkbox" id="cmDone">
+      <span>Done — stop counting it</span>
+    </label>
+
+    <p class="dlgerr" id="cmError" hidden></p>
+
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost danger" id="cmDelete" hidden>Remove</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="cmCancel">Cancel</button>
+      <button type="button" class="btn primary" id="cmSave">Save</button>
+    </div>
+  </div>
 </dialog>
 
 <!-- ============ RECORD A PAPER ============ -->
