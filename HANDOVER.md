@@ -11,6 +11,21 @@ changed the sync shape)
 each time something ships. Check this before re-deriving what's worth
 building; it has the "not doing, on purpose" list with reasons too.
 
+**The two density passes (`2723b18`, `88a6b86`).** Both turned up structural
+faults rather than needing polish:
+- **Marks.** `.fld input[type=number]{width:100%}` was beating `.q-num{width:64px}`
+  on both specificity and order, so every mark box had been stretching to fill
+  the row and pushing the remove button onto its own line — on touch too. See
+  trap 13. The answer box is also collapsed behind "+ answer text" until asked
+  for, grows to fit when open (a short scroller inside a scrolling dialog is a
+  wheel trap), and `#pprDialog` gets its own 680px width. "1 marks" → "1 mark"
+  in four places, now sharing `marksLabel()`.
+- **Tasks.** Two sibling `.pane-body` elements were each `flex:1`, so an empty
+  paste box and a static explainer permanently owned ~60% of the pane while the
+  eight-week plan got a strip at the bottom with its own scrollbar — and
+  scrolling moved only half the screen. One scroller now; three weeks of plan
+  are visible on open. The explainer only shows while there are no saved tasks.
+
 **Also shipped 09-05, both off that tracker:**
 - **Past you** (`597f574`). Open a filed note and, if you wrote about the same
   dot point ≥21 days earlier, a quiet line says so; "Read it" opens the older
