@@ -1,7 +1,8 @@
 # Nexley - session handover
 
 **Session:** 2026-09-02 to 09-04 · **Ended at:** v0.18.1, SW cache `nexley-v28`
-**Backend:** migrations 0005-0012 applied to prod **and** dev. **Sync verified working.**
+**Backend:** migrations 0005-0014 applied to prod **and** dev.
+**Edge function:** `ai` deployed to prod — the model proxy. Needs a provider key. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
@@ -141,6 +142,19 @@ invites. Deliberately late: store review blocks daily iteration, so the PWA stay
 development vehicle until the product is worth freezing. Handwriting capture lands here -
 target every device, not M-series iPads only.
 
+**The AI path (started 09-05).** `supabase/functions/ai` is deployed and verified end to
+end on production except for the provider key. Bad token 401, empty body 400, oversized
+413, real request reaching `not_configured` 503 — so auth, validation and quota all work
+and only the key is missing. `ai_usage` then read exactly 1, because the earlier failures
+were refused before the quota step.
+- **To turn it on:** create a Groq or Cloudflare Workers AI key and add it as a function
+  secret (`GROQ_API_KEY`, or `CF_ACCOUNT_ID` + `CF_API_TOKEN` with `AI_PROVIDER=cloudflare`).
+  Nothing in the client changes.
+- **Google's free Gemini tier trains on prompts** and is therefore not an option; Groq and
+  Cloudflare do not. Verified 2026-09-05.
+- The daily cap is `AI_DAILY_LIMIT` (default 25) enforced in the database, not in the
+  function — a counter inside a stateless function resets on redeploy and is not a limit.
+
 **Phase 9 - the gated ones.** AI tutor and AI marking (needs the costing/consent
 conversation), Commons and study rooms (needs a safety design), question bank (later idea).
 Each is blocked by a decision, not by engineering.
@@ -253,6 +267,10 @@ before committing.** Use a fresh port every time - see the traps.
 - Supabase: prod `qvijxnhigqfoinuitrue`, dev `yvlcpngoplecigblxnkb`. Local
   (`127.0.0.1`/`localhost`) automatically points at **dev** - see `config.js`.
   **Region: `ap-northeast-1` (Tokyo).** Both auto-pause after ~7 days idle on the free tier.
+- **Edge functions CAN be written and deployed in the browser** — Functions > Deploy a
+  new function > Via Editor. No CLI needed, contrary to what this file used to imply.
+  "Verify JWT with legacy secret" should stay OFF for `ai`: it does its own JWT check
+  in code, which is what Supabase itself recommends for that case.
 - **No Supabase CLI.** Migrations are applied by hand in the dashboard SQL editor;
   `supabase/migrations/` is a record of what was run, not something that runs itself. Apply
   to **both** prod and dev. The Chrome extension can load SQL into the editor
