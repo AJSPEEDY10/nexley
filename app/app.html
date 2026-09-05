@@ -146,8 +146,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     <p class="gate-foot">Your notes stay on this device and sync to your account</p>
     <!-- reporting has to be reachable from here too: someone who can't get past
          sign-in is exactly who most needs to tell us, and they can't reach the rail -->
-    <p class="gate-foot"><a href="index.html?from=app">What is Nexley?</a> ·
-      <a href="#" id="bugBtnGate">Report a problem</a> ·
+    <!-- No "·" separators: they are characters in the text, so when the row wraps
+         one of them leads the next line. The gap does the separating instead. -->
+    <p class="gate-foot gate-links"><a href="index.html?from=app">What is Nexley?</a>
+      <a href="#" id="bugBtnGate">Report a problem</a>
       <a href="legal.html" target="_blank" rel="noopener">Privacy &amp; Terms</a></p>
   </div>
 </div>

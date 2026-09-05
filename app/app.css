@@ -252,8 +252,14 @@ a{color:var(--structure)}
 .gate-switch{text-align:center;font-size:var(--t-base);margin-top:2px}
 .gate-switch a{text-decoration:none}
 .gate-switch a:hover{text-decoration:underline}
+/* Centred text that breaks wherever it runs out of room leaves a single word
+   stranded on the last line — "…sync to your / account", "Privacy & / Terms".
+   balance evens the lines out, and nowrap keeps a link from splitting in half
+   whatever the width. */
 .gate-foot{font-family:var(--code);font-size:var(--t-xs);letter-spacing:.06em;color:var(--muted);
-  text-align:center}
+  text-align:center;text-wrap:balance;line-height:1.7}
+.gate-foot a{white-space:nowrap}
+.gate-links{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--s-3) var(--s-6)}
 
 /* ---------- app shell ---------- */
 .app{display:grid;grid-template-columns:216px 328px 1fr;height:100vh;height:100dvh}
