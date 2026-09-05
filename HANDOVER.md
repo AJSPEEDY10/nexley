@@ -445,6 +445,22 @@ node test/test_confidence.js   # confidence bands               9 tests
 Tests extract functions from `app.js` by string-slicing and `eval`, so **renaming a function
 or changing a section header can break extraction.** Run them after any refactor.
 
+### Testing responsive layout
+`resize_window` resizes the OS window but does NOT change the viewport here, so
+media queries never fire and you will "verify" a phone layout at desktop width
+without noticing. Put the app in an **iframe** instead — media queries evaluate
+against the iframe's own viewport:
+
+```html
+<iframe src="app-qa.html" width="390" height="840"></iframe>
+<iframe src="app-qa.html" width="820" height="840"></iframe>
+```
+
+Same origin, so IndexedDB and the auth stub work, and you can drive it from the
+parent with `document.querySelector('iframe').contentDocument`. Delete the rig
+before committing. This is how the clipped-note-title bug was found: it only
+appeared when there was not enough vertical room, i.e. only on a phone.
+
 ### Testing the app itself
 There is no way past the sign-in gate offline. Copy `app.html`, point the `auth.js` script
 tag at a stub that fakes `window.NexleyAuth`, serve it, drive it. **Delete the harness files

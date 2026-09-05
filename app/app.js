@@ -4674,11 +4674,29 @@
 
   /* A short textarea that scrolls inside a dialog that also scrolls is a wheel
      trap: you try to move the dialog, the box eats it, and nothing appears to
-     happen. Growing it to fit means only one thing on screen ever scrolls. */
+     happen. Growing it to fit means only one thing on screen ever scrolls.
+
+     getClientRects() rather than offsetParent for the "is it on screen" test:
+     a modal <dialog> is position:fixed, so offsetParent is null for everything
+     inside one and this would refuse to size the very boxes it was written for. */
   function autosize(ta) {
-    if (!ta) return;
+    if (!ta || !ta.getClientRects().length) return;
     ta.style.height = 'auto';
     ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  /* Re-measure when the conditions the measurement was taken under change.
+     Two of these actually bite:
+
+       - the display face finishing loading AFTER the first measurement. The
+         title is measured in the fallback serif, the real one is taller, and
+         the height already reserved then clips it — with overflow:hidden, so
+         the last line of your own title just is not there.
+       - a width change. Rotating an iPad reflows the title to more lines than
+         the height it was given. */
+  function autosizeAll() {
+    autosize($('noteTitle'));
+    autosizeResponses();
   }
 
   /* ------------------------------------------------------------
@@ -5298,6 +5316,12 @@
 
     $('exportBtn').addEventListener('click', exportAll);
     $('importBtn').addEventListener('click', function () { $('importFile').click(); });
+    window.addEventListener('resize', autosizeAll);
+    /* Newsreader is self-hosted and precached, but on a first visit it is still
+       loading while the editor paints. Without this the title keeps the height
+       it was given in the fallback face and clips its own last line. */
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(autosizeAll);
+
     $('shareBtn').addEventListener('click', openShareDialog);
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });

@@ -460,8 +460,12 @@ a{color:var(--structure)}
      whole declaration, which is how this title spent Pass 1 rendering at 14px */
   font-weight:400;font-size:var(--t-3xl);letter-spacing:-.015em;
   line-height:1.15;width:100%;max-width:calc(var(--measure) + 2 * var(--gutter));
-  /* height comes from autosize() — it wraps instead of scrolling sideways */
-  display:block;resize:none;overflow:hidden;color:inherit}
+  /* height comes from autosize() — it wraps instead of scrolling sideways.
+     flex:none because .ed-page is a flex column: without it a long title is
+     SHRUNK below the height autosize just measured, and overflow:hidden eats
+     the last line. It looked fine on a laptop only because there was spare
+     vertical room; on a phone it clipped every time. */
+  display:block;resize:none;overflow:hidden;color:inherit;flex:none}
 .ed-title:focus{outline:none}
 .ed-title::placeholder{color:var(--muted);opacity:.55}
 
@@ -584,8 +588,13 @@ a{color:var(--structure)}
   display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .app.moded .browser,.app.moded .editor,.app.moded .empty{display:none!important}
 
-.pane-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s-6);
-  padding:22px var(--gutter) 16px;border-bottom:1px solid var(--rule);flex:none}
+/* Wraps rather than squeezing: on a phone the heading and the subject picker
+   cannot both fit on one line, and without this the heading gets crushed into
+   a three-line column beside the select instead of the select simply moving
+   underneath it. */
+.pane-head{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s-4) var(--s-6);
+  flex-wrap:wrap;padding:22px var(--gutter) 16px;border-bottom:1px solid var(--rule);flex:none}
+.pane-head .bh-text{min-width:min(100%,16ch)}
 .pane-head h2{font-family:var(--display);font-size:var(--t-2xl);
   letter-spacing:-.01em;font-weight:400}
 .pane-head .eyebrow{display:block;margin-bottom:5px}
