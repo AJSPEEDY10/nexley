@@ -3089,7 +3089,11 @@
       openCommitmentDialog(null, {
         title: taskTitle(text),
         subjectId: subjectId,
-        due: parseDueDate(t.due) || Date.now(),
+        /* null, not Date.now() — parseDueDate already chose to say "I don't
+           know" rather than guess (see its own comment), and silently
+           substituting today here would undo exactly that. Same treatment as
+           hours below: an unknown stays unknown into the dialog. */
+        due: parseDueDate(t.due),
         weight: parseWeightPct(t.weight),
         hours: null
       });
@@ -3494,7 +3498,13 @@
     var p2 = c || prefill || {};
     $('cmHeading').textContent = c ? 'Edit this task' : 'Add a task';
     $('cmTitle').value = p2.title || '';
-    $('cmDate').value = isoDay(p2.due || Date.now());
+    /* Today is a fine default for a blank "+ Add a task" — the user sees it
+       and can change it. It is NOT fine when a prefill (from the unpacker)
+       was attempted and came back with no date: that means the text genuinely
+       didn't say, and defaulting to today would show a guess as if it had
+       been read off the notification. Leave the field empty instead, so
+       saveCommitment's own check makes the student pick a real one. */
+    $('cmDate').value = p2.due ? isoDay(p2.due) : ((c || prefill) ? '' : isoDay(Date.now()));
     $('cmWeight').value = (p2.weight === null || p2.weight === undefined) ? '' : p2.weight;
     $('cmHours').value = (p2.hours === null || p2.hours === undefined) ? '' : p2.hours;
     $('cmDone').checked = !!p2.done;
@@ -3528,6 +3538,14 @@
   function saveCommitment() {
     var title = $('cmTitle').value.trim();
     if (!title) return cmFail('What is it called? "Depth study" is enough.');
+
+    /* dayToMs('') falls back to today, which is right for its OTHER caller
+       (a paper defaults to "sat today" until you change it) but wrong here:
+       an empty due date reaching that fallback would silently turn "I don't
+       know" into a specific, wrong deadline. Catch it here instead. */
+    if (!$('cmDate').value) {
+      return cmFail("When is this due? Nexley can't slot it into a week without a date.");
+    }
 
     var weightRaw = $('cmWeight').value.trim();
     var weight = weightRaw === '' ? null : parseFloat(weightRaw);
