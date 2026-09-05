@@ -1,8 +1,34 @@
 # Nexley - session handover
 
 **Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
-(unreleased since: Rule 2 reworded + probe script, no version bump yet — see
-"Rule 2 — DONE 09-05" below)
+(unreleased since: Rule 2 reworded, Phase 8 Capacitor scaffolding, a Marks
+modal layout fix, and a real Tasks bug — no version bump yet, nothing here
+needed a migration or changed the sync shape)
+
+**QA pass, 09-05 (Alec: "everything needs to be perfect, keep going"), two real
+bugs found and fixed, both pushed:**
+- **Marks — the per-question "got / of" row broke apart at the modal's own
+  width** (not a narrow-viewport fluke — the modal is ~370px wide by design,
+  so every user hit this every time they added a second question). Fixed by
+  grouping mark+slash+outOf into one flex item and giving the number inputs
+  enough padding to clear the native spinner. Commit `3764098`.
+- **Tasks — the unpacker's "I don't know the due date" was silently becoming
+  "today."** `parseDueDate` correctly returns null when the pasted text has no
+  real calendar date ("Week 4, Term 3" isn't one), but `Date.now()` fallbacks
+  one layer up (the save button, and again in the dialog prefill) turned that
+  honest null into a confident wrong date by the time the student saw it —
+  reproduced live, not theoretical. Fixed at both layers, plus
+  `saveCommitment()` now refuses to save with no date rather than falling
+  through to `dayToMs`'s own today-default (which is correctly left alone for
+  its other caller, a paper's "sat" date). Commit `bc30c79`.
+- Verified with the auth-stub QA harness this file's Testing section already
+  describes (files deleted before committing, as that section says to).
+- A straightforward "click through every mode" pass otherwise — nothing else
+  found in Notebook, Classwork, Review, or the feedback board.
+- **Also confirmed the one thing 09-04's note left unproven**: opened Feedback
+  in the live signed-in app and the smoke-test row now shows a real reply
+  ("Reply path verified end to end from the dashboard"). The reply round-trip
+  works.
 **Backend:** migrations 0005-0015 applied to prod **and** dev.
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
