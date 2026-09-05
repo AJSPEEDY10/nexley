@@ -62,7 +62,12 @@
     // classwork + review, added 0.10.0
     capture_made:      {},
     capture_filed:     { filed: ['syllabus', 'unfiled'] },
-    card_made:         { from: ['selection', 'suggestion', 'manual'] },
+    /* 'mistake' added with mistake replay: a card written straight off a dot
+       point you measurably lost marks on is a different act from one written
+       while reading a note, and the whole bet of that feature is that people
+       take it. An unlisted value here is dropped silently, so leaving it out
+       would have quietly recorded those as having no origin at all. */
+    card_made:         { from: ['selection', 'suggestion', 'manual', 'mistake'] },
     review_started:    { cards: 'count' },
     card_graded:       { grade: ['again', 'hard', 'good', 'easy'] },
 

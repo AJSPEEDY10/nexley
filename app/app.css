@@ -659,6 +659,12 @@ a{color:var(--structure)}
   font-variant-numeric:tabular-nums}
 .rv-stat span{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.1em;
   text-transform:uppercase;color:var(--muted)}
+/* The divider above a section of the deck view — mistakes, then suggestions.
+   Was an inline cssText block on the suggestions heading; it is a class now
+   because a second section needs the same rule. */
+.rv-head{font-family:var(--code);font-size:var(--t-xs);letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);font-weight:400;margin:26px 0 4px;
+  padding-bottom:7px;border-bottom:1px solid var(--rule-soft)}
 .deckrow{display:flex;gap:var(--s-5);align-items:flex-start;padding:11px 12px;border-radius:var(--r-md);
   border:1px solid transparent}
 .deckrow:hover{background:var(--card);border-color:var(--rule-soft)}

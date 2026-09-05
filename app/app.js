@@ -2373,6 +2373,10 @@
         + 'down and writes flashcards, which is why spaced repetition usually fails. Open a '
         + 'note, select the bit worth remembering and hit "+ Card" in the toolbar.';
       panel.appendChild(note);
+      /* Mistakes first, and especially here: an empty deck plus a paper you
+         have already broken down is the one moment the app can say exactly
+         which card to write first. */
+      renderMistakes(panel);
       renderSuggestions(panel);
       return;
     }
@@ -2410,6 +2414,7 @@
 
     var list = state.cards.slice().sort(function (a, b) { return (a.due || 0) - (b.due || 0); });
     list.forEach(function (c) { panel.appendChild(deckRow(c)); });
+    renderMistakes(panel);
     renderSuggestions(panel);
   }
 
@@ -2492,16 +2497,121 @@
     return out;
   }
 
+  /* ============================================================
+     mistake replay
+     ------------------------------------------------------------
+     Marks already rolls content gaps up per dot point, but it does it one
+     subject at a time, on the screen you go to when you want to look at a
+     mark. This is the same data on the screen you go to when you want to
+     STUDY, across every subject at once — because the question "what should I
+     work on" is not a per-subject question, and the answer to it is sitting in
+     the papers you have already broken down.
+
+     IT DOES NOT CLAIM A GAP IS FIXED. Nothing in the data records that: a card
+     made and reviewed twice might have closed it or might not. So each row
+     reports the state it can actually see — cards exist, cards are already
+     queued, or there are none yet — and leaves the judgement where it belongs.
+
+     THE DEAD END THIS CLOSES. The per-subject version says "no cards yet" and
+     stops, which is honest but useless: the one point you have measurably lost
+     marks on is the one point you cannot act on. Here that case gets the
+     action it was missing.
+     ============================================================ */
+  function mistakeGaps() {
+    return gapsByPoint(state.papers || [])
+      .map(function (r) {
+        var node = nodeById(r.syllabusId);
+        if (!node) return null;
+        return { node: node, lost: r.lost, count: r.count, cards: cardsOnPoint(r.syllabusId) };
+      })
+      .filter(Boolean);
+  }
+
+  function renderMistakes(panel) {
+    var rows = mistakeGaps();
+    if (!rows.length) return;
+
+    var head = document.createElement('h4');
+    head.className = 'rv-head';
+    head.textContent = 'From your mistakes · ' + rows.length
+      + (rows.length === 1 ? ' dot point' : ' dot points');
+    panel.appendChild(head);
+
+    var why = document.createElement('p');
+    why.className = 'rv-note';
+    why.style.marginTop = '10px';
+    why.textContent = 'Every mark you lost to not knowing it, across every subject, worst '
+      + 'first. Running out of time is a different problem and is not counted here.';
+    panel.appendChild(why);
+
+    rows.slice(0, 8).forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'deckrow';
+
+      var main = document.createElement('div');
+      main.className = 'dfront';
+      main.textContent = (r.node.code ? r.node.code + ' · ' : '') + r.node.title;
+
+      var meta = document.createElement('div');
+      meta.className = 'dmeta';
+
+      var chip = document.createElement('span');
+      chip.className = 'due-chip now';
+      chip.textContent = trimNum(r.lost) + ' marks';
+      meta.appendChild(chip);
+
+      var s = subjectById(r.node.subjectId);
+      var where = document.createElement('span');
+      where.textContent = [
+        s ? (s.code || s.name) : null,
+        r.count + (r.count === 1 ? ' question' : ' questions')
+      ].filter(Boolean).join(' · ');
+      meta.appendChild(where);
+
+      main.appendChild(meta);
+      row.appendChild(main);
+
+      var waiting = r.cards.filter(function (c) { return c.due <= Date.now(); }).length;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ghost';
+
+      if (!r.cards.length) {
+        b.textContent = 'Write a card';
+        b.addEventListener('click', function () {
+          openCardDialog(null, {
+            front: '', back: '',
+            subjectId: r.node.subjectId, syllabusId: r.node.id, noteId: null
+          }, 'mistake');
+        });
+      } else if (waiting === r.cards.length) {
+        b.textContent = 'Already in the queue';
+        b.disabled = true;
+      } else {
+        b.textContent = 'Bring ' + r.cards.length
+          + (r.cards.length === 1 ? ' card' : ' cards') + ' forward';
+        b.addEventListener('click', function () {
+          b.disabled = true;
+          pullForward(r.cards)
+            .then(function () { return refresh(); })
+            .then(function () {
+              renderReview();
+              track('cards_pulled_forward', { cards: r.cards.length });
+              toast('Moved to the front of the review queue.');
+            });
+        });
+      }
+      row.appendChild(b);
+      panel.appendChild(row);
+    });
+  }
+
   function renderSuggestions(panel) {
     var list = suggestions();
     if (!list.length) return;
 
-    var h = document.createElement('div');
-    h.className = 'rv-stat';
     var head = document.createElement('h4');
-    head.style.cssText = 'font-family:var(--code);font-size:.625rem;letter-spacing:.11em;'
-      + 'text-transform:uppercase;color:var(--muted);font-weight:400;margin:26px 0 4px;'
-      + 'padding-bottom:7px;border-bottom:1px solid var(--rule-soft)';
+    head.className = 'rv-head';
     head.textContent = 'From your notes · ' + list.length + ' suggested';
     panel.appendChild(head);
 
