@@ -2,8 +2,29 @@
 
 **Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
 (unreleased since: Rule 2 reworded, Phase 8 Capacitor scaffolding, a Marks
-modal layout fix, a real Tasks bug, and the repalette below — no version
-bump yet, nothing here needed a migration or changed the sync shape)
+modal layout fix, a real Tasks bug, the repalette, and the marked script
+feature below — no version bump yet, nothing here needed a migration or
+changed the sync shape)
+
+**Live build-plan tracker: https://claude.ai/code/artifact/08ba57da-71d6-477f-8eb5-9ede9416af85**
+— the whole idea archive cross-referenced against what's shipped, updated
+each time something ships. Check this before re-deriving what's worth
+building; it has the "not doing, on purpose" list with reasons too.
+
+**The marked script — SHIPPED 09-05 (commit `aa7c2a3`)**, Alec's "number 2"
+pick. Each question in Record a paper can now carry the student's own typed
+answer text; select a phrase in it, tag it earned/lost with a reason and a
+note, see it as a coloured underline you can click to jump to the footnote.
+This is the exact "marked script you can actually read" Phase 6 flagged and
+parked as needing image capture — it didn't, it needed typed text and a
+selection UI, both buildable with no AI and no migration (papers are already
+JSONB). Two real bugs caught building it: the annotate button did nothing on
+first click because focus-move clears text selection on `mousedown` before
+`click` fires (needs `preventDefault()` on mousedown); and span matching is
+by substring-with-first-match-wins, not a stored offset, because an offset
+silently points at the wrong text the moment the response is edited — a span
+that can't refind itself now stays absent rather than landing wrong. 4 new
+test sections, `test_marks.js` is 70 assertions now (was 60).
 
 **The redesign — STARTED 09-05, Alec: "professional notebook and Apple style
 ... use all notes we have for nexley, take a deep dive and action
