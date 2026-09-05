@@ -1,13 +1,15 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.18.1, SW cache `nexley-v28`
-**Backend:** migrations 0005-0014 applied to prod **and** dev.
-**Edge function:** `ai` deployed to prod — the model proxy. Needs a provider key. **Sync verified working.**
+**Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
+**Backend:** migrations 0005-0015 applied to prod **and** dev.
+**Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js`, `test_marks.js`, `test_plan.js`, `test_events.js` - all green
-(200 assertions)
+`test_feedback.js`, `test_marks.js`, `test_plan.js`, `test_events.js`,
+`test_marking.js` - all green (230 assertions).
+Plus `node test/measure_matcher.js`, which is a MEASUREMENT, not a test: it prints
+coverage/precision for auto-filing and never fails.
 
 ---
 
@@ -65,6 +67,8 @@ Everything else that was waiting on him has been cleared or dropped:
 | 0.17.0 | **Part three - the loop closes**, gaps pull cards into Review |
 | 0.18.0 | **Phase 7 - term planning.** Tasks finally saves what it unpacks |
 | 0.18.1 | Measurement for all of the above, and 7 dead events fixed |
+| 0.19.0 | Auto-filing measured; two real matcher bugs found and fixed |
+| 0.19.1 | The AI proxy, live — plus the marking prompt and its checks |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -142,22 +146,67 @@ invites. Deliberately late: store review blocks daily iteration, so the PWA stay
 development vehicle until the product is worth freezing. Handwriting capture lands here -
 target every device, not M-series iPads only.
 
-**The AI path (started 09-05).** `supabase/functions/ai` is deployed and verified end to
-end on production except for the provider key. Bad token 401, empty body 400, oversized
-413, real request reaching `not_configured` 503 — so auth, validation and quota all work
-and only the key is missing. `ai_usage` then read exactly 1, because the earlier failures
-were refused before the quota step.
-- **To turn it on:** create a Groq or Cloudflare Workers AI key and add it as a function
-  secret (`GROQ_API_KEY`, or `CF_ACCOUNT_ID` + `CF_API_TOKEN` with `AI_PROVIDER=cloudflare`).
-  Nothing in the client changes.
-- **Google's free Gemini tier trains on prompts** and is therefore not an option; Groq and
-  Cloudflare do not. Verified 2026-09-05.
-- The daily cap is `AI_DAILY_LIMIT` (default 25) enforced in the database, not in the
-  function — a counter inside a stateless function resets on redeploy and is not a limit.
+**The AI path — LIVE 09-05, and the prompt is the open work.**
 
-**Phase 9 - the gated ones.** AI tutor and AI marking (needs the costing/consent
-conversation), Commons and study rooms (needs a safety design), question bank (later idea).
-Each is blocked by a decision, not by engineering.
+*What is done and verified on production:*
+- `supabase/functions/ai` — the model proxy. The API key lives there because a key
+  shipped in a PWA is a public key. Returns 200 end to end with a real Groq key.
+- **Model: `openai/gpt-oss-120b`.** `llama-3.3-70b-versatile` and
+  `llama-3.1-8b-instant` are now Enterprise / "contact sales" on Groq and a normal
+  account gets **404** — that was the first failure and it cost a round trip.
+  Model IDs rotate: read console.groq.com/docs/models rather than guessing.
+  ~$0.0006 a marking request.
+- **Two ceilings, both in the database** (0013, 0015): `AI_DAILY_LIMIT` 10 per
+  student, `AI_ACCOUNT_DAILY_LIMIT` 40 for everyone — because the free allowance
+  is per ACCOUNT, so a per-user cap alone does not protect it. They return
+  DIFFERENT errors on purpose; "you have used your ten" and "the shared allowance
+  is gone" are different facts and the second is not the student's fault.
+- Quota is taken BEFORE the provider call, so a timeout cannot be retried into a
+  bill. Nothing a student wrote is ever logged — errors carry a code and a length.
+- The function returns `provider_status` on failure: **401 = key, 404 = model,
+  429 = rate limit.** Use it; diagnosing 502 from the logs is slow.
+- `app/marking.js` — the prompt, in the CLIENT on purpose, so what the model is
+  actually asked is visible in the app's own source. Plus `parseMarking`, which
+  checks arithmetic the model cannot argue with, and `unsupportedCriteria`, which
+  catches the marker judging against a criterion nobody supplied.
+
+*The open work, and read this before touching it:*
+- The first realistic marking test FAILED HONESTLY: it failed a student against
+  "the expected 30s-2min range", a standard nowhere in the criteria, and gave 0/2
+  where they had plainly got half right. After hardening, the same input went
+  **2/6 -> 4/6**, with partial credit on both criteria and `unsupportedCriteria`
+  returning clean.
+- **RULE 2 IS STILL TOO ABSOLUTE and should be refined.** It currently says
+  outside knowledge may never withhold a mark. But a criterion reading "correctly
+  states the duration" cannot be judged WITHOUT knowing what is correct. The real
+  distinction is: using knowledge to judge whether what was written is correct is
+  legitimate; ADDING a requirement the criterion never stated is not. Reword
+  before this reaches any UI.
+- **NEXT: the adversarial case set.** Criteria deliberately silent on a detail;
+  half-right answers; correct-but-differently-worded; factually wrong on
+  something the criteria do not cover; ambiguous criteria. Run as one batch and
+  judge the invention rate across all of them — one case at a time burns quota
+  and proves little. This is the same method that caught the matcher's stopword
+  bug.
+- **Standing rule: an AI mark must NEVER be written into a paper record.** A real
+  mark is one a teacher gave, and that is what makes the conditions grouping in
+  Marks mean anything. The first bad mark was 2/6; had it landed in an
+  exam-conditions average it would have silently corrupted the one honest number
+  in the app.
+- Groq's console shows Developer-Plan per-token pricing, which does not square
+  with the "genuinely free tier" an earlier search reported. Cost is trivial
+  either way and both ceilings cap it, but **do not tell Alec it is free** without
+  re-checking. A spend limit in the Groq console is cheap insurance.
+
+**Phase 9 - the gated ones. TWO OF FOUR ARE NOW DECIDED (09-05, Alec).**
+- *AI marking* — decided and in progress, see above. Feedback AND marks, never a band,
+  always against criteria the student pasted.
+- *Sharing* — **deliberate one-off to a specific person. Not open, not browsable, no
+  feed.** That collapses the old "Commons needs a safety design" blocker: with no
+  discovery surface there is nothing to moderate, and it reduces to permission scoping.
+  A shared question bank is a separate, later idea.
+- *Still gated:* the question bank's content source, and whether a prac entry needs its
+  own structure (method / results / conclusion) rather than a differently-tagged note.
 
 ### Design directions - decision still open
 Five full prototypes built 09-03. Alec's call was "combine the best of everything,
