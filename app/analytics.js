@@ -56,7 +56,7 @@
     note_deleted:      {},
     syllabus_imported: { nodes: 'count' },
     search_used:       {},
-    mode_switched:     { mode: ['notebook', 'classwork', 'review'] },
+    mode_switched:     { mode: ['notebook', 'classwork', 'review', 'tasks', 'marks'] },
     export_all:        {},
     snapshot_restored: {},
     // classwork + review, added 0.10.0
@@ -64,7 +64,26 @@
     capture_filed:     { filed: ['syllabus', 'unfiled'] },
     card_made:         { from: ['selection', 'suggestion', 'manual'] },
     review_started:    { cards: 'count' },
-    card_graded:       { grade: ['again', 'hard', 'good', 'easy'] }
+    card_graded:       { grade: ['again', 'hard', 'good', 'easy'] },
+
+    // the feedback board, 0.14.0. The KIND is worth knowing — "confusing" is a
+    // different signal from "an idea" — but never a word of what was written.
+    feedback_sent:     { kind: ['idea', 'problem', 'confusing', 'praise'] },
+
+    /* marks, 0.15.0 - 0.17.0. `conditions` is the one dimension worth measuring
+       here: if nobody ever records anything but 'practice', the feature is not
+       doing what it was built for. Deliberately NO mark, no percentage and no
+       subject — a result is the most sensitive thing in the app and none of it
+       belongs in analytics. */
+    paper_recorded:         { conditions: ['exam', 'class_test', 'open_notes', 'take_home', 'practice'] },
+    paper_questions_added:  { questions: 'count' },
+    cards_pulled_forward:   { cards: 'count' },
+
+    /* term planning, 0.18.0. `estimated` answers the question the design rests
+       on: do people actually fill in hours, or is the planner mostly counting
+       tasks it cannot size? */
+    commitment_saved:  { estimated: ['yes', 'no'] },
+    task_unpacked:     { matched: 'count' }
   };
 
   var MAX_QUEUE = 60;          // a session that never flushes cannot grow forever

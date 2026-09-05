@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.18.0';
+  var APP_VERSION = '0.18.1';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -280,7 +280,10 @@
         state.activeNote = null;
         state.tabs = [];
         return refresh();
-      }).then(function () { toast('Restored the snapshot from ' + when(b.at) + '.'); });
+      }).then(function () {
+        track('snapshot_restored');
+        toast('Restored the snapshot from ' + when(b.at) + '.');
+      });
     });
   }
 
@@ -532,6 +535,7 @@
           gateError('Check your email to confirm your account, then sign in.');
           return;
         }
+        track('account_created', { via: 'email' });
         return enterApp(data.user);
       }).catch(function (err) { done(); gateError(err.message || 'Could not create account.'); });
       return;
@@ -539,6 +543,7 @@
 
     window.NexleyAuth.signInEmail(email, pass).then(function (data) {
       done();
+      track('signed_in', { via: 'email' });
       return enterApp(data.user);
     }).catch(function (err) { done(); gateError(err.message || 'Could not sign in.'); });
   }
@@ -1259,6 +1264,7 @@
     if (!confirm('Delete "' + (n.title || 'Untitled note') + '"?\n\nIt is flagged as deleted, ' +
                  'not destroyed — the most recent snapshot can bring it back.')) return;
     softDelete('notes', n).then(function () {
+      track('note_deleted');
       state.notes = state.notes.filter(function (x) { return x.id !== n.id; });
       closeTab(n.id);
       state.activeNote = null;
@@ -1366,6 +1372,7 @@
       $('subjDialog').close();
       return refresh();
     }).then(function () {
+      if (!wasEditing) track('subject_created');
       toast(wasEditing ? 'Subject updated.' : 'Subject added.');
       state.editingSubject = null;
     });
@@ -1871,6 +1878,7 @@
         return get('feedback', rec.id);
       })
       .then(function (saved) {
+        track('feedback_sent', { kind: rec.kind });
         // honest either way, same rule as the bug reporter
         toast(saved && saved.pushedRev ? 'Thanks — sent.'
                                        : 'Saved — it will send as soon as it can.');
@@ -3066,6 +3074,9 @@
     matchSyllabus(text, subjectId, 8).forEach(function (r) {
       (r.byCode ? byCode : byText).push(r);
     });
+    // how many outcomes the matcher actually found — the number that says whether
+    // local matching is good enough, with none of the text it matched against
+    track('task_unpacked', { matched: byCode.length + byText.length });
 
     if (byCode.length) {
       body.appendChild(head('Outcomes this task names', byCode.length + ' stated on the sheet'));
@@ -3512,6 +3523,7 @@
       .then(function () { $('cmDialog').close(); return refresh(); })
       .then(function () {
         renderPlan();
+        track('commitment_saved', { estimated: hours === null ? 'no' : 'yes' });
         toast(editingCommitment ? 'Updated.' : 'Saved.');
         editingCommitment = null;
         if (window.NexleySync) window.NexleySync.run();
@@ -3985,6 +3997,7 @@
             .then(function () { return refresh(); })
             .then(function () {
               renderMarks();
+              track('cards_pulled_forward', { cards: cards.length });
               toast('Moved to the front of the review queue.');
             });
         });
@@ -4293,6 +4306,9 @@
       .then(function () { $('pprDialog').close(); return refresh(); })
       .then(function () {
         renderMarks();
+        // the conditions only; never the mark, the percentage or the subject
+        track('paper_recorded', { conditions: rec.conditions });
+        if (qs.length) track('paper_questions_added', { questions: qs.length });
         toast(editingPaper ? 'Updated.' : 'Recorded.');
         editingPaper = null;
         if (window.NexleySync) window.NexleySync.run();
@@ -4333,6 +4349,7 @@
         subjects: r[0], notes: r[1], syllabus: r[2], cards: r[3], papers: r[4],
         commitments: r[5]
       };
+      track('export_all');
       var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -4542,9 +4559,18 @@
       document.execCommand('insertText', false, text);
     });
 
+    /* One event per SEARCH, not per keystroke. The handler fires on every letter,
+       so tracking it directly would turn one search into nine events and make the
+       number meaningless — and it is the only event here attached to something
+       typed, so it is the one worth being careful with. The query itself never
+       travels; only that a search happened. */
+    var searchTimer = null;
     $('search').addEventListener('input', function (e) {
       state.query = e.target.value;
       renderBrowser();
+      clearTimeout(searchTimer);
+      if (!state.query.trim()) return;
+      searchTimer = setTimeout(function () { track('search_used'); }, 1200);
     });
 
     Array.prototype.forEach.call(document.querySelectorAll('.toolbar button'), function (b) {
