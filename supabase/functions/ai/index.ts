@@ -8,9 +8,12 @@
  * WHAT IT GUARANTEES
  *   1. The caller is signed in. Supabase verifies the JWT before this runs; we
  *      read the user id from it and never trust one sent in the body.
- *   2. The caller has quota left. The count is a table row, incremented
- *      atomically, so it survives cold starts and cannot be raised by the client
- *      (migration 0013).
+ *   2. The caller has quota left — theirs AND the account's. Both counts are
+ *      table rows, locked and incremented atomically, so they survive cold
+ *      starts and cannot be raised by the client (migrations 0013, 0015). The
+ *      per-user cap stops one person running away with the quota; the account
+ *      cap stops several people doing it between them, which is what actually
+ *      empties a free tier.
  *   3. The provider is one that does not train on submitted text. Verified
  *      2026-09-05: Groq and Cloudflare Workers AI do not; Google's FREE Gemini
  *      tier does, which is why it is not an option here — legal.html promises
@@ -30,11 +33,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // configuration
 // ---------------------------------------------------------------------------
 
-/* A day's worth of marking for one student, with room to be wrong a few times.
-   Low on purpose: this is the cost ceiling, and the failure mode of setting it
-   too low is a student seeing "you have used today's 25" — annoying, and fixable
-   in one edit. The failure mode of setting it too high is a bill. */
-const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '25');
+/* TWO ceilings, because they protect against different things.
+
+   AI_DAILY_LIMIT is per student: it stops one person running away with the
+   quota. AI_ACCOUNT_DAILY_LIMIT is for everyone together, because the free tier
+   being spent is per ACCOUNT — Groq gives roughly 100k tokens a day, which is
+   something like 45-50 marking requests in total. Without the second ceiling,
+   five students at ten each empty the shared allowance and the sixth gets a
+   failure they did nothing to cause.
+
+   Both are low on purpose. The failure mode of setting them too low is someone
+   seeing "you have used today's ten" — annoying, and one edit to fix. The
+   failure mode of setting them too high is a bill. */
+const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '10');
+const ACCOUNT_DAILY_LIMIT = Number(Deno.env.get('AI_ACCOUNT_DAILY_LIMIT') ?? '40');
 
 /* Caps the request itself. A marking request is a question, a response and its
    criteria — a few thousand characters. Anything far larger is a bug or an abuse
@@ -165,16 +177,25 @@ Deno.serve(async (req) => {
   // 3 · quota. Taken BEFORE the call, so a provider timeout cannot be retried
   //     into an unbounded bill. A failed call costs the student one of their
   //     allowance, which is the safe direction to be wrong in.
-  const { data: used, error: quotaErr } = await admin.rpc('ai_usage_take', {
+  const { data: quota, error: quotaErr } = await admin.rpc('ai_usage_take', {
     p_user: userId,
-    p_limit: DAILY_LIMIT
+    p_limit: DAILY_LIMIT,
+    p_global_limit: ACCOUNT_DAILY_LIMIT
   });
   if (quotaErr) {
     console.error('quota check failed', quotaErr.code ?? 'unknown');
     return json({ error: 'server' }, 500);
   }
-  if (used === null) {
-    return json({ error: 'daily_limit', limit: DAILY_LIMIT, remaining: 0 }, 429);
+  if (!quota?.ok) {
+    /* Two different refusals, kept apart deliberately. "You have used your ten
+       today" is about the student; "the shared allowance is gone" is not their
+       doing, and telling them it is would be a small lie. The app can say the
+       true one because the reason travels. */
+    return json({
+      error: quota?.reason === 'account' ? 'account_limit' : 'daily_limit',
+      limit: quota?.limit ?? DAILY_LIMIT,
+      remaining: 0
+    }, 429);
   }
 
   // 4 · the call
@@ -182,7 +203,7 @@ Deno.serve(async (req) => {
     const text = await callModel(system, user);
     return json({
       text,
-      remaining: Math.max(0, DAILY_LIMIT - (used as number)),
+      remaining: Math.max(0, DAILY_LIMIT - Number(quota.used)),
       limit: DAILY_LIMIT
     });
   } catch (e) {
