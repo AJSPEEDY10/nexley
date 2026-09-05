@@ -1,0 +1,43 @@
+name: iOS - generate signing certificates
+
+# Run this ONCE by hand (Actions tab -> this workflow -> Run workflow), or
+# again whenever the App Store distribution certificate expires. It never
+# needs a Mac: it runs entirely on GitHub's macOS runner and writes the
+# result (encrypted with MATCH_PASSWORD) to the private certificates repo
+# named in CERTIFICATE_STORE_URL. The ios-testflight workflow only ever
+# READS what this writes -- it never creates or changes certificates.
+#
+# Prerequisites (see fastlane/README-PHASE8.md for the full runbook):
+#   - an Apple Developer Program membership
+#   - an App Store Connect API key (Users and Access -> Integrations)
+#   - a private GitHub repo to hold the encrypted certificates
+#   - all the secrets referenced below, set on THIS repo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  certificates:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Generate and store the signing certificate
+        env:
+          DEVELOPER_APP_IDENTIFIER: ${{ secrets.DEVELOPER_APP_IDENTIFIER }}
+          FASTLANE_APPLE_ID: ${{ secrets.FASTLANE_APPLE_ID }}
+          APP_STORE_CONNECT_TEAM_ID: ${{ secrets.APP_STORE_CONNECT_TEAM_ID }}
+          DEVELOPER_PORTAL_TEAM_ID: ${{ secrets.DEVELOPER_PORTAL_TEAM_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_KEY_CONTENT: ${{ secrets.APPLE_KEY_CONTENT }}
+          CERTIFICATE_STORE_URL: ${{ secrets.CERTIFICATE_STORE_URL }}
+          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: bundle exec fastlane ios certificates

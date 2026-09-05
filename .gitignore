@@ -7,3 +7,12 @@ Thumbs.db
 # private planning notes - keep local, not on the public repo
 GROWTH_AND_LAUNCH.md
 ideas/
+
+# Capacitor native wrap (Phase 8) - the ios/ and android/ platform projects
+# ARE committed (Capacitor's own convention), just not their build output
+node_modules/
+.bundle/
+vendor/bundle/
+*.ipa
+*.apk
+

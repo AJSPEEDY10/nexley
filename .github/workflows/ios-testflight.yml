@@ -1,0 +1,65 @@
+name: iOS - build and upload to TestFlight
+
+# Push a tag like v0.20.0 to ship a native build to TestFlight. This is the
+# ONLY thing that publishes to TestFlight; nothing here touches the web app
+# (GitHub Pages deploys separately from app/ on every push to main -- see
+# deploy.yml). Runs entirely on a GitHub-hosted macOS runner: no Mac, no
+# local Xcode, no local Ruby needed on Alec's machine.
+#
+# Requires ios-certificates.yml to have been run at least once first (it
+# creates what `match(..., readonly: true)` reads here).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build_and_upload:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Sync the web app into the native iOS project
+        run: npx cap sync ios
+
+      - name: Build and upload to TestFlight
+        env:
+          DEVELOPER_APP_IDENTIFIER: ${{ secrets.DEVELOPER_APP_IDENTIFIER }}
+          DEVELOPER_APP_ID: ${{ secrets.DEVELOPER_APP_ID }}
+          FASTLANE_APPLE_ID: ${{ secrets.FASTLANE_APPLE_ID }}
+          APP_STORE_CONNECT_TEAM_ID: ${{ secrets.APP_STORE_CONNECT_TEAM_ID }}
+          DEVELOPER_PORTAL_TEAM_ID: ${{ secrets.DEVELOPER_PORTAL_TEAM_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_KEY_CONTENT: ${{ secrets.APPLE_KEY_CONTENT }}
+          CERTIFICATE_STORE_URL: ${{ secrets.CERTIFICATE_STORE_URL }}
+          GIT_USERNAME: ${{ secrets.GIT_USERNAME }}
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          TEMP_KEYCHAIN_USER: ${{ secrets.TEMP_KEYCHAIN_USER }}
+          TEMP_KEYCHAIN_PASSWORD: ${{ secrets.TEMP_KEYCHAIN_PASSWORD }}
+        run: bundle exec fastlane ios beta
+
+      - name: Upload the .ipa as a workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexley-ios-build
+          path: '*.ipa'
+          retention-days: 30
+          if-no-files-found: ignore

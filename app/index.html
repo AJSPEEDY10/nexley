@@ -40,10 +40,14 @@ try{
    Installs made before this page took the root still have start_url ./index.html
    baked into them, so this is what stops their icon opening a marketing page.
    Runs before paint; ?from=app opts out so "What is Nexley?" still works from
-   inside the installed app instead of bouncing straight back. */
+   inside the installed app instead of bouncing straight back.
+   The native (Capacitor) wrap hits this same page for the same reason: its
+   WebView loads webDir's index.html by default, same as any static host, and
+   there is no separate "start page" setting to point it at app.html instead. */
 try{
   var fromApp = /[?&]from=app\b/.test(location.search);
-  var installed = window.navigator.standalone === true ||
+  var native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  var installed = native || window.navigator.standalone === true ||
     ['standalone','fullscreen','minimal-ui'].some(function(m){
       return window.matchMedia('(display-mode: ' + m + ')').matches;
     });

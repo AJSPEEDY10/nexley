@@ -1,0 +1,98 @@
+require "base64"
+
+default_platform(:ios)
+
+DEVELOPER_APP_IDENTIFIER = ENV["DEVELOPER_APP_IDENTIFIER"]
+DEVELOPER_APP_ID = ENV["DEVELOPER_APP_ID"]
+TEMP_KEYCHAIN_USER = ENV["TEMP_KEYCHAIN_USER"]
+TEMP_KEYCHAIN_PASSWORD = ENV["TEMP_KEYCHAIN_PASSWORD"]
+APPLE_ISSUER_ID = ENV["APPLE_ISSUER_ID"]
+APPLE_KEY_ID = ENV["APPLE_KEY_ID"]
+APPLE_KEY_CONTENT = ENV["APPLE_KEY_CONTENT"]
+
+def delete_temp_keychain(name)
+  delete_keychain(name: name) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+def create_temp_keychain(name, password)
+  create_keychain(name: name, password: password, unlock: true, timeout: 1800)
+end
+
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
+end
+
+def asc_api_key
+  app_store_connect_api_key(
+    key_id: APPLE_KEY_ID,
+    issuer_id: APPLE_ISSUER_ID,
+    key_content: APPLE_KEY_CONTENT,
+    duration: 1200,
+    in_house: false
+  )
+end
+
+platform :ios do
+  # One-off. Run this via the "Generate signing certificates" GitHub Action
+  # (workflow_dispatch) ONCE, from a GitHub-hosted macOS runner -- nobody
+  # touches a Mac to do this. It creates (or reuses) the App Store
+  # distribution certificate and provisioning profile and pushes them,
+  # encrypted with MATCH_PASSWORD, to the private certificates repo. The
+  # `beta` lane below only ever reads what this writes.
+  desc "Generate and store the App Store signing certificate (run once, or after it expires)"
+  lane :certificates do
+    match(
+      type: "appstore",
+      api_key: asc_api_key,
+      readonly: false
+    )
+  end
+
+  # Runs on every push of a v* tag (see .github/workflows/ios-testflight.yml).
+  # Builds the Capacitor-wrapped app and uploads it to TestFlight as an
+  # internal build -- it does not submit for external review or release.
+  desc "Build the iOS app and upload it to TestFlight"
+  lane :beta do
+    keychain_name = TEMP_KEYCHAIN_USER
+    keychain_password = TEMP_KEYCHAIN_PASSWORD
+    ensure_temp_keychain(keychain_name, keychain_password)
+
+    api_key = asc_api_key
+
+    match(
+      type: "appstore",
+      api_key: api_key,
+      readonly: true,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password
+    )
+
+    increment_build_number(
+      xcodeproj: "ios/App/App.xcodeproj",
+      build_number: ENV["GITHUB_RUN_NUMBER"] || Time.now.strftime("%Y%m%d%H%M")
+    )
+
+    build_app(
+      workspace: "ios/App/App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          DEVELOPER_APP_IDENTIFIER => "match AppStore #{DEVELOPER_APP_IDENTIFIER}"
+        }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      apple_id: DEVELOPER_APP_ID,
+      app_identifier: DEVELOPER_APP_IDENTIFIER,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      notify_external_testers: false
+    )
+
+    delete_temp_keychain(keychain_name)
+  end
+end

@@ -1,0 +1,49 @@
+name: Android - debug build
+
+# Builds an unsigned debug APK on every push to main and on demand. Needs no
+# Google account, no keystore, no secrets -- it's for side-loading onto a
+# real Android device to try the native wrap, not for the Play Store. Play
+# Store release (signing key, Play Console listing, internal testing track)
+# is a separate, later step once the native wrap itself is worth shipping.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  build_debug_apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Sync the web app into the native Android project
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexley-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

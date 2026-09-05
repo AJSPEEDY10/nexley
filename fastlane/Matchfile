@@ -1,0 +1,7 @@
+require "base64"
+
+storage_mode("git")
+git_url(ENV["CERTIFICATE_STORE_URL"])
+git_basic_authorization(Base64.strict_encode64("#{ENV['GIT_USERNAME']}:#{ENV['GIT_TOKEN']}"))
+type("appstore")
+username(ENV["FASTLANE_APPLE_ID"])

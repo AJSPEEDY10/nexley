@@ -10,7 +10,13 @@
  * don't change on rename.
  */
 (function () {
-  var isLocal = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+  /* Capacitor's WebView serves local files from https://localhost by default on
+     both iOS and Android — the exact hostname the dev check below exists to
+     detect. Without this, every native build would silently point at the DEV
+     Supabase project. window.Capacitor only exists inside a native wrap, never
+     on the web, so this can't misfire for real local development. */
+  var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  var isLocal = !isNative && /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 
   /* Product analytics is FIRST-PARTY and always on for signed-in users — it
      writes to the `events` table in this same Supabase project (Sydney), so
