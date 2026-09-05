@@ -3218,9 +3218,15 @@
         + 'there is nothing to match against.'));
       return;
     }
-    body.appendChild(note('Paste the notification your school sent you. Nexley pulls out the '
-      + 'due date, weighting and format, works out which syllabus points it marks you '
-      + 'against, and shows how much you have actually written on each.'));
+    /* Only while there is no plan yet. It explains what the box above does,
+       which is worth a paragraph the first time and is clutter above your own
+       deadlines every time after — and having saved a task is proof enough
+       that you know what the box is for. */
+    if (!state.commitments.length) {
+      body.appendChild(note('Paste the notification your school sent you. Nexley pulls out the '
+        + 'due date, weighting and format, works out which syllabus points it marks you '
+        + 'against, and shows how much you have actually written on each.'));
+    }
   }
 
   /* The first line that reads like a name. Sheets usually open with the school,

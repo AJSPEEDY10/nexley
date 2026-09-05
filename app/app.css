@@ -755,7 +755,10 @@ a{color:var(--structure)}
    An over-committed week is marked with the warn colour, not the danger one:
    it is a fact about arithmetic, not a failure.
    ============================================================ */
-.pl-body{border-top:1px solid var(--rule);padding-top:var(--s-6)}
+/* Sits inside the single Tasks scroller, below whatever the unpacker produced.
+   The rule is only drawn when there is something above it to divide from. */
+.pl-body{padding-top:var(--s-6)}
+#tkBody:not(:empty) + .pl-body{border-top:1px solid var(--rule);margin-top:var(--s-7)}
 .pl-bar{display:flex;align-items:baseline;gap:var(--s-5);margin-bottom:var(--s-5)}
 .pl-bar h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
   letter-spacing:-.015em;flex:1}

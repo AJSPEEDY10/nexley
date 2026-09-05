@@ -361,16 +361,22 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       </div>
     </div>
 
-    <div class="pane-body" id="tkBody"></div>
+    <!-- ONE scrolling region, not two. These were two sibling .pane-body
+         elements, each flex:1, so an empty unpack area and the plan split the
+         pane 50/50 and scrolled independently — the plan you check daily got
+         half a screen and its own scrollbar while a blank box got the rest. -->
+    <div class="pane-body">
+      <div id="tkBody"></div>
 
-    <!-- Phase 7. Hours are attributed to the week a thing is DUE — a fact about a
-         deadline, not a guess at when you would do the work. See app.js 12g2. -->
-    <div class="pane-body pl-body">
-      <div class="pl-bar">
-        <h3>The next eight weeks</h3>
-        <button class="btn ghost" id="tkAdd" type="button">+ Add a task</button>
+      <!-- Phase 7. Hours are attributed to the week a thing is DUE — a fact about a
+           deadline, not a guess at when you would do the work. See app.js 12g2. -->
+      <div class="pl-body">
+        <div class="pl-bar">
+          <h3>The next eight weeks</h3>
+          <button class="btn ghost" id="tkAdd" type="button">+ Add a task</button>
+        </div>
+        <div id="tkPlan"></div>
       </div>
-      <div id="tkPlan"></div>
     </div>
   </section>
 
