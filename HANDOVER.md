@@ -11,6 +11,26 @@ changed the sync shape)
 each time something ships. Check this before re-deriving what's worth
 building; it has the "not doing, on purpose" list with reasons too.
 
+**Also shipped 09-05, both off that tracker:**
+- **Past you** (`597f574`). Open a filed note and, if you wrote about the same
+  dot point ≥21 days earlier, a quiet line says so; "Read it" opens the older
+  note in a second tab so the two sit side by side. The threshold IS the
+  feature — two notes from the same week are one piece of thinking split in
+  two, and showing those as progress would be flattery. `pastYouFrom()` is
+  pure; `test/test_pastyou.js` (13 assertions) pins every way it could show a
+  distance that isn't there. Deliberately untracked: a new analytics event
+  costs a hand-applied migration and this doesn't need a number.
+- **Mistake replay** (`36a400e`). "From your mistakes" in Review: every content
+  gap across every subject, worst first. Cards exist → bring forward; already
+  queued → says so; **none yet → "Write a card"**, opening the card dialog
+  already filed against that point. That last case is the whole point — the
+  per-subject version in Marks says "no cards yet" and stops, so the one dot
+  point you'd measurably lost marks on was the one you couldn't act on.
+  Needed `'mistake'` added to `card_made`'s allowed `from` values in
+  `analytics.js` (unlisted values are dropped *silently*, so without it those
+  cards would record as having no origin at all) — no migration, event name
+  unchanged.
+
 **The marked script — SHIPPED 09-05 (commit `aa7c2a3`)**, Alec's "number 2"
 pick. Each question in Record a paper can now carry the student's own typed
 answer text; select a phrase in it, tag it earned/lost with a reason and a
