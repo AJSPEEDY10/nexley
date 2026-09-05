@@ -11,6 +11,28 @@ changed the sync shape)
 each time something ships. Check this before re-deriving what's worth
 building; it has the "not doing, on purpose" list with reasons too.
 
+**Everything else off the tracker, 09-06.** Four more shipped in one run:
+- **Streaks** (`a4319a2`). One quiet line in the rail, derived from the
+  `updated` timestamps already on every record — never stored, so it cannot
+  drift or need syncing. One day off does not break it; two in a row does, and
+  that rule is in the tooltip rather than hidden. Silent below two days.
+  `test_streak.js`, 14 assertions.
+- **The note title** (`e25f688`). Was a hard `slice(0,140)`, so captures got
+  titles cut mid-word, rendered at display size in a single-line input that
+  scrolled sideways — you saw the middle of your own title. `titleFrom()` now
+  cuts on a word boundary at 72; the field is an auto-growing textarea and
+  Enter moves to the body. `test_title.js`, 13 assertions.
+- **Share progress** (`0628bc2`). Rail → per subject: syllabus covered, cards
+  waiting, what is due in a fortnight. **No marks and no note text**, stated in
+  the dialog and visible in full before it goes. Text you copy, not a link — a
+  link needs a table, a policy and a hand-applied migration, and stays
+  findable afterwards. Also extracted `coverageOf()` so the summary and the
+  coverage bar cannot drift apart.
+- **The sign-in gate** (`ce79fc3`). Two centred lines were orphaning their last
+  word ("…sync to your / account", "Privacy & / Terms"). `text-wrap:balance`,
+  and the footer links are a flex row so no "·" ever leads a line. The intro
+  was reviewed in both themes and needed nothing.
+
 **The two density passes (`2723b18`, `88a6b86`).** Both turned up structural
 faults rather than needing polish:
 - **Marks.** `.fld input[type=number]{width:100%}` was beating `.q-num{width:64px}`
