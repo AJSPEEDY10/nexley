@@ -453,7 +453,9 @@ a{color:var(--structure)}
   /* the + needs whitespace: clamp(a,b+c,d) is a parse error and silently drops the
      whole declaration, which is how this title spent Pass 1 rendering at 14px */
   font-weight:400;font-size:var(--t-3xl);letter-spacing:-.015em;
-  line-height:1.15;width:100%;max-width:calc(var(--measure) + 2 * var(--gutter))}
+  line-height:1.15;width:100%;max-width:calc(var(--measure) + 2 * var(--gutter));
+  /* height comes from autosize() — it wraps instead of scrolling sideways */
+  display:block;resize:none;overflow:hidden;color:inherit}
 .ed-title:focus{outline:none}
 .ed-title::placeholder{color:var(--muted);opacity:.55}
 

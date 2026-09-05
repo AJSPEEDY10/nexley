@@ -250,7 +250,13 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       </div>
     </header>
 
-    <input type="text" class="ed-title" id="noteTitle" placeholder="Untitled note" maxlength="140">
+    <!-- A textarea, not an input, because titles here are frequently long: a
+         filed capture takes its title from the first line of what you typed in
+         class, up to 140 characters. In a single-line input at display size
+         that scrolls sideways and shows you the middle of your own title.
+         Enter does not insert a newline — it moves to the body. -->
+    <textarea class="ed-title" id="noteTitle" placeholder="Untitled note"
+              maxlength="140" rows="1" spellcheck="false"></textarea>
 
     <!-- the apparatus. On a wide page this becomes a real left margin beside the
          writing column (see the container query in app.css); narrow, it stays a

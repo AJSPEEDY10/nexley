@@ -1086,7 +1086,7 @@
     renderBrowser();
     renderTabs();
     renderEditor();
-    setTimeout(function () { $('noteTitle').focus(); }, 40);
+    setTimeout(function () { autosize($('noteTitle')); $('noteTitle').focus(); }, 40);
   }
 
   function closeNote() {
@@ -1112,6 +1112,7 @@
     $('emptyState').hidden = true;
 
     $('noteTitle').value = n.title || '';
+    autosize($('noteTitle'));
     $('noteBody').innerHTML = n.body || '';
     // narrow shows only the "edited" line; the margin shows both (see .st-cr in app.css)
     $('stampCreated').textContent = 'Created ' + when(n.created);
@@ -1217,7 +1218,7 @@
   function saveNow() {
     var n = activeNoteObj();
     if (!n) return Promise.resolve();
-    n.title = $('noteTitle').value.trim();
+    n.title = $('noteTitle').value.replace(/\s+/g, ' ').trim();
     n.body = $('noteBody').innerHTML;
     n.subjectId = $('noteSubject').value || n.subjectId;
     n.syllabusId = $('noteSyllabus').value || null;
@@ -1968,11 +1969,10 @@
     // The first line becomes the title so the capture is identifiable in a list and
     // in search. The full text stays in the body — the title is a label, not a
     // truncation of the content.
-    var firstLine = text.split('\n')[0].trim();
     var rec = stamp({
       id: uid(), subjectId: subjectId, syllabusId: null, kind: 'capture',
       font: 'standard',
-      title: firstLine.slice(0, 140),
+      title: titleFrom(text.split('\n')[0]),
       body: textToHtml(text)
     });
     return put('notes', rec).then(function () {
@@ -4042,6 +4042,23 @@
     return trimNum(n) + (n === 1 ? ' mark' : ' marks');
   }
 
+  /* A capture's title is the first line of whatever was typed in a lesson, which
+     is a sentence, not a heading. This used to be a hard slice(0,140), so a long
+     first line produced a "title" cut mid-word — "…including joint types and
+     musc" — and then the editor rendered that at display size across four lines.
+     Cut at a word boundary instead, and much shorter: the full text is in the
+     body, so the title only has to be enough to recognise the note by. */
+  var TITLE_MAX = 72;
+  function titleFrom(line) {
+    var t = String(line || '').replace(/\s+/g, ' ').trim();
+    if (t.length <= TITLE_MAX) return t;
+    var cut = t.slice(0, TITLE_MAX);
+    var space = cut.lastIndexOf(' ');
+    // only honour the word boundary if it leaves a usable title
+    if (space > TITLE_MAX * 0.6) cut = cut.slice(0, space);
+    return cut.replace(/[\s,;:.–—-]+$/, '') + '…';
+  }
+
   function paperRow(p) {
     var row = document.createElement('button');
     row.type = 'button';
@@ -5128,7 +5145,19 @@
     $('addSubject').addEventListener('click', function () { openSubjectDialog(null); });
     $('syllabusBtn').addEventListener('click', openSyllabusDialog);
 
-    $('noteTitle').addEventListener('input', markDirty);
+    $('noteTitle').addEventListener('input', function () {
+      autosize(this);
+      markDirty();
+    });
+    /* It looks like a heading, so Enter has to behave like one: move into the
+       note. A textarea would otherwise put a newline in the middle of a title,
+       which saveNow() would then flatten back out — an edit that appears to do
+       something and then silently undoes itself. */
+    $('noteTitle').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      $('noteBody').focus();
+    });
     $('noteBody').addEventListener('input', function () { markDirty(); countWords(); });
     $('noteSubject').addEventListener('change', function () {
       var n = activeNoteObj();
