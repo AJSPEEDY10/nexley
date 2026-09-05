@@ -741,16 +741,28 @@
     renderUnfiled(body, subj);
   }
 
-  function renderCoverage(subj, topics) {
+  /* The coverage bar's numbers as a value rather than as DOM, because the
+     progress summary has to report exactly what the bar reports — two
+     independent counts of "how much have I written" that could drift apart is
+     the sort of thing nobody notices until someone acts on the wrong one. */
+  function coverageOf(subjectId) {
     var points = [];
-    topics.forEach(function (t) { points = points.concat(childrenOf(t.id)); });
-    if (!points.length) { $('coverage').hidden = true; return; }
-
+    topicsOf(subjectId).forEach(function (t) { points = points.concat(childrenOf(t.id)); });
     // "covered" means YOU have written something there — given notes don't count
     var covered = points.filter(function (p) {
       return notesOfNode(p.id).some(function (n) { return n.kind === 'personal'; });
     }).length;
-    var pct = Math.round((covered / points.length) * 100);
+    return {
+      points: points, covered: covered, total: points.length,
+      pct: points.length ? Math.round((covered / points.length) * 100) : 0
+    };
+  }
+
+  function renderCoverage(subj, topics) {
+    var cov = coverageOf(subj.id);
+    var points = cov.points;
+    if (!points.length) { $('coverage').hidden = true; return; }
+    var covered = cov.covered, pct = cov.pct;
 
     // Coverage says how much you have written. It deliberately does NOT fold in
     // confidence: they answer different questions, and averaging them would hide
@@ -3179,6 +3191,81 @@
       + 'A single day off does not break it.';
   }
 
+  /* ============================================================
+     12k · the progress summary
+     ------------------------------------------------------------
+     "Here is how school is going" without handing over the notebook. A parent
+     asking that question does not need read access to a term of private
+     writing, and a student should not have to choose between stonewalling and
+     opening everything.
+
+     WHAT IS DELIBERATELY NOT IN IT: marks, percentages, and a single word of
+     anything you have written. A result is the most sensitive thing this app
+     holds — analytics refuses to carry one for the same reason — and a summary
+     that quietly included them would be a very different object to the one the
+     student thought they were sending.
+
+     It is text you copy, not a link. A link would need a public read path on
+     the server, which is a table, a policy and a migration; a paste into a
+     message needs none of that and cannot leak later because there is nothing
+     hosted to find. The student can read every word before it goes.
+     ============================================================ */
+  function progressSummary(now) {
+    var at = now || Date.now();
+    var horizon = at + 14 * DAY_MS;
+    var out = ['Nexley — progress to ' + new Date(at).toLocaleDateString(undefined,
+      { day: 'numeric', month: 'long', year: 'numeric' }), ''];
+
+    state.subjects.forEach(function (s) {
+      out.push(s.name);
+      var cov = coverageOf(s.id);
+      out.push(cov.total
+        ? '  ' + cov.covered + ' of ' + cov.total + ' syllabus points written up (' + cov.pct + '%)'
+        : '  no syllabus added yet');
+
+      var due = state.cards.filter(function (c) {
+        return c.subjectId === s.id && (c.due || 0) <= at;
+      }).length;
+      out.push('  ' + due + (due === 1 ? ' card' : ' cards') + ' due for review');
+
+      state.commitments.filter(function (c) {
+        return c.subjectId === s.id && !c.done && c.due <= horizon;
+      }).forEach(function (c) {
+        out.push('  Due ' + when(c.due) + ': ' + c.title
+          + (c.weight ? ' (' + trimNum(c.weight) + '%)' : ''));
+      });
+      out.push('');
+    });
+
+    var streak = streakFrom(activeDayNumbers(), dayNum(at));
+    if (streak >= 2) out.push(streak + ' days in a row.');
+    out.push('No marks and nothing written are included in this summary.');
+    return out.join('\n');
+  }
+
+  function openShareDialog() {
+    $('shareText').value = progressSummary();
+    $('shareCopied').hidden = true;
+    $('shareDialog').showModal();
+  }
+
+  function copySummary() {
+    var box = $('shareText');
+    var done = function () { $('shareCopied').hidden = false; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(box.value).then(done, selectFallback);
+    } else selectFallback();
+
+    /* No clipboard permission, or an insecure origin. Selecting it is not a
+       failure message dressed up as one — Ctrl+C from here does the same job. */
+    function selectFallback() {
+      box.focus();
+      box.select();
+      $('shareCopied').hidden = false;
+      $('shareCopied').textContent = 'Selected — press Ctrl+C to copy.';
+    }
+  }
+
   var PAST_YOU_DAYS = 21;
 
   /* Pure, so the rules above are testable without a DOM: same dot point, not
@@ -5211,6 +5298,9 @@
 
     $('exportBtn').addEventListener('click', exportAll);
     $('importBtn').addEventListener('click', function () { $('importFile').click(); });
+    $('shareBtn').addEventListener('click', openShareDialog);
+    $('shareCopy').addEventListener('click', copySummary);
+    $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
     $('importFile').addEventListener('change', function (e) {
       if (e.target.files && e.target.files[0]) importFile(e.target.files[0]);
       e.target.value = '';

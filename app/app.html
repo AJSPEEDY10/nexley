@@ -203,6 +203,9 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
       <button class="linkbtn" id="importBtn" type="button">Import</button>
+      <!-- Answers "how is school going" without handing over the notebook. No
+           marks, no note text — see app.js 12k. -->
+      <button class="linkbtn" id="shareBtn" type="button">Share progress</button>
       <!-- Feedback and "Report a problem" are deliberately two different things.
            A crash report is write-only and unanswerable by design (bug_reports has
            no select policy). Feedback is the one that talks back. -->
@@ -730,6 +733,29 @@ Module 2: Body systems and movement
 </dialog>
 
 <!-- ============ REPORT A PROBLEM ============ -->
+<dialog id="shareDialog">
+  <div class="dlgbody">
+    <h3>Share your progress</h3>
+    <p class="dlgnote">For when someone asks how school is going and the honest answer
+      is longer than "fine". Copy this into a message — it is text, not a link, so
+      there is nothing left online afterwards.</p>
+
+    <!-- shown in full, and editable: nothing goes anywhere the student has not read -->
+    <textarea id="shareText" class="paste" style="min-height:210px" spellcheck="false"></textarea>
+
+    <p class="dlgnote"><b>No marks and nothing you have written are included</b> — only
+      how much of each syllabus you have covered, what is due, and what is waiting to
+      be reviewed.</p>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="shareCopied" hidden>Copied.</span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="shareClose">Close</button>
+      <button type="button" class="btn primary" id="shareCopy">Copy</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="bugDialog">
   <div class="dlgbody">
     <h3>Report a problem</h3>
