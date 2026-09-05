@@ -293,6 +293,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          is confident about, and never files anything on its own. -->
     <div class="filehint" id="fileHint" hidden></div>
 
+    <!-- past you. The mirror image of the hint above: that one only fires on an
+         UNFILED note, this one only on a filed one, so the two never stack. -->
+    <div class="filehint past" id="pastYou" hidden></div>
+
     <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
          aria-label="Note body"></div>
 

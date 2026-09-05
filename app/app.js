@@ -1166,7 +1166,7 @@
     $('kindSyllabus').classList.toggle('on', kind === 'syllabus');
   }
 
-  function renderCrumbAndHint(n) { renderCrumb(n); renderFilingHint(n); }
+  function renderCrumbAndHint(n) { renderCrumb(n); renderFilingHint(n); renderPastYou(n); }
 
   function renderCrumb(n) {
     var s = subjectById(n.subjectId);
@@ -2979,6 +2979,102 @@
     no.type = 'button';
     no.className = 'fh-no';
     no.textContent = 'Not this';
+    no.addEventListener('click', function () { box.hidden = true; });
+    box.appendChild(no);
+  }
+
+  /* ============================================================
+     12i · past you
+     ------------------------------------------------------------
+     The same dot point, written twice, months apart. Nothing else in this app
+     shows the distance between those two: the notebook lists them by date and
+     the coverage bar counts them as "2", which says nothing about whether the
+     second one is any better than the first.
+
+     ONLY WHEN THE GAP IS REAL. Two notes written in the same week are one
+     piece of thinking split across two files, and showing them as "past you"
+     would be flattery dressed up as progress. The gap has to be long enough
+     that you would genuinely have moved on in between, which is why this is
+     silent for most notes most of the time — and it should be. A prompt that
+     fires constantly is one nobody reads.
+
+     It never claims you have improved. It shows you what you wrote and lets
+     you be the judge; the app has no way to grade the difference and should
+     not pretend otherwise.
+     ============================================================ */
+  var PAST_YOU_DAYS = 21;
+
+  /* Pure, so the rules above are testable without a DOM: same dot point, not
+     this note, not a capture, and genuinely older. Oldest wins — the earliest
+     thing you wrote on a point is the honest baseline to measure against, and
+     picking "any older note" would show a different one every time the list
+     re-sorted. */
+  function pastYouFrom(notes, note, gapDays) {
+    if (!note || !note.syllabusId) return null;
+    var cutoff = (note.updated || 0) - (gapDays || PAST_YOU_DAYS) * 86400000;
+    var best = null;
+    (notes || []).forEach(function (n) {
+      if (!n || n.id === note.id) return;
+      if (n.kind === 'capture') return;
+      if (n.syllabusId !== note.syllabusId) return;
+      if (!(n.updated < cutoff)) return;
+      if (!best || n.updated < best.updated) best = n;
+    });
+    return best;
+  }
+
+  function pastYou(note) {
+    if (!note || !note.syllabusId) return null;
+    /* Narrow to the dot point first so plain() — which builds a DOM node —
+       runs over a handful of notes rather than the whole notebook. */
+    var sameNode = state.notes.filter(function (n) {
+      return n.syllabusId === note.syllabusId
+        && ((n.title || '').trim() || plain(n.body || ''));
+    });
+    return pastYouFrom(sameNode, note);
+  }
+
+  function renderPastYou(note) {
+    var box = $('pastYou');
+    if (!box) return;
+    var old = note ? pastYou(note) : null;
+    if (!old) { box.hidden = true; return; }
+
+    box.textContent = '';
+    box.hidden = false;
+
+    var days = Math.round(((note.updated || Date.now()) - old.updated) / 86400000);
+    var span = days >= 60 ? Math.round(days / 30) + ' months'
+             : days >= 14 ? Math.round(days / 7) + ' weeks'
+             : days + ' days';
+
+    var t = document.createElement('span');
+    t.className = 'fh-text';
+    t.textContent = 'You wrote about this ' + span + ' ago, on ' + when(old.updated) + '.';
+    box.appendChild(t);
+
+    var why = document.createElement('span');
+    why.className = 'fh-why';
+    why.textContent = (old.title || plain(old.body || '')).slice(0, 60);
+    box.appendChild(why);
+
+    var open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'fh-yes';
+    open.textContent = 'Read it';
+    /* Deliberately not tracked. A new analytics event costs a hand-applied
+       migration (the CHECK constraint in 0012) on both prod and dev, and
+       this feature does not need a number to justify itself. */
+    open.addEventListener('click', function () {
+      box.hidden = true;
+      openNote(old.id);
+    });
+    box.appendChild(open);
+
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'fh-no';
+    no.textContent = 'Later';
     no.addEventListener('click', function () { box.hidden = true; });
     box.appendChild(no);
   }

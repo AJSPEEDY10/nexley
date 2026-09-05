@@ -699,6 +699,13 @@ a{color:var(--structure)}
   color:var(--ink-2);cursor:pointer}
 .fh-yes{border-color:var(--structure)!important;color:var(--structure)!important}
 .filehint button:hover{border-color:var(--structure);color:var(--ink)}
+/* Past you is an observation, not a suggestion — nothing to accept or decline,
+   so it sits on the quiet ground rather than the accented one the filing hint
+   uses to ask for a decision. */
+.filehint.past{border-color:var(--rule);border-left-color:var(--muted);
+  background:var(--surface)}
+.filehint.past .fh-why{font-family:var(--text);font-style:italic;
+  font-size:var(--t-sm);color:var(--ink-2)}
 
 /* confidence bands. Colour carries the reading, but never alone — every use
    pairs it with a word, because a coloured dot on its own is unreadable to
