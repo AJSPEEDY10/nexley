@@ -312,6 +312,11 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          UNFILED note, this one only on a filed one, so the two never stack. -->
     <div class="filehint past" id="pastYou" hidden></div>
 
+    <!-- cross-subject links. A property of the two syllabuses, not of what you
+         have written, so it can sit alongside past-you without either one
+         being about the other. Silent unless the match is genuinely specific. -->
+    <div class="filehint past" id="crossLink" hidden></div>
+
     <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
          aria-label="Note body"></div>
 

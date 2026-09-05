@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.20.0';
+  var APP_VERSION = '0.21.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -1199,7 +1199,9 @@
     $('kindSyllabus').classList.toggle('on', kind === 'syllabus');
   }
 
-  function renderCrumbAndHint(n) { renderCrumb(n); renderFilingHint(n); renderPastYou(n); }
+  function renderCrumbAndHint(n) {
+    renderCrumb(n); renderFilingHint(n); renderPastYou(n); renderCrossLinks(n);
+  }
 
   function renderCrumb(n) {
     var s = subjectById(n.subjectId);
@@ -3981,6 +3983,194 @@
         editingCommitment = null;
         if (window.NexleySync) window.NexleySync.run();
       });
+  }
+
+  /* ============================================================
+     12l · cross-subject links
+     ------------------------------------------------------------
+     The thing a good teacher does that a subject-by-subject notebook cannot:
+     "that's the same exponential growth you did in Maths last term". Nothing
+     in this app has ever looked across a subject boundary — the matcher in 12e
+     is handed a subjectId and never sees anything else.
+
+     THE RISK IS ENTIRELY FALSE POSITIVES. Two dot points from different
+     subjects almost always share SOME words, and a link that turns out to be
+     "both of these contain the word 'process'" is worse than no feature at
+     all: it teaches you to ignore the line, and then the one real connection
+     goes unread with everything else. So this is built to say nothing far more
+     often than it speaks.
+
+     Three gates, all of which must pass:
+
+       1. A shared term must be RARE ACROSS THE WHOLE NOTEBOOK, not just rare
+          in one subject. df is counted over every point of every subject, and
+          a term in more than CROSS_MAX_DF_RATIO of them is dropped before
+          scoring. "Process" and "structure" die here.
+       2. A shared term must not be a syllabus command verb. These are rare
+          enough at this corpus size to survive gate 1 on nothing but scarcity
+          — "evaluate" appearing in two points of two subjects is not a
+          connection between the subjects, it is the syllabus template showing
+          through. Deliberately verbs and scaffolding words ONLY, never
+          anything topical, for the same reason FUNCTION_WORDS is: the app
+          must not assume what you are studying.
+       3. The surviving terms must add up. One genuinely rare shared term is
+          enough (that IS the interesting case — "photosynthesis" in two
+          subjects means something); two mediocre ones can also carry it.
+
+     WHAT IT DOES NOT DO. It does not read your notes, only the syllabus you
+     loaded, so a link is a property of the two courses and says the same thing
+     on day one as it does in week ten. And it never files, merges, or suggests
+     writing anything — it points at the other point and stops.
+     ============================================================ */
+  var CROSS_MAX_DF_RATIO = 0.15;   // a term in >15% of all points is not specific
+  var CROSS_MIN_LEN = 4;           // three-letter stems are too collision-prone
+  var CROSS_MIN_SCORE = 2.0;       // ~one rare term, or two middling ones
+  var CROSS_LIMIT = 2;             // a quiet line, not a related-links sidebar
+
+  /* Syllabus scaffolding, stemmed on first use so it meets tokenise() output.
+     Nothing here names a topic in any subject. */
+  var CROSS_SKIP_RAW = ['describe', 'explain', 'analyse', 'analyze', 'evaluate',
+    'assess', 'investigate', 'examine', 'outline', 'identify', 'discuss',
+    'compare', 'contrast', 'justify', 'demonstrate', 'apply', 'conduct',
+    'students', 'student', 'learn', 'learning', 'outcome', 'outcomes',
+    'module', 'topic', 'unit', 'course', 'syllabus', 'inquiry', 'question',
+    'including', 'example', 'examples', 'range', 'relevant', 'various'];
+  var CROSS_SKIP = null;
+  function crossSkip() {
+    if (CROSS_SKIP) return CROSS_SKIP;
+    CROSS_SKIP = {};
+    CROSS_SKIP_RAW.forEach(function (w) { CROSS_SKIP[stem(w)] = 1; });
+    return CROSS_SKIP;
+  }
+
+  /* Pure. `docs` is [{id, subjectId, text}] over EVERY subject; returns the
+     best links to `id` from other subjects, best first, or [] for none —
+     which is the expected answer most of the time. */
+  function crossLinksFrom(docs, id, opts) {
+    var o = opts || {};
+    var maxDf = o.maxDfRatio === undefined ? CROSS_MAX_DF_RATIO : o.maxDfRatio;
+    var minScore = o.minScore === undefined ? CROSS_MIN_SCORE : o.minScore;
+    var limit = o.limit === undefined ? CROSS_LIMIT : o.limit;
+    var skip = crossSkip();
+
+    var list = (docs || []).filter(function (d) { return d && d.id && d.subjectId; });
+    if (list.length < 2) return [];
+
+    var terms = list.map(function (d) {
+      var t = {};
+      tokenise(d.text).forEach(function (w) {
+        if (w.length < CROSS_MIN_LEN || skip[w]) return;
+        t[w] = 1;                                  // presence, not frequency:
+      });                                          // a repeated word is not a stronger link
+      return t;
+    });
+
+    var self = -1;
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) self = i;
+    if (self < 0) return [];
+
+    var df = {}, n = list.length;
+    terms.forEach(function (t) {
+      for (var w in t) if (t.hasOwnProperty(w)) df[w] = (df[w] || 0) + 1;
+    });
+    /* The floor of 2 is not a fudge: a SHARED term has df >= 2 by definition,
+       so a ceiling below that rejects every possible link. Without it a small
+       notebook — three subjects, thirty points, 15% = 4 — is fine, but the
+       first-week notebook that has only ten points in it silently finds
+       nothing ever, which reads as the feature being broken rather than
+       careful. maxDfRatio: 0 still turns it off completely. */
+    var ceiling = maxDf <= 0 ? 0 : Math.max(2, Math.floor(n * maxDf));
+
+    var mine = terms[self];
+    var out = [];
+    for (var j = 0; j < list.length; j++) {
+      if (j === self || list[j].subjectId === list[self].subjectId) continue;
+      var score = 0, shared = [];
+      for (var w2 in mine) {
+        if (!mine.hasOwnProperty(w2) || !terms[j][w2]) continue;
+        if (df[w2] > ceiling) continue;            // gate 1
+        var idf = Math.log(n / df[w2]);
+        if (idf <= 0) continue;
+        score += idf;
+        shared.push(w2);
+      }
+      if (!shared.length || score < minScore) continue;
+      shared.sort();
+      out.push({ id: list[j].id, subjectId: list[j].subjectId, score: score, shared: shared });
+    }
+
+    /* Ties broken by id so the same two points never swap places between
+       renders — a line that reorders itself reads as noise. */
+    out.sort(function (a, b) {
+      return b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
+    return out.slice(0, limit);
+  }
+
+  /* Every dot point in the notebook, as documents for the function above. */
+  function crossDocs() {
+    var docs = [];
+    state.syllabus.forEach(function (n) {
+      if (!n.parentId) return;                     // topics are containers, not points
+      docs.push({ id: n.id, subjectId: n.subjectId, text: pointText(n) });
+    });
+    return docs;
+  }
+
+  function crossLinksForNode(nodeId) {
+    if (!nodeId) return [];
+    return crossLinksFrom(crossDocs(), nodeId).map(function (r) {
+      var node = nodeById(r.id);
+      var subject = node ? find(state.subjects, node.subjectId) : null;
+      if (!node || !subject) return null;
+      return { node: node, subject: subject, score: r.score, shared: r.shared };
+    }).filter(Boolean);
+  }
+
+  function renderCrossLinks(note) {
+    var box = $('crossLink');
+    if (!box) return;
+    var links = note && note.syllabusId ? crossLinksForNode(note.syllabusId) : [];
+    if (!links.length) { box.hidden = true; return; }
+
+    box.textContent = '';
+    box.hidden = false;
+
+    var t = document.createElement('span');
+    t.className = 'fh-text';
+    t.textContent = links.length > 1 ? 'This also comes up in two other subjects.'
+                                     : 'This also comes up in ' + links[0].subject.name + '.';
+    box.appendChild(t);
+
+    links.forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fh-yes';
+      b.textContent = l.subject.name + ' · ' + (l.node.title || l.node.code || 'that point');
+      /* The shared words ARE the reasoning, so they go in the tooltip rather
+         than being kept back — if the link is wrong you can see immediately
+         why it fired, and stop trusting that one instead of all of them. */
+      b.title = 'Shares: ' + l.shared.join(', ');
+      b.addEventListener('click', function () { openSyllabusPoint(l.node); });
+      box.appendChild(b);
+    });
+  }
+
+  /* Leaves the current note saved and closed rather than open behind the new
+     view — the same thing the subject rail does, so arriving by link and
+     arriving by click leave the app in identical states. */
+  function openSyllabusPoint(node) {
+    if (state.dirty) saveNow();
+    state.activeSubject = node.subjectId;
+    state.activeNode = node.id;
+    state.query = '';
+    if ($('search')) $('search').value = '';
+    $('app').classList.remove('editing');
+    state.activeNote = null;
+    renderSubjects();
+    renderBrowser();
+    renderTabs();
+    renderEditor();
   }
 
   /* ============================================================
