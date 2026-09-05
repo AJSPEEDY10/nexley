@@ -143,10 +143,33 @@ weeks.
 - Weekly capacity is per-device in `localStorage` - a fact about your life this term, not
   study content, one number, re-entered in a tap.
 
-**Phase 8 - native wrap.** Capacitor, cloud build (no Mac needed), TestFlight, private
-invites. Deliberately late: store review blocks daily iteration, so the PWA stays the
-development vehicle until the product is worth freezing. Handwriting capture lands here -
-target every device, not M-series iPads only.
+**Phase 8 - native wrap. SCAFFOLDED 09-05 (4dede45), Alec's call to start it early** —
+overriding "deliberately late" below, which still stands as the reasoning, just not as
+the timing. See **`PHASE8.md`** for the full runbook.
+- Capacitor wraps `app/` as-is — no build step added to the web app itself, just a
+  packaging layer around it. `android/` and `ios/` platform projects are committed.
+- Two bugs caught before either store would have shipped them: `config.js` detected
+  local dev by `hostname === 'localhost'`, which is also what Capacitor's WebView uses
+  for local files on both platforms — every native build would have silently pointed at
+  the DEV Supabase project. And `index.html`'s existing "bounce an installed PWA to
+  app.html" redirect only checked PWA display-mode, so a native build — same root cause,
+  no separate "start page" setting — would have opened on the marketing pitch. Both now
+  also gate on `window.Capacitor.isNativePlatform()`.
+- **Android is ready to try TODAY, no account needed**:
+  `.github/workflows/android-debug-build.yml` builds an unsigned debug APK on every push
+  to main. Download the artifact, side-load it, done.
+- **iOS needs Alec's own Apple Developer enrollment** ($99/yr, his Apple ID) before
+  anything ships — that and five other one-time account steps are in `PHASE8.md`. Once
+  the secrets exist, signing is a one-off `ios-certificates.yml` run and every release is
+  `git tag v0.20.0 && git push origin v0.20.0`. Both run on GitHub's macOS runners —
+  genuinely no Mac, ever, for Alec.
+- Original reasoning, unchanged: store review blocks daily iteration, so the PWA should
+  stay the primary dev vehicle. Starting the scaffolding now doesn't change that — the
+  workflows sit idle until the Apple secrets exist.
+
+*Original note, for context:* Deliberately late: store review blocks daily iteration, so
+the PWA stays the development vehicle until the product is worth freezing. Handwriting
+capture lands here - target every device, not M-series iPads only.
 
 **The AI path — LIVE 09-05, and the prompt is the open work.**
 
