@@ -855,7 +855,14 @@ a{color:var(--structure)}
   font-family:inherit;font-size:var(--t-base)}
 .qrow input:focus,.qrow select:focus{outline:none;border-color:var(--structure)}
 .q-label{flex:1;min-width:64px}
+/* Groups "got / of" as one flex item so .qrow's wrap breaks between fields, never
+   inside this pair. */
+.q-marks{display:inline-flex;align-items:center;gap:var(--s-2)}
 .q-num{width:64px;text-align:right}
+/* clears the browser's native number-input spinner, which otherwise sits on top
+   of a right-aligned "got"/"of" placeholder — needs to out-specify the shared
+   .qrow input padding shorthand above */
+.qrow input.q-num{padding-right:var(--s-6)}
 .q-slash{color:var(--muted);font-family:var(--code);font-size:var(--t-sm)}
 .q-why{flex:1;min-width:132px;max-width:200px}
 .q-point{flex:2;min-width:150px;max-width:280px}

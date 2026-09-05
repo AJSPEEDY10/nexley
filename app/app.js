@@ -4131,6 +4131,12 @@
       label.addEventListener('input', function () { q.label = this.value; });
       row.appendChild(label);
 
+      /* One flex item, not three, so flex-wrap on .qrow wraps "got / of" onto its
+         own line as a unit at the modal's normal width instead of splitting the
+         slash and the second number off onto their own lines. */
+      var marks = document.createElement('span');
+      marks.className = 'q-marks';
+
       var mark = document.createElement('input');
       mark.type = 'number';
       mark.className = 'q-num';
@@ -4142,12 +4148,12 @@
         q.mark = this.value === '' ? null : parseFloat(this.value);
         updateQuestionState(row, q);
       });
-      row.appendChild(mark);
+      marks.appendChild(mark);
 
       var slash = document.createElement('span');
       slash.className = 'q-slash';
       slash.textContent = '/';
-      row.appendChild(slash);
+      marks.appendChild(slash);
 
       var outOf = document.createElement('input');
       outOf.type = 'number';
@@ -4160,7 +4166,9 @@
         q.outOf = this.value === '' ? null : parseFloat(this.value);
         updateQuestionState(row, q);
       });
-      row.appendChild(outOf);
+      marks.appendChild(outOf);
+
+      row.appendChild(marks);
 
       var why = document.createElement('select');
       why.className = 'q-why';
