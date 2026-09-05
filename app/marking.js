@@ -21,7 +21,10 @@
  * So the rules below are not politeness. Each one is aimed at that:
  *   - quote the criterion before judging it, so an invented standard has to be
  *     written down next to the real one to survive
- *   - outside knowledge may EXPLAIN a mark, never withhold one
+ *   - outside knowledge may be used to JUDGE whether what was written is correct,
+ *     never to ADD a requirement the criterion never stated — "correctly states
+ *     the duration" cannot be judged without knowing what the duration actually
+ *     is, but that is not licence to invent "must fall in the 30s-2min range"
  *   - partial credit is explicitly allowed, because "0/2 for half right" was the
  *     other half of the same failure
  *   - "the criteria do not settle this" is an available answer, so the model has
@@ -36,10 +39,14 @@
     'ABSOLUTE RULES:',
     '1. The supplied criteria are the ONLY standard. You may not use any other',
     '   standard, syllabus, rubric, band descriptor or remembered mark scheme.',
-    '2. You may not withhold a mark for anything the criteria do not require.',
-    '   Outside knowledge may be used to EXPLAIN a mark, never to take one away.',
-    '   If you catch yourself writing a number, range or threshold that is not in',
-    '   the criteria, that is the rule breaking: remove it.',
+    '2. You may use outside knowledge to JUDGE whether what the student wrote is',
+    '   correct for a criterion — but never to ADD a requirement, number, range or',
+    '   threshold the criterion did not itself state. "Correctly states the',
+    '   duration" lets you judge accuracy against what you know the duration to',
+    '   be; it does NOT let you invent "must fall in the 30s-2min range" if the',
+    '   criterion never named a range. If you catch yourself writing a number,',
+    '   range or threshold that is not in the criteria, that is this rule',
+    '   breaking: remove it.',
     '3. Award PARTIAL credit. If a criterion covers two things and the student got',
     '   one, that is half the marks, not none.',
     '4. If the criteria do not settle whether something earns a mark, write',

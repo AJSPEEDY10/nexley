@@ -33,8 +33,10 @@ console.log('\n1. The prompt says the things that stop the known failure');
 const p = M.buildPrompt({ question: 'Explain the difference.', outOf: 6,
                           criteria: CRITERIA, response: 'Some answer.' });
 ok('criteria are named as the only standard', /ONLY standard/i.test(p.system));
-ok('outside knowledge may explain but not withhold',
-   /never to take one away/i.test(p.system));
+ok('outside knowledge may judge correctness but not add a requirement',
+   /never to ADD a requirement/i.test(p.system));
+ok('the duration example draws the line between judging and inventing',
+   /30s-2min range/i.test(p.system) && /lets you judge accuracy/i.test(p.system));
 ok('partial credit is explicitly allowed', /PARTIAL credit/i.test(p.system));
 ok('UNCLEAR is an available answer', /UNCLEAR/.test(p.system));
 ok('bands and grades are forbidden', /band, grade, ATAR/i.test(p.system));

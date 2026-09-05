@@ -1,6 +1,8 @@
 # Nexley - session handover
 
 **Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
+(unreleased since: Rule 2 reworded + probe script, no version bump yet — see
+"Rule 2 — DONE 09-05" below)
 **Backend:** migrations 0005-0015 applied to prod **and** dev.
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
@@ -176,18 +178,34 @@ target every device, not M-series iPads only.
   where they had plainly got half right. After hardening, the same input went
   **2/6 -> 4/6**, with partial credit on both criteria and `unsupportedCriteria`
   returning clean.
-- **RULE 2 IS STILL TOO ABSOLUTE and should be refined.** It currently says
-  outside knowledge may never withhold a mark. But a criterion reading "correctly
-  states the duration" cannot be judged WITHOUT knowing what is correct. The real
-  distinction is: using knowledge to judge whether what was written is correct is
-  legitimate; ADDING a requirement the criterion never stated is not. Reword
-  before this reaches any UI.
-- **NEXT: the adversarial case set.** Criteria deliberately silent on a detail;
-  half-right answers; correct-but-differently-worded; factually wrong on
-  something the criteria do not cover; ambiguous criteria. Run as one batch and
-  judge the invention rate across all of them — one case at a time burns quota
-  and proves little. This is the same method that caught the matcher's stopword
-  bug.
+- **Rule 2 — DONE 09-05.** Reworded in `app/marking.js`: outside knowledge may be
+  used to JUDGE whether what the student wrote is correct, never to ADD a
+  requirement the criterion didn't state — "correctly states the duration" can
+  be judged against what duration actually is; "must fall in the 30s-2min
+  range" is still forbidden if the criterion never named a range.
+  `test/test_marking.js` updated to check the new wording; 31/31 pass.
+- **The adversarial case set — test/probe_marking.js, 3 of 5 run 09-05.** Can't
+  be a Node script: the proxy needs a real signed-in Supabase JWT and
+  Claude-in-Chrome correctly refuses to hand a session token out of the page,
+  so it's a script you paste into the console of the live signed-in app — see
+  the file's header for how, and its PROBE LOG for what came back:
+  - `silent_detail` (2/2) and `half_right` (1/2, correct partial credit) both
+    came back clean — no invented threshold, no unsupported criterion. This is
+    the exact shape of case Rule 2 was reworded for, and it held.
+  - `different_wording` (1/2) looked like a marker miss at first but wasn't:
+    the test case itself claimed a wrong fact (heat as the ATP-PC system's
+    *only* by-product), and the model correctly used outside knowledge to
+    mark that wrong rather than accept it as an honest paraphrase — legitimate
+    under the reworded rule. Worth noting: an adversarial case set can itself
+    be wrong: I initially misread the model's mark as the marker's mistake
+    until re-checking the case's chemistry.
+  - **`irrelevant_wrong_fact` and `ambiguous_criterion` did NOT run** — hit
+    the 10/day per-student ceiling (already partly spent earlier the same
+    session). **Re-run after reset (UTC midnight = 10am AEST)** and update the
+    PROBE LOG before treating the prompt as validated — 3/5 is not the full
+    set the handover called for.
+  - No version bump, no UI change, no commit yet from this pass — flagging so
+    the next session doesn't lose the two unrun cases.
 - **Standing rule: an AI mark must NEVER be written into a paper record.** A real
   mark is one a teacher gave, and that is what makes the conditions grouping in
   Marks mean anything. The first bad mark was 2/6; had it landed in an
