@@ -1,10 +1,10 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
-(unreleased since: Rule 2 reworded, Phase 8 Capacitor scaffolding, a Marks
-modal layout fix, a real Tasks bug, the repalette, and the marked script
-feature below — no version bump yet, nothing here needed a migration or
-changed the sync shape)
+**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.20.0, SW cache `nexley-v31`
+— bumped 09-06 because 0.19.1 had stopped being true: it is stamped into every
+crash report and snapshot, and the app had gained six features and two
+data-integrity fixes since. Nothing in the whole run needed a migration or
+changed the sync shape, so there is nothing for Alec to apply by hand.
 
 **Live build-plan tracker: https://claude.ai/code/artifact/08ba57da-71d6-477f-8eb5-9ede9416af85**
 — the whole idea archive cross-referenced against what's shipped, updated
