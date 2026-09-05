@@ -1,11 +1,12 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.18.0, SW cache `nexley-v27`
-**Backend:** migrations 0005-0011 applied to prod **and** dev. **Sync verified working.**
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.18.1, SW cache `nexley-v28`
+**Backend:** migrations 0005-0012 applied to prod **and** dev. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js`, `test_marks.js`, `test_plan.js` - all green (171 assertions)
+`test_feedback.js`, `test_marks.js`, `test_plan.js`, `test_events.js` - all green
+(200 assertions)
 
 ---
 
@@ -62,6 +63,7 @@ Everything else that was waiting on him has been cleared or dropped:
 | 0.16.0 | **Part two - where the marks went**, per question and per reason |
 | 0.17.0 | **Part three - the loop closes**, gaps pull cards into Review |
 | 0.18.0 | **Phase 7 - term planning.** Tasks finally saves what it unpacks |
+| 0.18.1 | Measurement for all of the above, and 7 dead events fixed |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -259,11 +261,11 @@ before committing.** Use a fresh port every time - see the traps.
 - Testable hooks: `NexleySync.run/status`, `NexleyErrors._capture/report/diagnostics/pending`,
   `NexleyAnalytics.sanitize/track/events/flush/pending`, `NexleyDB.all/get/put`.
 - **Adding an analytics event takes two edits** - the `ALLOWED` map in `analytics.js` and the
-  CHECK constraint in migration 0007. A test asserts the two lists match.
-- **The feedback board fires no analytics event**, deliberately: adding one needs a
-  migration to widen 0007's CHECK constraint, and that was not worth bundling into a
-  feature that already carries a migration of its own. Worth adding later - "how many
-  people ever open the board" is the number that says whether it works.
+  CHECK constraint (now in migration 0012, which drops and replaces 0007's).
+  `test/test_events.js` really does assert the two lists match now - for seven versions
+  that claim was only a comment, and writing the test turned up SEVEN declared events that
+  nothing had ever emitted. It also checks every declared event is actually fired
+  somewhere, which is what caught them.
 - **A second reply on the same feedback item is only visible because seen-state is keyed
   by id AND rev.** The dashboard bumping `rev` on every update (0003's auto-touch branch)
   is what makes that work, so do not "simplify" the key to just the id.
