@@ -2557,7 +2557,7 @@
 
       var chip = document.createElement('span');
       chip.className = 'due-chip now';
-      chip.textContent = trimNum(r.lost) + ' marks';
+      chip.textContent = marksLabel(r.lost);
       meta.appendChild(chip);
 
       var s = subjectById(r.node.subjectId);
@@ -3963,6 +3963,12 @@
     return String(Math.round(n * 100) / 100);
   }
 
+  // "1 mark", "2 marks", "1.5 marks". Four places were building this by hand and
+  // every one of them said "1 marks".
+  function marksLabel(n) {
+    return trimNum(n) + (n === 1 ? ' mark' : ' marks');
+  }
+
   function paperRow(p) {
     var row = document.createElement('button');
     row.type = 'button';
@@ -4150,7 +4156,7 @@
 
     var lead = document.createElement('p');
     lead.className = 'mk-lossnote';
-    lead.textContent = trimNum(res.lost) + ' marks dropped across the papers you have broken down. '
+    lead.textContent = marksLabel(res.lost) + ' dropped across the papers you have broken down. '
       + 'These are different problems with different fixes, which is the only reason the split is worth having.';
     wrap.appendChild(lead);
 
@@ -4167,7 +4173,7 @@
 
       var n = document.createElement('span');
       n.className = 'mk-lossn';
-      n.textContent = trimNum(r.lost) + ' marks · ' + r.count + (r.count === 1 ? ' question' : ' questions');
+      n.textContent = marksLabel(r.lost) + ' · ' + r.count + (r.count === 1 ? ' question' : ' questions');
       top.appendChild(n);
 
       row.appendChild(top);
@@ -4232,15 +4238,25 @@
 
       var lost = document.createElement('span');
       lost.className = 'mk-lossn';
-      lost.textContent = trimNum(r.lost) + ' marks';
+      lost.textContent = marksLabel(r.lost);
       row.appendChild(lost);
 
       if (!cards.length) {
-        // honest about why there is no button, rather than just not having one
-        var none = document.createElement('span');
-        none.className = 'mk-gapnote';
-        none.textContent = 'no cards yet';
-        row.appendChild(none);
+        /* Used to say "no cards yet" and stop — honest about why there was no
+           button, but it left the dot point you had most measurably lost marks
+           on as the one thing here you could not act on. Same action Review's
+           mistake list offers, for the same reason. */
+        var mk = document.createElement('button');
+        mk.type = 'button';
+        mk.className = 'btn ghost mk-gapbtn';
+        mk.textContent = 'Write a card';
+        mk.addEventListener('click', function () {
+          openCardDialog(null, {
+            front: '', back: '',
+            subjectId: node.subjectId, syllabusId: node.id, noteId: null
+          }, 'mistake');
+        });
+        row.appendChild(mk);
       } else {
         var waiting = cards.filter(function (c) { return c.due <= Date.now(); }).length;
         var b = document.createElement('button');
@@ -4275,9 +4291,15 @@
      "Cancel" silently kept every question change, which is the kind of quiet
      data-loss-in-reverse that is very hard to notice. */
   var draftQuestions = [];
+  /* Which questions have their answer box open, for the life of one dialog.
+     Kept here rather than on the draft question itself, because everything on
+     the draft is written straight into the record on save — a UI toggle has no
+     business being stored and synced to every other device. */
+  var openScripts = {};
 
   function openPaperDialog(p) {
     editingPaper = p || null;
+    openScripts = {};
     draftQuestions = (p && p.questions ? p.questions : []).map(function (q) {
       return { id: q.id, label: q.label, mark: q.mark, outOf: q.outOf,
                reason: q.reason || null, syllabusId: q.syllabusId || null, note: q.note || null,
@@ -4299,6 +4321,7 @@
     renderQuestions();
     $('pprError').hidden = true;
     $('pprDialog').showModal();
+    autosizeResponses();                 // heights only measure once it is open
     setTimeout(function () { $('pprTitle').focus(); }, 60);
   }
 
@@ -4460,7 +4483,25 @@
       wrap.appendChild(block);
     });
 
+    autosizeResponses();
     renderQuestionTally();
+  }
+
+  /* Only measurable once they are in the document AND the dialog is actually
+     open — a closed <dialog> is display:none and every height reads 0, which
+     is why openPaperDialog calls this again after showModal(). */
+  function autosizeResponses() {
+    var boxes = $('pprQuestions').getElementsByClassName('q-response');
+    for (var i = 0; i < boxes.length; i++) autosize(boxes[i]);
+  }
+
+  /* A short textarea that scrolls inside a dialog that also scrolls is a wheel
+     trap: you try to move the dialog, the box eats it, and nothing appears to
+     happen. Growing it to fit means only one thing on screen ever scrolls. */
+  function autosize(ta) {
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
   }
 
   /* ------------------------------------------------------------
@@ -4477,12 +4518,34 @@
     var wrap = document.createElement('div');
     wrap.className = 'q-script-wrap';
 
+    /* Collapsed until asked for. Most questions on most papers will never have
+       their answer typed out — a 30-question paper is not going to be
+       transcribed — so an always-visible box would cost height on every row to
+       serve the few that use it, and make the dialog read as a form to fill in
+       rather than one to fill in as far as it is worth going. */
+    if (!q.response && !openScripts[q.id]) {
+      var add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'q-addscript';
+      add.textContent = '+ answer text';
+      add.title = 'Paste what you wrote, then mark it up phrase by phrase';
+      add.addEventListener('click', function () {
+        openScripts[q.id] = true;
+        renderQuestions();
+        var el = $('pprQuestions').querySelector('[data-q="' + q.id + '"]');
+        if (el) el.focus();
+      });
+      wrap.appendChild(add);
+      return wrap;
+    }
+
     var ta = document.createElement('textarea');
     ta.className = 'q-response';
-    ta.placeholder = 'Paste your written answer here to mark it up phrase by phrase (optional)';
+    ta.placeholder = 'Paste your written answer here to mark it up phrase by phrase';
     ta.rows = 2;
     ta.value = q.response || '';
-    ta.addEventListener('input', function () { q.response = this.value; });
+    ta.dataset.q = q.id;
+    ta.addEventListener('input', function () { q.response = this.value; autosize(this); });
     ta.addEventListener('blur', function () {
       q.response = this.value.trim() || null;
       renderQuestions();
@@ -4682,7 +4745,7 @@
     var counted = 0, lost = 0;
     draftQuestions.forEach(function (q) { counted += (q.outOf || 0); lost += lostOn(q); });
     var paperOutOf = parseFloat($('pprOutOf').value);
-    var msg = trimNum(counted) + ' marks broken down';
+    var msg = marksLabel(counted) + ' broken down';
     if (!isNaN(paperOutOf) && paperOutOf > 0) {
       msg += ' of ' + trimNum(paperOutOf);
       if (counted < paperOutOf) msg += ' — ' + trimNum(paperOutOf - counted) + ' still unaccounted for';

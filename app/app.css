@@ -873,7 +873,6 @@ a{color:var(--structure)}
   padding:11px 0;border-bottom:1px solid var(--rule-soft)}
 .mk-gap:last-child{border-bottom:0}
 .mk-gapname{font-family:var(--text);font-size:var(--t-md);color:var(--ink);flex:1;min-width:150px}
-.mk-gapnote{font-family:var(--code);font-size:var(--t-sm);color:var(--muted)}
 .mk-gapbtn{flex:none;font-size:var(--t-sm)}
 
 /* the per-question editor. One line per question on a laptop; it wraps on a
@@ -891,11 +890,16 @@ a{color:var(--structure)}
 /* Groups "got / of" as one flex item so .qrow's wrap breaks between fields, never
    inside this pair. */
 .q-marks{display:inline-flex;align-items:center;gap:var(--s-2)}
-.q-num{width:64px;text-align:right}
-/* clears the browser's native number-input spinner, which otherwise sits on top
-   of a right-aligned "got"/"of" placeholder — needs to out-specify the shared
-   .qrow input padding shorthand above */
-.qrow input.q-num{padding-right:var(--s-6)}
+.q-num{text-align:right}
+/* Both of these are overrides of `.fld input[type=number]`, which sits later in
+   this file AND is more specific than a bare `.q-num`, so it silently won:
+     - its width:100% stretched each mark box to fill the whole marks group,
+       which is why a question row read as two huge boxes and pushed the remove
+       button onto a line of its own;
+     - its padding left a right-aligned "got"/"of" placeholder sitting under the
+       browser's native spinner.
+   Scoped to .fld .qrow so it outranks that rule without reaching for an id. */
+.fld .qrow input.q-num{width:64px;padding-right:var(--s-6)}
 .q-slash{color:var(--muted);font-family:var(--code);font-size:var(--t-sm)}
 .q-why{flex:1;min-width:132px;max-width:200px}
 .q-point{flex:2;min-width:150px;max-width:280px}
@@ -911,7 +915,15 @@ a{color:var(--structure)}
 
 /* ---------- the marked script — see app.js "the marked script" ---------- */
 .q-script-wrap{display:flex;flex-direction:column;gap:var(--s-3);padding-left:var(--s-6)}
-.q-response{width:100%;resize:vertical;min-height:2.6em;font-family:var(--text);
+/* The collapsed state. A quiet link, not a button: it competes with Save and
+   "+ Add a question" for attention otherwise, and it is the least important
+   control in the dialog. */
+.q-addscript{align-self:flex-start;background:none;border:0;padding:2px 0;
+  font-size:var(--t-sm);color:var(--muted);cursor:pointer;border-radius:var(--r-sm)}
+.q-addscript:hover{color:var(--structure)}
+/* height is set from content by autosize() in app.js — no inner scrollbar, so
+   the dialog is the only thing the wheel moves */
+.q-response{width:100%;resize:none;overflow:hidden;min-height:2.6em;font-family:var(--text);
   font-size:var(--t-base);line-height:1.55;border:1px solid var(--rule);
   border-radius:var(--r-md);background:var(--paper);color:var(--ink);padding:var(--s-4)}
 .q-response:focus{outline:none;border-color:var(--structure)}
@@ -935,9 +947,11 @@ a{color:var(--structure)}
 .q-span-kind{width:auto}
 .q-span-note{flex:2;min-width:150px}
 
+/* Same specificity problem as above, and it mattered most here: iPads are the
+   stated target, and both of these were being beaten by `.fld input[...]`. */
 @media (pointer:coarse){
-  .qrow input,.qrow select{font-size:1rem;padding:9px 10px}
-  .q-num{width:72px}
+  .fld .qrow input,.fld .qrow select{font-size:1rem;padding:9px 10px}
+  .fld .qrow input.q-num{width:72px;padding-right:var(--s-7)}
 }
 
 /* dialog form fields — shared with any later dialog that needs labelled inputs */
@@ -1021,6 +1035,11 @@ dialog{border:1px solid var(--rule);border-radius:var(--r-lg);background:var(--c
   color:var(--ink);padding:0;width:min(440px,92vw);
   box-shadow:0 34px 76px -44px rgb(var(--shade)/.6)}
 dialog::backdrop{background:rgb(var(--shade)/.5)}
+/* 440 is right for the dialogs that ask one or two things. Recording a paper is
+   the one data-entry form in the app with a repeating multi-field row, and at
+   440 every question wraps onto three lines — a wall of boxes rather than a
+   table of questions. It gets the width its content actually needs. */
+#pprDialog{width:min(680px,94vw)}
 dialog form{padding:26px;display:flex;flex-direction:column;gap:var(--s-6)}
 dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 .swatches{display:flex;gap:var(--s-4);flex-wrap:wrap}
