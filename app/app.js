@@ -5122,11 +5122,25 @@
         (cur[4] || []).forEach(function (pp) { index['p:' + pp.id] = pp; });
         (cur[5] || []).forEach(function (cm) { index['m:' + cm.id] = cm; });
 
+        /* `pushedRev` is dropped, and this is not cosmetic. An export contains
+           the raw records, so a note that was in sync on the exporting device
+           arrives with pushedRev === rev — and push is gated on
+           `pushedRev < rev`. Written back verbatim, every imported record is
+           already "sent" as far as sync is concerned, so an import onto a
+           second device showed the notes locally and never once put them on
+           the account. Confirmed against real records: rev 8, pushedRev 8.
+
+           `updated` is deliberately NOT touched, unlike restore. It is real
+           information here — `consider()` above uses it to decide what is
+           newer, and re-stamping would make an old export win over newer
+           work. Dropping pushedRev is enough to get it onto the wire. */
         function consider(store, prefix, rec) {
           var mine = index[prefix + rec.id];
           if (mine && (mine.updated || 0) >= (rec.updated || 0)) { skipped++; return; }
           kept++;
-          jobs.push(put(store, rec));
+          var copy = Object.assign({}, rec);
+          delete copy.pushedRev;
+          jobs.push(put(store, copy));
         }
         (data.subjects || []).forEach(function (s) { consider('subjects', 's:', s); });
         (data.syllabus || []).forEach(function (y) { consider('syllabus', 'y:', y); });

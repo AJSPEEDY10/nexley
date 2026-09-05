@@ -531,10 +531,22 @@ before committing.** Use a fresh port every time - see the traps.
     still on the server — newer than the record being restored — came back down
     and deleted it again. The note reappeared, then vanished at the next sync,
     with nothing in the UI to explain it. Fixed 09-06 by `stamp()`ing every
-    restored record and dropping `pushedRev`. The same trap is waiting for any
-    future feature that revives old records — import merge, undo, conflict
-    repair. If it writes a record whose `updated` predates the server's copy,
-    it has not done anything.
+    restored record and dropping `pushedRev`.
+
+    **Import had the same fault and it was live.** An export contains raw
+    records, so a note that was in sync on the exporting device arrives with
+    `pushedRev === rev` (confirmed against production: rev 8, pushedRev 8) —
+    written back verbatim it is already "sent" as far as push is concerned, so
+    importing onto a second device showed the notes locally and never once put
+    them on the account. Fixed 09-06 by dropping `pushedRev` on import.
+    `updated` is deliberately left alone there, unlike restore: it is real
+    information the merge uses to decide what is newer, and re-stamping would
+    let an old export beat newer work.
+
+    Any future feature that revives old records — undo, conflict repair, a
+    second import path — has this waiting for it. Two questions to ask: will
+    it push (`pushedRev < rev`), and will it survive the next pull
+    (`updated` newer than the server's copy).
 
 14. **Never write a repo file with Python's text-mode `open(p,'w')` on this machine.**
     Windows translates `\n` to `\r\n`, so a two-line edit silently rewrites every line
