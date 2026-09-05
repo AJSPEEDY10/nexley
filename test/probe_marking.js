@@ -33,11 +33,14 @@
  *                           unsupported criterion.
  *   half_right           — one of two required things is missing. Watching
  *                           for: partial credit (not 0), no invention.
- *   different_wording     — right idea, different words to the obvious
- *                           phrasing. Watching for: marked on substance, not
- *                           penalised for not matching a wording nobody
- *                           required. (Live run 09-05 exposed a mistake in
- *                           THIS test case, not the model — see PROBE LOG.)
+ *   different_wording     — every fact correct, none of it in the words a
+ *                           marking guide would use: "phosphagen system" for
+ *                           ATP-PC, "free phosphate" for inorganic phosphate,
+ *                           "glycolysis run without oxygen" for anaerobic
+ *                           glycolysis. Watching for: full marks. Anything
+ *                           less means it is marking vocabulary rather than
+ *                           understanding, which is the failure this whole
+ *                           prompt exists to prevent, pointed the other way.
  *   irrelevant_wrong_fact — the response volunteers a wrong claim that the
  *                           supplied criterion doesn't cover. Watching for:
  *                           the covered criterion still marked on its own
@@ -55,13 +58,14 @@
  *   silent_detail: 2/2, no invented threshold, quoted+judged the real
  *     duration correctly — the exact case Rule 2 was reworded for.
  *   half_right: 1/2, correct partial credit, no invention.
- *   different_wording: 1/2 — NOT a marker bug. This test case claimed "heat"
- *     as the ATP-PC system's only by-product, which is wrong; the model
- *     correctly used outside knowledge to judge that against the real
- *     by-products (creatine, inorganic phosphate) rather than accepting it
- *     as an honest paraphrase. Legitimate under the reworded Rule 2 (judge
- *     correctness; don't add requirements). Fix the case's chemistry before
- *     re-running, or leave it — it already demonstrated the right behaviour.
+ *   different_wording: 1/2 — NOT a marker bug, a bug in the CASE. It claimed
+ *     "heat" as the ATP-PC system's only by-product, which is simply wrong,
+ *     and the model correctly marked it against the real by-products rather
+ *     than accepting it as a paraphrase — legitimate under the reworded
+ *     Rule 2 (judge correctness; do not add requirements). Worth remembering
+ *     that an adversarial case can itself be the thing that is wrong.
+ *     REWRITTEN 09-06 to be genuinely correct-but-differently-worded, so it
+ *     now tests what it was meant to test. Not yet re-run.
  *   irrelevant_wrong_fact, ambiguous_criterion: NOT YET RUN — hit the daily
  *     cap. Re-run after reset (10am AEST) and update this log.
  */
@@ -91,7 +95,7 @@ async function runNexleyProbe() {
       question: 'Explain the by-products of the ATP-PC and anaerobic glycolytic systems.',
       outOf: 2,
       criteria: '- 2 marks: correctly identifies the by-products of BOTH systems',
-      response: 'The ATP-PC system produces heat as its only by-product, while the anaerobic glycolytic system produces lactate and hydrogen ions.'
+      response: 'The phosphagen system leaves behind creatine and free phosphate, while glycolysis run without oxygen yields lactate and H+ ions.'
     },
     {
       name: 'irrelevant_wrong_fact',
