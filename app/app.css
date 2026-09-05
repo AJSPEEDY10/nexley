@@ -307,6 +307,11 @@ a{color:var(--structure)}
 .syncline:hover{color:var(--ink-2)}
 .syncline.warn:hover{color:var(--danger)}
 
+/* Sits under the sync line and reads as part of the same quiet status block —
+   an observation, not a score. No colour, no icon, nothing to click. */
+.streakline{font-family:var(--code);font-size:var(--t-xs);letter-spacing:.06em;
+  color:var(--muted);padding:0 0 8px}
+
 .rail-foot{display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--rule);
   padding-top:12px}
 .storage-note{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.04em;

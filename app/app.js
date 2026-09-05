@@ -598,6 +598,7 @@
       // drop tabs whose notes have gone
       state.tabs = state.tabs.filter(noteById);
       renderSubjects();
+      renderStreak();
       renderBrowser();
       renderTabs();
       // re-rendering the editor rewrites the note body and drops the caret, so a
@@ -3112,6 +3113,72 @@
      you be the judge; the app has no way to grade the difference and should
      not pretend otherwise.
      ============================================================ */
+  /* ============================================================
+     12j · the streak
+     ------------------------------------------------------------
+     DERIVED, NEVER STORED — the same rule confidence follows. Every record
+     already carries `updated`, so "days you touched your work" is a query, not
+     a field. A stored counter is a number that can drift from the truth and
+     then needs repairing, and it would have to sync, and two devices would
+     disagree about it.
+
+     ONE DAY OFF DOES NOT BREAK IT. A streak that resets the moment you have a
+     sick day is a guilt mechanic, and this app's tone is the opposite of that
+     — the planner's whole point is "you are not behind, this week was
+     over-committed." Two missed days in a row ends it; one does not. The rule
+     is written in the tooltip rather than hidden, because a fudge you cannot
+     see is just a lie about how well you are doing.
+
+     It is also silent below two days. "1 day in a row" is not a streak, it is
+     a Tuesday.
+     ============================================================ */
+  var DAY_MS = 86400000;
+
+  // a stable integer per LOCAL calendar day
+  function dayNum(ts) {
+    var d = new Date(ts);
+    return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS);
+  }
+
+  /* Pure so the grace rule is testable. `days` is any list of day numbers that
+     had activity; order and duplicates do not matter. */
+  function streakFrom(days, today) {
+    var seen = {};
+    (days || []).forEach(function (d) { seen[d] = true; });
+
+    /* Start at today if you have already worked, otherwise at yesterday — not
+       having opened the app yet today has never been evidence of anything. */
+    var cursor = seen[today] ? today : (seen[today - 1] ? today - 1 : null);
+    if (cursor === null) return 0;
+
+    var count = 0, missed = 0, floor = today - 400;
+    while (cursor >= floor) {
+      if (seen[cursor]) { count++; missed = 0; }
+      else if (++missed >= 2) break;      // two in a row ends it, one does not
+      cursor--;
+    }
+    return count;
+  }
+
+  function activeDayNumbers() {
+    var out = [];
+    [state.notes, state.cards, state.papers, state.commitments].forEach(function (list) {
+      (list || []).forEach(function (r) { if (r && r.updated) out.push(dayNum(r.updated)); });
+    });
+    return out;
+  }
+
+  function renderStreak() {
+    var el = $('streakLine');
+    if (!el) return;
+    var n = streakFrom(activeDayNumbers(), dayNum(Date.now()));
+    if (n < 2) { el.hidden = true; return; }
+    el.hidden = false;
+    el.textContent = n + ' days in a row';
+    el.title = 'Days you wrote, reviewed or recorded something. '
+      + 'A single day off does not break it.';
+  }
+
   var PAST_YOU_DAYS = 21;
 
   /* Pure, so the rules above are testable without a DOM: same dot point, not

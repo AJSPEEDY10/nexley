@@ -195,6 +195,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <i class="sdot"></i><span id="syncText">Checking…</span>
     </button>
 
+    <!-- Derived from the timestamps already on every record, never stored, and
+         hidden until it is worth saying. See app.js 12j. -->
+    <p class="streakline" id="streakLine" hidden></p>
+
     <div class="rail-foot">
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
