@@ -1,11 +1,11 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.17.0, SW cache `nexley-v26`
-**Backend:** migrations 0005-0010 applied to prod **and** dev. **Sync verified working.**
+**Session:** 2026-09-02 to 09-04 · **Ended at:** v0.18.0, SW cache `nexley-v27`
+**Backend:** migrations 0005-0011 applied to prod **and** dev. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
 **Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js`, `test_marks.js` - all green (123 assertions)
+`test_feedback.js`, `test_marks.js`, `test_plan.js` - all green (171 assertions)
 
 ---
 
@@ -61,6 +61,7 @@ Everything else that was waiting on him has been cleared or dropped:
 | 0.15.0 | **Phase 6 part one - real marks**, recorded with their conditions |
 | 0.16.0 | **Part two - where the marks went**, per question and per reason |
 | 0.17.0 | **Part three - the loop closes**, gaps pull cards into Review |
+| 0.18.0 | **Phase 7 - term planning.** Tasks finally saves what it unpacks |
 
 Plus the design token system (97 font sizes / 61 gaps / 47 radii onto three scales).
 
@@ -112,8 +113,26 @@ Ordered. Each phase either unblocks or de-risks the next.
   capture, which is Phase 8 territory, which is why it stopped here.
 - **No predicted band, ever** - `test_marks.js` fails if someone adds one.
 
-**Phase 7 - Term planning.** Workload per subject per week, collision detection weeks out,
-committed vs available hours. "You are not behind, you are over-committed."
+**Phase 7 - term planning. DONE 09-05 (v0.18.0).** Tasks could unpack a notification and
+then forgot it existed; it now saves commitments (migration 0011) and shows the next eight
+weeks.
+- Hours are attributed to the week a thing is **due** - a fact about a deadline, not a
+  model of when you would do the work. The app cannot know when you would start, so it
+  says the true thing instead: this much has to be finished by this week, and if that is
+  more than a week holds it cannot all start in that week.
+- `hours_estimate` is nullable on purpose. Unestimated work is COUNTED and reported
+  ("9h due, 2 not estimated") but never treated as zero, and can never on its own trigger
+  an over-commitment warning - inventing a size to justify a warning is the same
+  fabrication pointing the other way.
+- The framing is deliberate and is the phase's whole point: an over-committed week is
+  arithmetic, not a judgement. "You are not behind - this week was over-committed the day
+  these were set."
+- The unpacker now offers to save what it read, opening the dialog PREFILLED rather than
+  saving, because the title and date are inferred. `parseDueDate` takes the nearest future
+  occurrence when no year is stated and returns null rather than guessing; `taskTitle`
+  skips year/term headers.
+- Weekly capacity is per-device in `localStorage` - a fact about your life this term, not
+  study content, one number, re-entered in a tap.
 
 **Phase 8 - native wrap.** Capacitor, cloud build (no Mac needed), TestFlight, private
 invites. Deliberately late: store review blocks daily iteration, so the PWA stays the
