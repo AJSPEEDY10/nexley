@@ -1,0 +1,22 @@
+-- ---------------------------------------------------------------------------
+-- Fix to 0013: the edge function could not call its own quota function.
+--
+-- 0013 ended with
+--     revoke all on function public.ai_usage_take(uuid, integer)
+--       from public, anon, authenticated;
+-- which was right in intent and wrong in effect. Postgres grants EXECUTE on a
+-- new function to PUBLIC by default, and `service_role` was relying on that
+-- inherited grant rather than one of its own — so revoking from public revoked
+-- it from the service role as well, and every call came back 500.
+--
+-- Caught by calling the deployed function from the live app: validation errors
+-- returned correctly (400, 413) while a real request failed at the quota step,
+-- which is exactly the shape of "the RPC is refusing me".
+--
+-- The revoke stays. The point of it — that a signed-in student cannot execute
+-- the function that raises their own ceiling — is unchanged. This just gives the
+-- one role that is supposed to call it an explicit grant instead of an inherited
+-- one, which is how it should have been written in the first place.
+-- ---------------------------------------------------------------------------
+
+grant execute on function public.ai_usage_take(uuid, integer) to service_role;
