@@ -17,6 +17,7 @@ function grab(startMarker, endMarker) {
 }
 
 eval(grab('var CONDITIONS = [', '  var mkSubject = null;'));
+eval(grab('function findSpanRanges(response, spans) {', '  function syllabusPoints(subjectId) {'));
 
 let pass = 0, fail = 0;
 function ok(label, cond, detail) {
@@ -213,6 +214,47 @@ ok('full marks means nothing was lost', gp.length === 0);
 console.log('\n22. Nothing recorded');
 ok('no questions, no gaps', gapsByPoint([{ questions: [] }]).length === 0);
 ok('a paper with no questions key is safe', gapsByPoint([{}]).length === 0);
+
+console.log('\n23. The marked script — matching a span back to the response text');
+/* findSpanRanges matches by substring, not a stored offset, because an offset
+   goes stale the moment the response text is edited. That trade-off has its
+   own failure modes — this is where they get pinned down. */
+const RESPONSE = 'A frameshift mutation shifts the reading frame. A substitution only changes one base.';
+
+let sr = findSpanRanges(RESPONSE, [{ id: '1', text: 'shifts the reading frame', positive: false }]);
+ok('a single span is found', sr.length === 1);
+ok('at the right offset', sr[0].start === RESPONSE.indexOf('shifts the reading frame'));
+
+sr = findSpanRanges(RESPONSE, [
+  { id: '1', text: 'A frameshift mutation', positive: true },
+  { id: '2', text: 'A substitution only changes one base', positive: false }
+]);
+ok('two non-overlapping spans both found', sr.length === 2);
+ok('returned in reading order, not insertion order',
+   sr[0].span.id === '1' && sr[1].span.id === '2');
+
+console.log('\n24. Overlapping spans never double up — first found wins');
+sr = findSpanRanges(RESPONSE, [
+  { id: '1', text: 'shifts the reading frame', positive: false },
+  { id: '2', text: 'the reading frame', positive: true }
+]);
+ok('only the first span claims the text', sr.length === 1, JSON.stringify(sr.map(x => x.span.id)));
+ok('the first one in the array is the one kept', sr[0].span.id === '1');
+
+console.log('\n25. Text edited out from under a span is dropped, not mis-highlighted');
+sr = findSpanRanges('A completely different answer.', [
+  { id: '1', text: 'shifts the reading frame', positive: false }
+]);
+ok('no match, no wrong highlight', sr.length === 0);
+
+console.log('\n26. A repeated phrase can be annotated as two separate spans');
+const REPEATED = 'It depends. It depends on the context.';
+sr = findSpanRanges(REPEATED, [
+  { id: '1', text: 'It depends', positive: false },
+  { id: '2', text: 'It depends', positive: true }
+]);
+ok('both occurrences are found', sr.length === 2, JSON.stringify(sr));
+ok('they do not land on the same offset', sr[0].start !== sr[1].start);
 
 console.log('\n==============================================');
 console.log('  ' + pass + ' passed, ' + fail + ' failed');

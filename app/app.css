@@ -865,7 +865,10 @@ a{color:var(--structure)}
 
 /* the per-question editor. One line per question on a laptop; it wraps on a
    phone rather than turning into a horizontally scrolling table. */
-.qlist{display:flex;flex-direction:column;gap:var(--s-3)}
+.qlist{display:flex;flex-direction:column;gap:var(--s-5)}
+.qblock{display:flex;flex-direction:column;gap:var(--s-3);padding-bottom:var(--s-5);
+  border-bottom:1px solid var(--rule-soft)}
+.qblock:last-child{padding-bottom:0;border-bottom:0}
 .qrow{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap}
 .qrow input,.qrow select{border:1px solid var(--rule);border-radius:var(--r-md);
   background:var(--paper);color:var(--ink);padding:7px 9px;
@@ -892,6 +895,32 @@ a{color:var(--structure)}
 .q-rm:hover{color:var(--danger);background:var(--bad-soft)}
 .qadd{align-self:flex-start}
 .dlgnote.warn{color:var(--bad)}
+
+/* ---------- the marked script — see app.js "the marked script" ---------- */
+.q-script-wrap{display:flex;flex-direction:column;gap:var(--s-3);padding-left:var(--s-6)}
+.q-response{width:100%;resize:vertical;min-height:2.6em;font-family:var(--text);
+  font-size:var(--t-base);line-height:1.55;border:1px solid var(--rule);
+  border-radius:var(--r-md);background:var(--paper);color:var(--ink);padding:var(--s-4)}
+.q-response:focus{outline:none;border-color:var(--structure)}
+.q-script{font-family:var(--text);font-size:var(--t-base);line-height:1.8;
+  border:1px solid var(--rule-soft);border-radius:var(--r-md);background:var(--card);
+  padding:var(--s-5);color:var(--ink-2)}
+.q-span-mark{background:none;border-radius:2px;padding:0 1px;cursor:pointer;color:inherit;
+  border-bottom:2px solid currentColor}
+.q-span-mark.pos{color:var(--good);background:var(--good-soft)}
+.q-span-mark.neg{color:var(--bad);background:var(--bad-soft)}
+.q-span-mark.on{outline:2px solid currentColor;outline-offset:1px}
+.q-annotate{align-self:flex-start;background:none;border:1px dashed var(--rule);
+  border-radius:var(--r-md);padding:5px 11px;font-size:var(--t-sm);color:var(--muted);cursor:pointer}
+.q-annotate:hover{border-color:var(--structure);color:var(--structure)}
+.q-spanlist{display:flex;flex-direction:column;gap:var(--s-2)}
+.q-span-row{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;
+  padding:var(--s-2) 0;border-radius:var(--r-sm)}
+.q-span-row.on{background:var(--structure-soft)}
+.q-span-quote{font-family:var(--text);font-style:italic;font-size:var(--t-sm);color:var(--ink-2);
+  flex:1;min-width:160px}
+.q-span-kind{width:auto}
+.q-span-note{flex:2;min-width:150px}
 
 @media (pointer:coarse){
   .qrow input,.qrow select{font-size:1rem;padding:9px 10px}

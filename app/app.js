@@ -4074,7 +4074,11 @@
     editingPaper = p || null;
     draftQuestions = (p && p.questions ? p.questions : []).map(function (q) {
       return { id: q.id, label: q.label, mark: q.mark, outOf: q.outOf,
-               reason: q.reason || null, syllabusId: q.syllabusId || null, note: q.note || null };
+               reason: q.reason || null, syllabusId: q.syllabusId || null, note: q.note || null,
+               response: q.response || null,
+               spans: Array.isArray(q.spans) ? q.spans.map(function (s) {
+                 return { id: s.id, text: s.text, positive: !!s.positive, reason: s.reason || null, note: s.note || '' };
+               }) : [] };
     });
     $('pprHeading').textContent = p ? 'Edit this paper' : 'Record a paper';
     $('pprTitle').value = p ? p.title : '';
@@ -4242,10 +4246,196 @@
       row.appendChild(rm);
 
       updateQuestionState(row, q);
-      wrap.appendChild(row);
+
+      var block = document.createElement('div');
+      block.className = 'qblock';
+      block.appendChild(row);
+      block.appendChild(renderMarkedScript(q));
+      wrap.appendChild(block);
     });
 
     renderQuestionTally();
+  }
+
+  /* ------------------------------------------------------------
+     the marked script — read it, don't just total it
+     ------------------------------------------------------------
+     Everything above this reduces a question to a number and a category.
+     That is enough to know WHAT to fix, but not enough to see it — the actual
+     sentence that earned or lost the mark. This is that: paste the answer you
+     wrote, select the phrase that mattered, say why. Entirely manual and
+     entirely local, unlike the AI marking path in marking.js — it does not
+     wait on that feature's validation, and nothing here ever writes a mark;
+     it only annotates marks the student already entered above. */
+  function renderMarkedScript(q) {
+    var wrap = document.createElement('div');
+    wrap.className = 'q-script-wrap';
+
+    var ta = document.createElement('textarea');
+    ta.className = 'q-response';
+    ta.placeholder = 'Paste your written answer here to mark it up phrase by phrase (optional)';
+    ta.rows = 2;
+    ta.value = q.response || '';
+    ta.addEventListener('input', function () { q.response = this.value; });
+    ta.addEventListener('blur', function () {
+      q.response = this.value.trim() || null;
+      renderQuestions();
+    });
+    wrap.appendChild(ta);
+
+    if (!q.response) return wrap;
+
+    var script = document.createElement('div');
+    script.className = 'q-script';
+    var ranges = findSpanRanges(q.response, q.spans || []);
+    var pos = 0;
+    ranges.forEach(function (r) {
+      if (r.start > pos) script.appendChild(document.createTextNode(q.response.slice(pos, r.start)));
+      var mk = document.createElement('mark');
+      mk.className = 'q-span-mark ' + (r.span.positive ? 'pos' : 'neg');
+      mk.textContent = q.response.slice(r.start, r.end);
+      mk.dataset.spanId = r.span.id;
+      mk.tabIndex = 0;
+      mk.addEventListener('click', function () { focusSpan(script, foot, r.span.id); });
+      script.appendChild(mk);
+      pos = r.end;
+    });
+    if (pos < q.response.length) script.appendChild(document.createTextNode(q.response.slice(pos)));
+    wrap.appendChild(script);
+
+    var addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'q-annotate';
+    addBtn.textContent = '+ Annotate selection';
+    /* Without this, the browser clears the text selection on mousedown as focus
+       moves to the button — before the click handler below ever runs — so the
+       selection this button is supposed to act on is already gone by the time
+       it fires. */
+    addBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    addBtn.addEventListener('click', function () {
+      var sel = window.getSelection();
+      var text = sel && !sel.isCollapsed ? String(sel).trim() : '';
+      if (!text || !sel.rangeCount || !script.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        toast('Select a phrase in your answer first.');
+        return;
+      }
+      q.spans = q.spans || [];
+      q.spans.push({ id: uid(), text: text, positive: false, reason: null, note: '' });
+      sel.removeAllRanges();
+      renderQuestions();
+    });
+    wrap.appendChild(addBtn);
+
+    var foot = document.createElement('div');
+    foot.className = 'q-spanlist';
+    (q.spans || []).forEach(function (s) {
+      foot.appendChild(renderSpanRow(q, s));
+    });
+    wrap.appendChild(foot);
+
+    return wrap;
+  }
+
+  function focusSpan(script, foot, id) {
+    script.querySelectorAll('.q-span-mark').forEach(function (m) {
+      m.classList.toggle('on', m.dataset.spanId === id);
+    });
+    foot.querySelectorAll('.q-span-row').forEach(function (r) {
+      r.classList.toggle('on', r.dataset.spanId === id);
+    });
+  }
+
+  function renderSpanRow(q, s) {
+    var row = document.createElement('div');
+    row.className = 'q-span-row';
+    row.dataset.spanId = s.id;
+
+    var quote = document.createElement('span');
+    quote.className = 'q-span-quote';
+    quote.textContent = '"' + s.text + '"';
+    row.appendChild(quote);
+
+    var kind = document.createElement('select');
+    kind.className = 'q-span-kind';
+    [['pos', 'Earned'], ['neg', 'Lost']].forEach(function (o) {
+      var opt = document.createElement('option');
+      opt.value = o[0]; opt.textContent = o[1];
+      kind.appendChild(opt);
+    });
+    kind.value = s.positive ? 'pos' : 'neg';
+    kind.addEventListener('change', function () {
+      s.positive = this.value === 'pos';
+      renderQuestions();
+    });
+    row.appendChild(kind);
+
+    if (!s.positive) {
+      var reason = document.createElement('select');
+      reason.className = 'q-span-reason';
+      var blank = document.createElement('option');
+      blank.value = ''; blank.textContent = 'why?';
+      reason.appendChild(blank);
+      LOSS_REASONS.forEach(function (r) {
+        var o = document.createElement('option');
+        o.value = r.id; o.textContent = r.label;
+        reason.appendChild(o);
+      });
+      reason.value = s.reason || '';
+      reason.addEventListener('change', function () { s.reason = this.value || null; });
+      row.appendChild(reason);
+    }
+
+    var note = document.createElement('input');
+    note.type = 'text';
+    note.className = 'q-span-note';
+    note.placeholder = 'what this phrase actually did';
+    note.value = s.note || '';
+    note.addEventListener('input', function () { s.note = this.value; });
+    row.appendChild(note);
+
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'q-rm';
+    rm.textContent = '×';
+    rm.title = 'Remove this annotation';
+    rm.setAttribute('aria-label', 'Remove this annotation');
+    rm.addEventListener('click', function () {
+      var idx = q.spans.indexOf(s);
+      if (idx > -1) q.spans.splice(idx, 1);
+      renderQuestions();
+    });
+    row.appendChild(rm);
+
+    return row;
+  }
+
+  /* Matches each span's TEXT back to a position in the response, skipping
+     ranges already claimed by an earlier span so two annotations can never
+     overlap. Matches by substring, not by a stored offset, because offsets
+     drift the moment the response text is edited and a stale offset would
+     silently highlight the wrong words — a wrong-but-plausible-looking
+     highlight is worse than one that quietly fails to show at all. */
+  function findSpanRanges(response, spans) {
+    var used = [];
+    var ranges = [];
+    (spans || []).forEach(function (sp) {
+      if (!sp.text) return;
+      var searchFrom = 0, start = -1, end = -1;
+      while (true) {
+        var found = response.indexOf(sp.text, searchFrom);
+        if (found === -1) break;
+        var e = found + sp.text.length;
+        var overlaps = used.some(function (u) { return found < u.end && e > u.start; });
+        if (!overlaps) { start = found; end = e; break; }
+        searchFrom = found + 1;
+      }
+      if (start !== -1) {
+        used.push({ start: start, end: end });
+        ranges.push({ start: start, end: end, span: sp });
+      }
+    });
+    ranges.sort(function (a, b) { return a.start - b.start; });
+    return ranges;
   }
 
   /* A question with full marks has nothing to explain, so its "why" is hidden
@@ -4298,7 +4488,8 @@
   }
 
   function addQuestion() {
-    draftQuestions.push({ id: uid(), label: '', mark: null, outOf: null, reason: null, note: null });
+    draftQuestions.push({ id: uid(), label: '', mark: null, outOf: null, reason: null, note: null,
+      response: null, spans: [] });
     renderQuestions();
     var rows = $('pprQuestions').getElementsByClassName('qrow');
     var last = rows[rows.length - 1];
