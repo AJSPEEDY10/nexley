@@ -267,14 +267,33 @@
     return get('backups', backupId).then(function (b) {
       if (!b) return;
       return snapshot('before-restore').then(function () {
-        var jobs = (b.subjects || []).map(function (s) { return put('subjects', s); })
-          .concat((b.notes || []).map(function (n) { return put('notes', n); }))
-          .concat((b.syllabus || []).map(function (s) { return put('syllabus', s); }))
+        /* RE-STAMPED, not written back as they were. A snapshot's records carry
+           their original `updated` and `rev`, and writing those back verbatim
+           produced a local state that could not survive contact with the server:
+           push is gated on `pushedRev < rev`, which a restored record fails, so
+           it never went out; and pull is "newest updated wins", so the tombstone
+           still sitting on the server — newer than the record being restored —
+           came straight back down and deleted it again. Restore appeared to work
+           and then quietly undid itself on the next sync, which for the feature
+           that exists to be the safety net is the worst possible failure.
+
+           Re-stamping says the true thing: this is a change being made now, on
+           this device, and it wins for the same reason any other edit does. */
+        var restamp = function (store) {
+          return function (rec) {
+            var copy = Object.assign({}, rec);
+            delete copy.pushedRev;              // nothing about it has been sent
+            return put(store, stamp(copy));
+          };
+        };
+        var jobs = (b.subjects || []).map(restamp('subjects'))
+          .concat((b.notes || []).map(restamp('notes')))
+          .concat((b.syllabus || []).map(restamp('syllabus')))
           // snapshots taken before 0.10.0 have no cards key, and before 0.15.0 no
           // papers key — leave those stores alone rather than emptying them
-          .concat((b.cards || []).map(function (c) { return put('cards', c); }))
-          .concat((b.papers || []).map(function (pp) { return put('papers', pp); }))
-          .concat((b.commitments || []).map(function (cm) { return put('commitments', cm); }));
+          .concat((b.cards || []).map(restamp('cards')))
+          .concat((b.papers || []).map(restamp('papers')))
+          .concat((b.commitments || []).map(restamp('commitments')));
         return Promise.all(jobs);
       }).then(function () {
         state.activeNote = null;

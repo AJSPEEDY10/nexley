@@ -523,6 +523,19 @@ before committing.** Use a fresh port every time - see the traps.
     first — the browser's computed value will tell you in seconds what reading the file
     will not.
 
+15. **Anything written back into IndexedDB from an old copy of itself must be
+    re-stamped.** Restore wrote snapshot records back verbatim, which looked
+    completely correct locally and could not survive sync: push is gated on
+    `pushedRev < rev` and a snapshot's record has them equal, so it never went
+    out; and pull is "newest `updated` wins" (sync.js ~248), so the tombstone
+    still on the server — newer than the record being restored — came back down
+    and deleted it again. The note reappeared, then vanished at the next sync,
+    with nothing in the UI to explain it. Fixed 09-06 by `stamp()`ing every
+    restored record and dropping `pushedRev`. The same trap is waiting for any
+    future feature that revives old records — import merge, undo, conflict
+    repair. If it writes a record whose `updated` predates the server's copy,
+    it has not done anything.
+
 14. **Never write a repo file with Python's text-mode `open(p,'w')` on this machine.**
     Windows translates `\n` to `\r\n`, so a two-line edit silently rewrites every line
     ending in the file. The extraction tests (`test_matcher`, `test_confidence`,
