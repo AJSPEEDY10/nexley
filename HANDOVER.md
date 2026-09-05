@@ -460,6 +460,23 @@ before committing.** Use a fresh port every time - see the traps.
 12. **Two Supabase editor tabs can point at the same saved query.** Emptying one and saving
     it silently overwrites what the other just saved. Check the URL, not the tab title.
 
+13. **`.fld input[type=number]` beats almost every component rule in `app.css`.** It is
+    specificity (0,2,1) and sits at ~line 955, so any later-in-the-cascade-but-less-specific
+    rule for an input inside a dialog field loses to it *silently*. It had been stretching
+    every mark box in the question rows to `width:100%` for as long as those rows have
+    existed, and it beat the `@media (pointer:coarse)` sizing too, so iPads had it worst.
+    Component rules for inputs inside `.fld` need to be scoped (`.fld .qrow input.q-num`),
+    not just written later. If a width or padding you set "isn't applying", check this rule
+    first — the browser's computed value will tell you in seconds what reading the file
+    will not.
+
+14. **Never write a repo file with Python's text-mode `open(p,'w')` on this machine.**
+    Windows translates `\n` to `\r\n`, so a two-line edit silently rewrites every line
+    ending in the file. The extraction tests (`test_matcher`, `test_confidence`,
+    `test_feedback`) match markers containing `\n` and all three fail instantly with
+    "could not extract" — which reads like you broke a function when you only changed a
+    string. The tracked files are LF. Use `open(p,'wb')` and bytes, or the Edit tool.
+
 ---
 
 ## Useful facts
