@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.18.1';
+  var APP_VERSION = '0.19.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -2660,11 +2660,20 @@
        - Every point becomes a document: its code, its title, and its parent
          topic's title (so a point called "Applications" still carries the word
          "biotechnology" from the module above it).
-       - A term's weight is log(N / documents containing it). A word in every
-         point scores zero, which is what makes this work without a stopword
-         list: syllabus verbs like "describe", "analyse" and "outline" appear
-         everywhere, so they cancel themselves out. Rare, specific words —
-         "frameshift", "equilibrium", "osmosis" — carry nearly all the signal.
+       - A term's weight is log(N / documents containing it), so syllabus verbs
+         like "describe" and "analyse" cancel themselves out and rare, specific
+         words — "frameshift", "equilibrium", "osmosis" — carry nearly all the
+         signal.
+       - IDF ALONE IS NOT ENOUGH AT THIS CORPUS SIZE, and this file used to claim
+         it was. A subject has 10-40 dot points, not 10,000 documents, so a
+         function word appearing in three of them scores log(10/3) = 1.2 — nearly
+         as much as a real term. Measured (test/measure_matcher.js): a note
+         reading "Group members: me, Sam, Priya. We are meeting at lunch on
+         Tuesday" was confidently filed under "Recovery strategies and the
+         physiological effects of fatigue", on the strength of the word "the" and
+         nothing else. So there IS a function-word list now. It is short and it
+         is only function words — nothing subject-specific, because the whole
+         point is that the app never assumes what you are studying.
        - Scores are divided by sqrt(document length) so a long dot point cannot
          win on surface area alone.
        - An outcome code appearing literally in the text (BUS-11-03) is not a
@@ -2676,6 +2685,21 @@
      files anything automatically.
      ============================================================ */
   var WORD = /[a-z0-9][a-z0-9'-]*/g;
+
+  /* Function words only. Deliberately NOT a general English stopword list and
+     deliberately nothing topical: "cell", "force" and "acid" are function words
+     in no subject and content words in several. Anything removed here is removed
+     for every student of every subject, so the bar is "carries no topical signal
+     in any subject at all". */
+  var FUNCTION_WORDS = {
+    the: 1, and: 1, for: 1, are: 1, with: 1, that: 1, this: 1, from: 1, its: 1,
+    can: 1, has: 1, have: 1, was: 1, were: 1, been: 1, being: 1, but: 1, not: 1,
+    all: 1, any: 1, out: 1, into: 1, over: 1, than: 1, then: 1, they: 1, them: 1,
+    their: 1, there: 1, these: 1, those: 1, which: 1, when: 1, what: 1, how: 1,
+    who: 1, why: 1, you: 1, your: 1, our: 1, his: 1, her: 1, him: 1, she: 1,
+    including: 1, include: 1, such: 1, also: 1, each: 1, other: 1, more: 1,
+    most: 1, some: 1, only: 1, both: 1, will: 1, would: 1, should: 1, could: 1
+  };
   /* A real outcome code carries two number groups (BUS-11-03, BIO 12 06) or a
      letter-number tail (MA-C1). An earlier, looser pattern also matched "TASK 3",
      which then short-circuited the scoring with a fake certainty — worse than
@@ -2701,7 +2725,9 @@
     if (!m) return out;
     for (var i = 0; i < m.length; i++) {
       // two-letter words carry almost no topical signal and add noise
-      if (m[i].length >= 3) out.push(stem(m[i]));
+      if (m[i].length < 3) continue;
+      if (FUNCTION_WORDS[m[i]]) continue;
+      out.push(stem(m[i]));
     }
     return out;
   }
@@ -2898,6 +2924,15 @@
     if (text.trim().length < 25) return null;      // too little to judge
     var hits = matchSyllabus(text, note.subjectId, 2);
     if (!hits.length || hits[0].score < MIN_SUGGEST) return null;
+    /* One word in common is a coincidence, not evidence. Measured: a note
+       describing translation without using any of its vocabulary ("reads the code
+       three letters at a time") was filed under mitosis on the strength of the
+       single word "cell"; one about the ATP-PC system went to the muscular system
+       on "muscle" alone. Both are cases where the honest answer is silence, and
+       requiring a second distinct term is what produces it. Applied here rather
+       than in matchSyllabus so the ranking the task unpacker shows is unchanged —
+       that view lists several candidates and labels them as inferred. */
+    if ((hits[0].matched || []).length < 2 && !hits[0].byCode) return null;
     // a near-tie is not a suggestion, it is a coin toss
     if (hits[1] && hits[1].score > hits[0].score * 0.8) return null;
     return hits[0];

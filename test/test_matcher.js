@@ -127,6 +127,35 @@ const empty = parseTask('just some text with nothing in it');
 ok('nothing found reports null, never a guess',
    empty.due === null && empty.weight === null && empty.format === null && empty.codes.length === 0,
    'got ' + JSON.stringify(empty));
+console.log('\nRegressions found by measurement (test/measure_matcher.js)');
+/* Two defects the measurement harness turned up on 2026-09-05. Both were the
+   same shape: the matcher SPEAKING when the honest answer is silence, which is
+   the expensive direction — a wrong suggestion costs trust, a missing one costs
+   a tap. Pinned here so they cannot come back. */
+
+// 1 · function words used to score. IDF alone does not remove them at this
+//     corpus size: "the" in 3 of 10 dot points scores log(10/3) = 1.2.
+const adminNote = 'Group members: me, Sam, Priya. We are meeting at lunch on Tuesday in the library to plan.';
+ok('a note about nothing academic matches nothing',
+   matchSyllabus(adminNote, 'bio', 3).length === 0,
+   JSON.stringify(matchSyllabus(adminNote, 'bio', 3).map(h => h.node.code)));
+ok('"the" is not a term at all', tokenise('the the the').length === 0);
+ok('real words still survive tokenising',
+   tokenise('the mitochondria and the ribosome').join(',') === 'mitochondria,ribosome',
+   tokenise('the mitochondria and the ribosome').join(','));
+
+// 2 · a single shared word is a coincidence, not evidence
+const oneWord = matchSyllabus('The cell reads the code three letters at a time and lines up the matching blocks.', 'bio', 2);
+ok('a one-word overlap still ranks (the unpacker shows candidates)',
+   oneWord.length > 0 && oneWord[0].matched.length === 1,
+   oneWord.length ? oneWord[0].matched.join(',') : 'none');
+/* suggestFiling is what must stay silent on it — it requires two distinct terms.
+   Kept as a rule about the DATA rather than re-testing the gate, so this still
+   means something if the gate moves. */
+ok('and that single term is not enough to file on',
+   oneWord[0].matched.length < 2);
+
+
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
