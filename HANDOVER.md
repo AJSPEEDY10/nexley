@@ -2,8 +2,51 @@
 
 **Session:** 2026-09-02 to 09-05 · **Ended at:** v0.19.1, SW cache `nexley-v30`
 (unreleased since: Rule 2 reworded, Phase 8 Capacitor scaffolding, a Marks
-modal layout fix, and a real Tasks bug — no version bump yet, nothing here
-needed a migration or changed the sync shape)
+modal layout fix, a real Tasks bug, and the repalette below — no version
+bump yet, nothing here needed a migration or changed the sync shape)
+
+**The redesign — STARTED 09-05, Alec: "professional notebook and Apple style
+... use all notes we have for nexley, take a deep dive and action
+everything."** This is the "individual screens have not been restyled yet"
+work the design-directions section below has been waiting on. Scope note:
+"action everything" is a multi-session initiative, not a single commit —
+what shipped today is step one, chosen deliberately as the highest-leverage
+single change:
+- **Repaletted the base neutrals onto Apple's own system gray scale**
+  (commit `fb98a4d`): `paper`/`surface`/`card`/`ink`/`ink-2`/`muted`/`rule`/
+  `rule-soft`, both themes. Eucalypt (`--structure`), the highlighter
+  (`--mark`) and the serif display/reading faces are UNCHANGED — those are
+  the notebook identity Alec explicitly wants kept alongside "Apple style."
+  Because every screen already resolves through these root tokens, this one
+  change cascades to Notebook, Marks, Tasks, dialogs, the landing page and
+  the report-a-problem sheet with zero per-screen edits. Verified in both
+  themes via the auth-stub QA harness, then confirmed live on production
+  (signed in as Alec, data intact, sync unaffected).
+- **Deep-dive source material, so the next screen-level passes don't
+  re-derive this**: read `ideas/INDEX.md` in full (9 onedrive brand mockups:
+  Institute/Slate/Scholar/Cohort/Marks/Neon + 10-concepts + new-features-2 +
+  landing; 18 claude-artifacts: the original 10 named concept studies,
+  Naming Shortlist, 3 vision/build docs, Summit content-engine research) and
+  read The Nexley Register and Marking Ledger artifacts in full. **Finding:**
+  none of the archived mockups is a literal template for "professional
+  notebook AND Apple-style formal brand" — they're gamified phone-app concept
+  sketches (streaks, palm cards, XP) with a different information
+  architecture to what's actually shipped, and the Register itself is dated
+  to v0.10.0 (pre almost everything built since). Useful as reference for
+  specific interaction ideas, not as a skin to apply wholesale.
+- **The one idea worth building next, identified in this pass**: Marking
+  Ledger's tap-a-phrase-in-your-answer → margin note showing which rubric
+  criterion it earned or lost. This is the exact "marked script you can
+  actually read" feature Phase 6 flagged as its own obvious next step and
+  parked (see Phase 6 below) — except it needs phrase-level span data the
+  current Marks feature doesn't collect yet (today's per-question record only
+  has a single reason, not per-phrase tags). Real feature work, not a skin;
+  scope it properly before starting.
+- **NOT yet touched**: per-screen layout/component redesign (Notebook editor
+  chrome, Tasks, the sign-in gate's copy/structure, Classwork). The token
+  cascade covers color; density, spacing rhythm and layout on the newer
+  screens (Marks, Tasks) still reads as "not yet restyled" the way the
+  original note put it. Continue there next.
 
 **QA pass, 09-05 (Alec: "everything needs to be perfect, keep going"), two real
 bugs found and fixed, both pushed:**
@@ -275,10 +318,12 @@ capture lands here - target every device, not M-series iPads only.
 - *Still gated:* the question bank's content source, and whether a prac entry needs its
   own structure (method / results / conclusion) rather than a differently-tagged note.
 
-### Design directions - decision still open
-Five full prototypes built 09-03. Alec's call was "combine the best of everything,
-professional, easy to navigate, not vibecoded". The token system in `app.css` is the
-foundation for that; individual screens have not been restyled yet.
+### Design directions - IN PROGRESS 09-05, see "The redesign" near the top
+Five full prototypes built 09-03, plus a much larger archive at `ideas/` (9 onedrive
+brand mockups, 10 original concept studies, vision docs). Alec's call, restated 09-05:
+"professional notebook and Apple style... proper brand or company." None of the
+archived mockups turned out to be a literal template — see the deep-dive note above.
+Step one (the base-neutral repalette) is done; per-screen layout/density work continues.
 
 | Direction | Link |
 |---|---|
