@@ -4136,10 +4136,19 @@
     box.textContent = '';
     box.hidden = false;
 
+    /* Name the subjects, and name each one ONCE — two links into the same
+       subject is one connection with two ends, not two subjects. The first
+       draft said "two other subjects" off links.length and was wrong on the
+       very first real example: both hits were PDHPE. */
+    var names = [];
+    links.forEach(function (l) {
+      if (names.indexOf(l.subject.name) === -1) names.push(l.subject.name);
+    });
     var t = document.createElement('span');
     t.className = 'fh-text';
-    t.textContent = links.length > 1 ? 'This also comes up in two other subjects.'
-                                     : 'This also comes up in ' + links[0].subject.name + '.';
+    t.textContent = 'This also comes up in '
+      + (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1]
+                          : names[0]) + '.';
     box.appendChild(t);
 
     links.forEach(function (l) {
@@ -4154,6 +4163,17 @@
       b.addEventListener('click', function () { openSyllabusPoint(l.node); });
       box.appendChild(b);
     });
+  }
+
+  /* Instant rather than smooth: this is a jump between two places, not a
+     journey, and a long scroll animation is the first thing to annoy on a
+     reread. Does nothing if the row is already comfortably on screen. */
+  function scrollActivePointIntoView() {
+    var row = document.querySelector('.dp.on');
+    if (!row || !row.scrollIntoView) return;
+    var r = row.getBoundingClientRect();
+    if (r.top > 0 && r.bottom < (window.innerHeight || 0)) return;
+    row.scrollIntoView({ block: 'center' });
   }
 
   /* Leaves the current note saved and closed rather than open behind the new
@@ -4171,6 +4191,20 @@
     renderBrowser();
     renderTabs();
     renderEditor();
+
+    /* Setting activeNode is not enough. A subject has thirty-odd points and
+       the one you were sent to can sit 1500px down a scrolling list, so
+       following a link landed you on an unrelated part of someone else's
+       syllabus — measured, not guessed, in the QA harness. Instant rather
+       than smooth: this is a jump between two places, not a journey, and a
+       long scroll animation is the first thing to annoy on a reread. */
+    /* Twice on purpose. A link followed in the first second after boot can be
+       scrolled correctly and then undone, because the initial refresh() lands
+       afterwards and re-renders the whole browser column — seen in the
+       harness, where a click straight after load left the row 1585px down.
+       The second pass is a cheap no-op in the normal case. */
+    scrollActivePointIntoView();
+    setTimeout(scrollActivePointIntoView, 120);
   }
 
   /* ============================================================
