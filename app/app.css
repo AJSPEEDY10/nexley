@@ -3,7 +3,13 @@
    outcome codes as the structural device, one highlighter-yellow mark used
    sparingly. The rail is the quietest surface; the page you write on is the
    brightest. Grounded in the real materials of study: syllabus documents,
-   ruled paper, highlighters, revision guides. */
+   ruled paper, highlighters, revision guides.
+
+   09-05: the base neutrals (paper/surface/card/ink/ink-2/muted/rule) were
+   repaletted onto Apple's own system gray scale — "professional notebook AND
+   Apple-style formal brand" was the brief. Eucalypt (--structure), the
+   highlighter (--mark) and the serif reading/display faces are unchanged:
+   those are what makes this a notebook and not a spreadsheet. */
 
 /* Newsreader — the display voice. Self-hosted and precached in sw.js so headings
    look the same on a Windows laptop, an iPad and an Android phone, and still look
@@ -26,21 +32,28 @@
 }
 
 :root{
-  /* --- day --- */
-  --paper:#EBEDE7;      /* desk / working ground */
-  --surface:#E3E6DE;    /* rail, recessed chrome — deliberately dimmer */
-  --card:#F7F8F3;       /* the page: cards + the writing surface, the brightest tone */
-  --ink:#1C241F;        /* green-black, never pure #000 */
-  --ink-2:#47514A;
-  --muted:#79837B;      /* mono metadata, captions */
-  --rule:#D2D6CB;       /* hairlines — the ruled line */
-  --rule-soft:#E0E4DA;
+  /* --- day ---
+     09-05 repaletted toward a neutral system gray scale (the values below track
+     Apple's own light-mode label/separator grays) instead of the original warm
+     sage-green neutrals. The brief was "professional notebook AND Apple-style
+     formal brand" — eucalypt (--structure), the highlighter (--mark) and the
+     serif reading faces stay exactly as they were, because those are the
+     notebook identity. What changes is everything that used to read as
+     "school paper": the base surfaces are neutral now, not warm-green. */
+  --paper:#F5F5F3;      /* desk / working ground */
+  --surface:#ECECEA;    /* rail, recessed chrome — deliberately dimmer */
+  --card:#FFFFFF;       /* the page: cards + the writing surface, the brightest tone */
+  --ink:#1D1D1F;        /* neutral near-black, never pure #000 */
+  --ink-2:#48484A;
+  --muted:#86868B;      /* mono metadata, captions */
+  --rule:#D2D2D7;       /* hairlines — the ruled line */
+  --rule-soft:#E8E8ED;
   --structure:#21493B;  /* eucalypt: links, primary actions, active state. Reads as ink. */
   --structure-soft:#DEE7E0;
   --mark:#E7E24C;       /* the one accent. Selection, coverage fill, current-note spine. */
   --mark-ink:#23261A;
   --danger:#A03A22;
-  --shade:22 33 27;     /* rgb for shadows */
+  --shade:20 20 22;     /* rgb for shadows — neutral, not green-tinted */
 
   /* ============================================================
      SCALES — the system. Every measurement in this file resolves to one of
@@ -97,20 +110,24 @@
 /* --- night --- warm near-black. Desk dark, page a touch lit.
    Applied when the OS is dark AND the reader hasn't forced light, or when the
    reader has explicitly chosen dark via the rail toggle. */
+/* --- night --- same repalette: neutral Apple-dark-mode grays (paper/surface/
+   card/ink/ink-2/muted/rule) instead of the original green-tinted near-blacks.
+   structure/mark/danger/good/warn/bad are the notebook's own colours and are
+   unchanged. */
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --paper:#131510; --surface:#1A1D15; --card:#20231B;
-    --ink:#EAEBE1; --ink-2:#C0C7BB; --muted:#89927F;
-    --rule:#333930; --rule-soft:#2A2F27;
+    --paper:#121212; --surface:#1C1C1E; --card:#242426;
+    --ink:#F5F5F7; --ink-2:#C7C7CC; --muted:#8E8E93;
+    --rule:#38383A; --rule-soft:#2C2C2E;
     --structure:#8ECBAB; --structure-soft:#243228;
     --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
   }
 }
 :root[data-theme="dark"]{
-  --paper:#131510; --surface:#1A1D15; --card:#20231B;
-  --ink:#EAEBE1; --ink-2:#C0C7BB; --muted:#89927F;
-  --rule:#333930; --rule-soft:#2A2F27;
+  --paper:#121212; --surface:#1C1C1E; --card:#242426;
+  --ink:#F5F5F7; --ink-2:#C7C7CC; --muted:#8E8E93;
+  --rule:#38383A; --rule-soft:#2C2C2E;
   --structure:#8ECBAB; --structure-soft:#243228;
   --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
