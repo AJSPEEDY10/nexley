@@ -936,9 +936,29 @@ a{color:var(--structure)}
 .mk-ghead h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
   letter-spacing:-.015em;flex:none}
 
-/* the percentage is derived; the raw marks beside it are the fact */
+/* BRASS, NOT EUCALYPT, and this is the whole reason brass exists as a token.
+   Eucalypt is the app talking — links, buttons, the note you have open, the
+   accent you can change in Settings. Brass means one thing and appears in one
+   place: a formal record. A real mark, in a real paper, sat under real
+   conditions.
+
+   The distinction is not decoration. Everything else in Nexley that produces a
+   number — AI feedback, a comp score, coverage — is deliberately kept away
+   from the Marks screen, and giving the real ones their own colour is how that
+   rule becomes visible instead of just being written down in a comment.
+
+   It is also the one colour in the app the accent setting does not touch,
+   because "what I actually got" should not change appearance depending on a
+   preference. */
 .mk-pct{font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
-  color:var(--structure);margin-left:auto}
+  color:var(--brass);margin-left:auto;font-variant-numeric:tabular-nums}
+.mk-rowpct{color:var(--brass)}
+/* The condition each group was sat under, in brass on its own soft ground —
+   the label that makes "never averaged across conditions" legible at a glance
+   rather than only true underneath. */
+.mk-cond{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--brass);background:var(--brass-soft);
+  border-radius:var(--r-pill);padding:2px 9px;flex:none}
 .mk-sub{font-family:var(--code);font-size:var(--t-sm);color:var(--muted);flex:none}
 
 .mk-row{display:flex;align-items:baseline;gap:var(--s-5);width:100%;text-align:left;
@@ -1597,3 +1617,19 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
   font-size:var(--t-base);color:var(--structure)}
 .hlink:hover{text-decoration:underline}
 .hcard.due{border-color:var(--warn)}
+
+
+/* ---------- empty states ----------
+   Centred, but capped at a readable measure so the sentence does not run the
+   width of a desktop. The mark is the navigation icon for that screen at low
+   opacity: recognisable, already in the stylesheet, and not a cartoon of a
+   student at a desk — which is the house style of every study app on the
+   store and the thing this one is trying not to look like. */
+.estate{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:var(--s-4);padding:var(--s-9) var(--s-6);margin:0 auto;max-width:44ch}
+.estate-mark{width:34px;height:34px;color:var(--muted);opacity:.45}
+.estate h3{margin:0;font-family:var(--display);font-weight:400;font-size:var(--t-2xl);
+  color:var(--ink);letter-spacing:-.01em}
+.estate p{margin:0;font-size:var(--t-base);line-height:1.7;color:var(--ink-2);
+  text-wrap:pretty}
+.estate .btn{margin-top:var(--s-3)}

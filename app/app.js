@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.32.0';
+  var APP_VERSION = '0.33.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -3443,6 +3443,47 @@
     return p;
   }
 
+  /* ---------- empty states ----------
+     A screen with nothing on it is the screen a new user meets first, and
+     until now every one of them was a single grey sentence — which reads as
+     "this is broken" rather than "there is nothing here yet".
+
+     An empty state has three jobs and this does all three: say what this
+     screen is FOR, say why it is empty in a way that is not a telling-off,
+     and offer the one action that fills it. The mark at the top is drawn from
+     the same icon set as the navigation, at low opacity, so the page has a
+     centre of gravity instead of a sentence floating in a corner.
+
+     Deliberately NOT an illustration. A cartoon of a student at a desk is the
+     house style of every study app on the store, and this one is trying not
+     to look like those. */
+  function emptyState(icon, title, body, actionLabel, onAction) {
+    var wrap = document.createElement('div');
+    wrap.className = 'estate';
+
+    var i = document.createElement('i');
+    i.className = 'estate-mark mi mi-' + icon;
+    wrap.appendChild(i);
+
+    var h = document.createElement('h3');
+    h.textContent = title;
+    wrap.appendChild(h);
+
+    var p = document.createElement('p');
+    p.textContent = body;
+    wrap.appendChild(p);
+
+    if (actionLabel && onAction) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn primary';
+      b.textContent = actionLabel;
+      b.addEventListener('click', onAction);
+      wrap.appendChild(b);
+    }
+    return wrap;
+  }
+
   function unpackTask() {
     var text = $('tkInput').value.trim();
     var subjectId = $('tkSubject').value;
@@ -4304,16 +4345,21 @@
     body.textContent = '';
 
     if (!state.subjects.length) {
-      body.appendChild(note('Add a subject first — a mark has to belong to one.'));
+      body.appendChild(emptyState('marks', 'No subjects yet',
+        'A mark has to belong to a subject, so start with one of those. Once a '
+        + 'subject exists you can record what you actually got, under the '
+        + 'conditions you actually sat it.',
+        'Add a subject', function () { openSubjectDialog(null); }));
       return;
     }
 
     var mine = papersOf(mkSubject);
     if (!mine.length) {
-      body.appendChild(note('No papers recorded for this subject yet. Add one and it will be '
-        + 'grouped by the conditions you sat it under — marks from different conditions are '
-        + 'never mixed together, because an open-notes mark and an exam mark are not the '
-        + 'same mark.'));
+      body.appendChild(emptyState('marks', 'Nothing recorded yet',
+        'Record a paper you have actually sat and Nexley keeps it with the '
+        + 'conditions you sat it under — an exam mark and an open-notes mark are '
+        + 'never averaged together.',
+        'Record a paper', function () { openPaperDialog(null); }));
       return;
     }
 
@@ -4350,6 +4396,16 @@
     var name = document.createElement('h3');
     name.textContent = g.label;
     head2.appendChild(name);
+
+    /* The conditions, said out loud on the group itself. "Marks are never
+       averaged across conditions" has been true since 12h and invisible the
+       whole time — you had to know the headings WERE the conditions. In brass,
+       which in this app means one thing: a formal record. */
+    var cond = document.createElement('span');
+    cond.className = 'mk-cond';
+    cond.textContent = conditionMeta(g.condition).hint || g.label;
+    cond.title = 'Marks sat under different conditions are never averaged together';
+    head2.appendChild(cond);
 
     var fig = document.createElement('b');
     fig.className = 'mk-pct';
