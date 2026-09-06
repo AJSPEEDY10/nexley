@@ -1144,6 +1144,31 @@ a{color:var(--structure)}
    rule here dropped the ruling entirely and made an empty note look broken. */
 .ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
 
+/* A photographed page, previewed before it is committed to the note. Sized so
+   a tall page and a wide whiteboard both fit without the dialog jumping. */
+.photo-stage{display:flex;align-items:center;justify-content:center;
+  min-height:220px;max-height:46vh;padding:var(--s-5);
+  border:1px dashed var(--rule);border-radius:var(--r-md);background:var(--surface)}
+.photo-stage img{max-width:100%;max-height:42vh;border-radius:var(--r-sm);
+  box-shadow:0 2px 10px rgb(var(--shade) / .12)}
+.photo-controls{display:flex;align-items:center;gap:var(--s-5);margin-top:var(--s-4);
+  flex-wrap:wrap}
+.photo-check{display:flex;align-items:center;gap:var(--s-3);font-size:var(--t-base);
+  color:var(--ink-2);cursor:pointer}
+/* A photograph in a note is a page, so it gets the width of the page and the
+   same rounded edge as everything else on it. */
+.ed-body img{max-width:100%;height:auto;border-radius:var(--r-sm);
+  margin:var(--s-4) 0;display:block}
+/* A cleaned page is white paper with black marks. At night that is a torch in
+   the face, and worse, the pen is near-white so you would write on it
+   invisibly. Inverting turns it into a dark page with light marks — the same
+   thing a dark-mode PDF reader does — and the notebook stays one object.
+   Only .scan is inverted; a colour photograph would become a negative. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .ed-body img.scan{filter:invert(1)}
+}
+:root[data-theme="dark"] .ed-body img.scan{filter:invert(1)}
+
 /* Comps. The code is set in the mono face everywhere it appears, because it
    gets read aloud and typed by somebody else — it is data, not prose. */
 .comp-join,.comp-mine{display:flex;gap:var(--s-4);align-items:flex-end}

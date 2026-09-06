@@ -314,6 +314,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
       <span class="tsep"></span>
       <button type="button" id="inkBtn" title="Draw with the mouse. A pencil needs no button — it just writes.">Draw</button>
+      <button type="button" id="photoBtn" title="Photograph the board, a page, or your marked paper">Photo</button>
       <span class="tsep"></span>
       <!-- Paper. Per note, behind both the typing and the ink. -->
       <select id="paperSel" class="paper-sel" title="Paper">
@@ -969,6 +970,45 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
+<!-- ============ PHOTO ============
+     A photo of a page is only useful once it has been cleaned up: white paper,
+     black writing, and the shadow of your own head taken back out. See
+     photo.js for how. -->
+<dialog id="photoDialog">
+  <div class="dlgbody">
+    <h3>Photograph a page</h3>
+    <p class="dlgnote">The board, a textbook, or your own marked paper. It gets
+      straightened up and cleaned so it reads like a page rather than a photo —
+      and you can write over it with the pencil once it is in.</p>
+
+    <!-- capture=environment asks a phone or iPad for the back camera directly
+         instead of the photo library; a laptop ignores it and shows a file
+         picker, which is the right thing there. -->
+    <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
+
+    <div class="photo-stage" id="photoStage">
+      <button type="button" class="btn" id="photoPick">Take or choose a photo</button>
+    </div>
+
+    <div class="photo-controls" id="photoControls" hidden>
+      <label class="photo-check">
+        <input type="checkbox" id="photoClean" checked>
+        <span>Clean it up</span>
+      </label>
+      <button type="button" class="iconbtn" id="photoRotate" title="Quarter turn">Rotate</button>
+      <span class="dlgnote" id="photoSize"></span>
+    </div>
+
+    <p class="gate-err" id="photoErr" hidden></p>
+
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="photoClose">Cancel</button>
+      <button type="button" class="btn primary" id="photoInsert" disabled>Put it in the note</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- ============ USERNAME ============
      The one piece of Nexley that another student ever sees of you. Deliberately
      not your email: a school address is firstname.lastname.year, which is a real
@@ -1092,6 +1132,8 @@ Module 2: Body systems and movement
 <script src="social.js"></script>
 <!-- pencil input. A pen draws, a finger scrolls — see its header. -->
 <script src="ink.js"></script>
+<!-- a photograph of a page, cleaned up until it is worth keeping -->
+<script src="photo.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

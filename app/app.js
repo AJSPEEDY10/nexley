@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.30.0';
+  var APP_VERSION = '0.31.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -6228,6 +6228,12 @@
     if (!pad) return;
     pad.load(inkFor(note));
     renderInkTools(note);
+    /* A note that already has photographs in it needs the same treatment on
+       open: the images decode after the body is set, so the first measurement
+       is short by however tall they turn out to be. */
+    Array.prototype.forEach.call($('noteBody').getElementsByTagName('img'), function (im) {
+      if (!im.complete) im.addEventListener('load', function () { sizeInk(); });
+    });
     /* After layout: a canvas sized while the editor is still hidden gets zero
        width and comes back blank until something else resizes it. */
     requestAnimationFrame(sizeInk);
@@ -6403,6 +6409,122 @@
         pad.handle(type, e);
       }, true);
     });
+  }
+
+  /* ============================================================
+     12r · a photograph of a page
+     ------------------------------------------------------------
+     The board, a textbook, or your own marked paper. photo.js does the work
+     and its header explains the clean-up; this is the part that knows about
+     notes and dialogs.
+
+     IT GOES IN AS PART OF THE NOTE, not as an attachment. A data URI in the
+     body syncs, exports, imports, restores from a snapshot and sits under the
+     ink overlay with no new code, no new table and no storage bucket that can
+     be offline when the notebook is not. The price is size, which is why the
+     pipeline is aggressive about it and why the dialog shows you the number
+     before you commit — a 200KB page is fine, and a student ought to be able
+     to see when they are about to put six of them in one note.
+
+     THE PREVIEW IS THE POINT. Every option re-runs the whole pipeline and
+     shows you the actual result, because "clean it up" means nothing as a
+     promise: on a whiteboard it is transformative, on a colour diagram it can
+     be exactly wrong, and the only way to know is to look.
+     ============================================================ */
+  var photoFile = null;
+  var photoTurns = 0;
+  var photoResult = null;
+
+  function openPhotoDialog() {
+    photoFile = null;
+    photoTurns = 0;
+    photoResult = null;
+    $('photoStage').textContent = '';
+    $('photoStage').appendChild(photoPickButton());
+    $('photoControls').hidden = true;
+    $('photoErr').hidden = true;
+    $('photoSize').textContent = '';
+    $('photoInsert').disabled = true;
+    $('photoDialog').showModal();
+  }
+
+  function photoPickButton() {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn';
+    b.id = 'photoPick';
+    b.textContent = 'Take or choose a photo';
+    b.addEventListener('click', function () { $('photoFile').click(); });
+    return b;
+  }
+
+  function photoChosen(file) {
+    if (!file) return;
+    photoFile = file;
+    photoTurns = 0;
+    renderPhoto();
+  }
+
+  function renderPhoto() {
+    if (!photoFile) return;
+    $('photoErr').hidden = true;
+    $('photoInsert').disabled = true;
+    $('photoSize').textContent = 'Working…';
+    $('photoControls').hidden = false;
+
+    window.NexleyPhoto.process(photoFile, {
+      turns: photoTurns,
+      cleanUp: $('photoClean').checked
+    }).then(function (res) {
+      photoResult = res;
+      var img = new Image();
+      img.src = res.url;
+      $('photoStage').textContent = '';
+      $('photoStage').appendChild(img);
+      $('photoSize').textContent = Math.round(res.bytes / 1024) + ' KB · '
+        + res.width + '×' + res.height;
+      $('photoInsert').disabled = false;
+    }, function (err) {
+      photoResult = null;
+      $('photoErr').textContent = err.message;
+      $('photoErr').hidden = false;
+      $('photoSize').textContent = '';
+    });
+  }
+
+  /* Appended at the end of the body rather than at the caret. A caret inside a
+     contenteditable is not reliably where you left it once a modal dialog has
+     had focus, and a photo landing in the middle of a sentence because the
+     browser restored a stale selection is worse than one always landing at the
+     bottom, where it can be dragged or cut. */
+  function insertPhoto() {
+    var n = state.activeNote && noteById(state.activeNote);
+    if (!n || !photoResult) return;
+    var img = document.createElement('img');
+    img.alt = 'Photograph added to this note';
+    /* A cleaned page is white paper with black marks, and in dark mode the pen
+       is near-white — so writing on one would be invisible. Marking it as a
+       scan lets the stylesheet invert it at night, the way a dark-mode PDF
+       reader does, and then the photographed page is a dark page like every
+       other page in the notebook and the pen shows up on it.
+
+       Only ever the CLEANED ones: inverting an actual colour photograph turns
+       a diagram into a negative, which is worse than the problem. */
+    if (photoResult.cleaned) img.className = 'scan';
+    /* The ink overlay is sized to the CONTENT, and a photo makes the page
+       taller — but an <img> has no height until it has decoded, even from a
+       data URI. Sizing on the next frame measures the page as it was a moment
+       before the photo existed, and everything you then draw below the old
+       bottom lands outside the canvas and is lost. So size when it loads, not
+       when it is appended. */
+    img.addEventListener('load', function () { sizeInk(); });
+    img.src = photoResult.url;
+    $('noteBody').appendChild(img);
+    markDirty();
+    saveNow();
+    $('photoDialog').close();
+    requestAnimationFrame(sizeInk);
+    toast('In the note. You can write over it.');
   }
 
   /* ============================================================
@@ -6723,6 +6845,22 @@
       inkPad.clear();
     });
     $('paperSel').addEventListener('change', function () { setPaper(this.value); });
+
+    $('photoBtn').addEventListener('click', openPhotoDialog);
+    $('photoPick').addEventListener('click', function () { $('photoFile').click(); });
+    $('photoFile').addEventListener('change', function () {
+      photoChosen(this.files && this.files[0]);
+      /* Cleared so choosing the SAME file twice still fires a change event —
+         otherwise a second attempt after a rotate silently does nothing. */
+      this.value = '';
+    });
+    $('photoClean').addEventListener('change', renderPhoto);
+    $('photoRotate').addEventListener('click', function () {
+      photoTurns = (photoTurns + 1) % 4;
+      renderPhoto();
+    });
+    $('photoInsert').addEventListener('click', insertPhoto);
+    $('photoClose').addEventListener('click', function () { $('photoDialog').close(); });
     routePenToInk();
     /* The overlay is sized to the text it covers, so anything that reflows the
        text has to re-measure: a rotation, a window resize, and typing itself. */
