@@ -313,6 +313,8 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <span class="tsep"></span>
       <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
       <span class="tsep"></span>
+      <button type="button" id="inkBtn" title="Write or draw with a pencil">Handwrite</button>
+      <span class="tsep"></span>
       <button type="button" id="makeCard"
               title="Turn the selected text into a review card">+ Card</button>
     </div>
@@ -332,6 +334,20 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
 
     <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
          aria-label="Note body"></div>
+
+    <!-- Handwriting. Collapsed until asked for, because the overwhelming
+         majority of notes are typed and an always-present canvas would cost
+         height on every one of them to serve the few that use it. -->
+    <div class="ink-wrap" id="inkWrap" hidden>
+      <div class="ink-tools">
+        <button type="button" class="iconbtn" id="inkPen" title="Write">Pen</button>
+        <button type="button" class="iconbtn" id="inkErase" title="Rub out a stroke">Erase</button>
+        <button type="button" class="iconbtn" id="inkUndo" title="Undo the last stroke">Undo</button>
+        <button type="button" class="iconbtn ghost" id="inkClear" title="Remove all handwriting">Clear</button>
+        <span class="ink-hint">Pencil writes · finger scrolls</span>
+      </div>
+      <canvas id="inkCanvas" class="ink-canvas" aria-label="Handwriting area"></canvas>
+    </div>
 
     <footer class="ed-foot">
       <span class="hint">Autosaves as you type · Ctrl+S to save now</span>
@@ -1037,6 +1053,8 @@ Module 2: Body systems and movement
 <!-- the only file that talks to other people; see its header for why it is the
      one part of Nexley that is not offline-first -->
 <script src="social.js"></script>
+<!-- pencil input. A pen draws, a finger scrolls — see its header. -->
+<script src="ink.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

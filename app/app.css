@@ -1015,6 +1015,25 @@ a{color:var(--structure)}
 .q-actions{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
 .q-spanlist{display:flex;flex-direction:column;gap:var(--s-2)}
 
+/* Handwriting. Sits under the typed body in the same column, on the same
+   ruled paper, because it is part of the note rather than an attachment to it. */
+.ink-wrap{margin:0 var(--gutter) var(--s-6);max-width:calc(var(--measure) + var(--gutter));
+  display:flex;flex-direction:column;gap:var(--s-3)}
+.ink-tools{display:flex;gap:var(--s-3);align-items:center;flex-wrap:wrap}
+.ink-hint{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);margin-left:auto}
+.ink-tools .iconbtn.on{border-color:var(--structure);color:var(--structure)}
+/* The stroke colour is read off this custom property by ink.js, so handwriting
+   matches typed text in both themes without the canvas knowing about themes. */
+.ink-canvas{--ink-stroke:var(--ink);width:100%;display:block;
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
+  /* Same ruling and the same margin rule as the typed surface above it — the
+     point is that it reads as more of the same page, not as a widget. */
+  background-image:repeating-linear-gradient(to bottom,
+    transparent 0, transparent calc(var(--line, 1.85rem) - 1px),
+    var(--rule-soft) calc(var(--line, 1.85rem) - 1px), var(--rule-soft) var(--line, 1.85rem));
+  cursor:crosshair}
+
 /* Comps. The code is set in the mono face everywhere it appears, because it
    gets read aloud and typed by somebody else — it is data, not prose. */
 .comp-join,.comp-mine{display:flex;gap:var(--s-4);align-items:flex-end}

@@ -84,6 +84,9 @@
     return {
       id: n.id, user_id: userId, subject_id: n.subjectId, syllabus_id: n.syllabusId || null,
       kind: n.kind || 'personal', title: n.title || '', body: n.body || '', font: n.font || 'standard',
+      /* Null rather than [] for a note with no handwriting: the column is on
+         every note and should cost nothing on the typed majority. */
+      ink: (n.ink && n.ink.length) ? n.ink : null,
       created_at: new Date(n.created).toISOString(), updated_at: new Date(n.updated).toISOString(),
       rev: n.rev || 1, device: n.device || null, deleted: !!n.deleted
     };
@@ -154,7 +157,7 @@
   function fromRemoteNote(r) {
     return {
       id: r.id, subjectId: r.subject_id, syllabusId: r.syllabus_id, kind: r.kind,
-      title: r.title, body: r.body, font: r.font,
+      title: r.title, body: r.body, font: r.font, ink: r.ink || null,
       created: Date.parse(r.created_at), updated: Date.parse(r.updated_at),
       rev: r.rev, device: r.device, deleted: r.deleted || null
     };

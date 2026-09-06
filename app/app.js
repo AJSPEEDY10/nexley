@@ -1164,6 +1164,7 @@
     setKindButtons(n.kind || 'personal');
     renderCrumbAndHint(n);
     applyFont(n.font || 'standard');
+    renderInk(n);
     markSaved();
     countWords();
   }
@@ -6137,6 +6138,89 @@
   }
 
   /* ============================================================
+     12q · handwriting
+     ------------------------------------------------------------
+     The pencil surface on a note. The drawing itself lives in ink.js; this is
+     the part that knows about notes, saving and the editor.
+
+     IT IS A LAYER ON A NOTE, NOT A KIND OF NOTE. Everything Nexley does —
+     search, auto-filing, the matcher, coverage, sharing, AI feedback — reads
+     TEXT. A note that is purely ink would silently drop out of every one of
+     those, which is a much worse feature than it looks. So a note keeps its
+     typed body and can additionally carry handwriting: a diagram off the
+     board next to the sentence explaining it.
+
+     WHAT IS DELIBERATELY NOT HERE: no handwriting recognition. Converting ink
+     to text badly is worse than not converting it, and doing it well needs a
+     model, a round trip and a per-user cost — none of which is justified for
+     the thing this is actually for, which is diagrams.
+     ============================================================ */
+  var inkPad = null;
+
+  function inkFor(note) {
+    return (note && Array.isArray(note.ink)) ? note.ink : [];
+  }
+
+  function ensureInk() {
+    if (inkPad) return inkPad;
+    if (!window.NexleyInk) return null;
+    inkPad = new window.NexleyInk($('inkCanvas'), {
+      onChange: function () {
+        var n = state.activeNote && noteById(state.activeNote);
+        if (!n) return;
+        n.ink = inkPad.toJSON();
+        /* Same dirty flag the typed body uses, so handwriting is covered by
+           the existing autosave rather than a second save path that could
+           disagree with it about what "saved" means. */
+        markDirty();
+      }
+    });
+    return inkPad;
+  }
+
+  function renderInk(note) {
+    var wrap = $('inkWrap');
+    if (!wrap) return;
+    var strokes = inkFor(note);
+    var open = !!(note && (openInkFor === note.id || strokes.length));
+    wrap.hidden = !open;
+    if (!open) return;
+
+    var pad = ensureInk();
+    if (!pad) { wrap.hidden = true; return; }
+    pad.load(strokes);
+    /* Measured after it is visible: a hidden element has no width, and sizing
+       the canvas from zero produces a blank one that only fixes itself on the
+       next resize. */
+    requestAnimationFrame(function () { pad.resize(); });
+  }
+
+  /* Which note the pad has been opened on, for a note that has no ink yet.
+     Not stored: an empty pad is a UI state, and persisting it would mean every
+     note you once tapped "Handwrite" on reopens with a canvas forever. */
+  var openInkFor = null;
+
+  function toggleInk() {
+    var n = state.activeNote && noteById(state.activeNote);
+    if (!n) return;
+    if (!$('inkWrap').hidden && !inkFor(n).length) {
+      openInkFor = null;              // opened and unused — just close it
+    } else {
+      openInkFor = n.id;
+    }
+    renderInk(n);
+    if (openInkFor) $('inkWrap').scrollIntoView({ block: 'nearest' });
+  }
+
+  function setInkMode(mode) {
+    var pad = ensureInk();
+    if (!pad) return;
+    pad.setMode(mode);
+    $('inkPen').classList.toggle('on', mode === 'draw');
+    $('inkErase').classList.toggle('on', mode === 'erase');
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -6426,6 +6510,21 @@
     $('shareBtn').addEventListener('click', openShareDialog);
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
+
+    $('inkBtn').addEventListener('click', toggleInk);
+    $('inkPen').addEventListener('click', function () { setInkMode('draw'); });
+    $('inkErase').addEventListener('click', function () { setInkMode('erase'); });
+    $('inkUndo').addEventListener('click', function () { if (inkPad) inkPad.undo(); });
+    $('inkClear').addEventListener('click', function () {
+      if (!inkPad || inkPad.isEmpty()) return;
+      if (!confirm('Remove all handwriting from this note? The typed text stays.')) return;
+      inkPad.clear();
+    });
+    /* The canvas is sized from its CSS width, so a rotation or a window resize
+       has to re-measure or the ink is drawn at the old scale. */
+    window.addEventListener('resize', function () {
+      if (inkPad && !$('inkWrap').hidden) inkPad.resize();
+    });
 
     $('compBtn').addEventListener('click', openComps);
     $('compClose').addEventListener('click', function () { $('compDialog').close(); });
