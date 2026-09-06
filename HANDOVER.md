@@ -1,8 +1,61 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.22.0, SW cache `nexley-v35`
-— nothing in the whole run needed a migration or changed the sync shape, so
-there is nothing for Alec to apply by hand.
+**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.33.0, SW cache `nexley-v46`
+— migrations 0016-0021 are applied to **prod and dev** and verified against
+the server. Nothing is waiting for Alec to apply.
+
+---
+
+## Read this first — where things stand at the end of 09-06
+
+**The app is no longer just a notebook.** In one run on 09-06 it gained
+usernames, note sharing, comps, handwriting, photographs of pages, a Home, a
+restructured sidebar and accent themes. If you are picking this up cold, open
+the app before reading further: the shape of it changed more today than in the
+fortnight before.
+
+### What shipped on 09-06, in order
+| v | What |
+|---|---|
+| 0.21 | Cross-subject links |
+| 0.22 | AI feedback wired into the UI (adversarial set finished, rule 7 added) |
+| 0.23 | Warm repalette + the margin rule |
+| 0.24 | Usernames (`social.js`) |
+| 0.25 | Send a note to one named person, and an inbox |
+| 0.26 | Comps — write a test, share a code, compare |
+| 0.27 | Handwriting, first cut (a canvas under the text) |
+| 0.28 | Handwriting rebuilt as ONE SURFACE — the pencil writes on the note |
+| 0.29 | Lasso, pixel + object erasers, line tool, floating palette |
+| 0.30 | Highlighter and four colours |
+| 0.31 | Photograph a page, cleaned up |
+| 0.32 | **Restructure**: Home, real sidebar, accent themes |
+| 0.33 | Empty states, and brass used through Marks |
+
+### The three rules this session added, which must not be quietly undone
+1. **A pencil draws, a finger scrolls.** The ink canvas is
+   `pointer-events:none` and pen input is ROUTED to it by `routePenToInk()` in
+   app.js 12q. That is what makes "just start writing" work with no mode. If
+   you ever find yourself giving the canvas pointer events back, you have
+   broken scrolling on the device this app is aimed at.
+2. **An AI mark is never written into a paper.** 12m has no save button and no
+   persistence, verified against the stored record. A comp score never reaches
+   Marks either.
+3. **A comp is joined by code and is never a leaderboard.** There is no query
+   in the schema that returns everyone ordered by score. Keep it that way — see
+   `GROWTH_AND_LAUNCH.md` §0 for why the public version is a different product.
+
+### Still needing Alec
+- **A second account.** Sharing and comps are verified against stubs that mimic
+  the real policies, and the schema is live, but "you send, someone else
+  receives" has never been run with two real accounts.
+- **Apple Developer enrolment** ($99/yr, his Apple ID) — `PHASE8.md`.
+- **Android** is unblocked and unstarted: Capacitor scaffolding and CI are in.
+
+### Decided, so do not re-open
+- **NESA licensing is deferred until scale and revenue** (Alec, 09-06).
+  Everything question-bank-shaped waits behind it.
+- The brand ambition is written down in `GROWTH_AND_LAUNCH.md` §0 and in
+  memory `project_nexley_brand_vision.md`.
 
 **The last three things off the tracker, 09-06 morning.**
 - **Cross-subject links** (v0.21.0-0.21.1). The first thing in the app that
@@ -180,15 +233,15 @@ bugs found and fixed, both pushed:**
   in the live signed-in app and the smoke-test row now shows a real reply
   ("Reply path verified end to end from the dashboard"). The reply round-trip
   works.
-**Backend:** migrations 0005-0020 applied to prod **and** dev (0016-0020 on 09-06:
-usernames, note sharing, comps, and the privilege revoke).
+**Backend:** migrations 0005-0021 applied to prod **and** dev (0016-0021 on 09-06:
+usernames, note sharing, comps, the privilege revoke, and `notes.ink`).
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
-**Tests:** twelve files, all green (310 assertions) — `test_parser.js`,
+**Tests:** thirteen files, all green (329 assertions) — `test_parser.js`,
 `test_matcher.js`, `test_confidence.js`, `test_feedback.js`, `test_marks.js`,
 `test_plan.js`, `test_events.js`, `test_marking.js`, `test_pastyou.js`,
-`test_streak.js`, `test_title.js`, `test_crosslinks.js`.
+`test_streak.js`, `test_title.js`, `test_crosslinks.js`, `test_comps.js`.
 `for f in test/test_*.js; do node "$f"; done` runs the lot.
 `test/probe_marking.js` is NOT one of them: it spends real Groq quota against
 the live model and is judged by a human. Read its log before changing the
