@@ -180,7 +180,8 @@ bugs found and fixed, both pushed:**
   in the live signed-in app and the smoke-test row now shows a real reply
   ("Reply path verified end to end from the dashboard"). The reply round-trip
   works.
-**Backend:** migrations 0005-0015 applied to prod **and** dev.
+**Backend:** migrations 0005-0020 applied to prod **and** dev (0016-0020 on 09-06:
+usernames, note sharing, comps, and the privilege revoke).
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
