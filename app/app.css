@@ -970,7 +970,25 @@ a{color:var(--structure)}
 .q-annotate{align-self:flex-start;background:none;border:1px dashed var(--rule);
   border-radius:var(--r-md);padding:5px 11px;font-size:var(--t-sm);color:var(--muted);cursor:pointer}
 .q-annotate:hover{border-color:var(--structure);color:var(--structure)}
+.q-actions{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
 .q-spanlist{display:flex;flex-direction:column;gap:var(--s-2)}
+
+/* AI feedback. Read as a quotation of someone else's opinion, never as a
+   result: no accent fill, no big number, and the score sits in the mono face
+   the app uses everywhere for machine-generated figures. */
+.ai-head{margin:0 0 var(--s-4);font-size:var(--t-base);color:var(--ink)}
+.ai-crit{display:flex;gap:var(--s-4);align-items:baseline;
+  padding:var(--s-3) 0;border-top:1px solid var(--rule)}
+.ai-score{font-family:var(--code);font-size:var(--t-xs);color:var(--ink-2);
+  white-space:nowrap;min-width:5ch}
+.ai-crit.unclear .ai-score{color:var(--warn)}
+.ai-crit-text{font-size:var(--t-sm);color:var(--ink-2);line-height:1.6}
+.ai-crit-text b{color:var(--ink);font-weight:500}
+.ai-fixhead{margin:var(--s-5) 0 var(--s-2);font-family:var(--code);
+  font-size:var(--t-2xs);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.ai-fixes{margin:0;padding-left:var(--s-6);font-size:var(--t-sm);
+  color:var(--ink-2);line-height:1.7}
+.ai-bad{margin:0;font-size:var(--t-sm);color:var(--bad);line-height:1.6}
 .q-span-row{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap;
   padding:var(--s-2) 0;border-radius:var(--r-sm)}
 .q-span-row.on{background:var(--structure-soft)}

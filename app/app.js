@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.21.2';
+  var APP_VERSION = '0.22.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5031,7 +5031,22 @@
       sel.removeAllRanges();
       renderQuestions();
     });
-    wrap.appendChild(addBtn);
+    var acts = document.createElement('div');
+    acts.className = 'q-actions';
+    acts.appendChild(addBtn);
+
+    /* Sits next to "annotate", because they answer the same question from two
+       directions: the annotation is what YOU think happened in this answer,
+       this is what a reader who only has the criteria thinks. Neither one
+       writes a mark. */
+    var ai = document.createElement('button');
+    ai.type = 'button';
+    ai.className = 'q-annotate q-ai';
+    ai.textContent = 'Feedback on this answer';
+    ai.title = 'Reads this answer against criteria you paste. Never becomes your mark.';
+    ai.addEventListener('click', function () { openAiDialog(q); });
+    acts.appendChild(ai);
+    wrap.appendChild(acts);
 
     var foot = document.createElement('div');
     foot.className = 'q-spanlist';
@@ -5290,6 +5305,197 @@
         editingPaper = null;
         if (window.NexleySync) window.NexleySync.run();
       });
+  }
+
+  /* ============================================================
+     12m · AI feedback on one answer
+     ------------------------------------------------------------
+     The prompt, the parser and the checks all live in marking.js and have been
+     there since 09-05. This is only the door onto them, and it stayed shut
+     until the adversarial set in test/probe_marking.js had been run in full —
+     all five cases, judged by hand, logged in that file. That was not caution
+     theatre: the very first realistic test of this feature marked a student
+     0/2 against a numeric range nobody had supplied.
+
+     THE RULE THIS SECTION IS BUILT AROUND. An AI mark is never written into a
+     paper. Not saved, not averaged, not persisted anywhere — it lives in a
+     local variable and dies with the dialog. The conditions grouping in 12h
+     only means something because every number in a paper record came from a
+     teacher, and one AI number kept "just for reference" would end that.
+
+     So there is no Save button here, and the number is never called a mark in
+     any string the student reads.
+     ============================================================ */
+  var aiQuestion = null;      // the draft question the dialog was opened from
+  var aiBusy = false;
+
+  function openAiDialog(q) {
+    aiQuestion = q;
+    $('aiQuestion').value = '';
+    $('aiCriteria').value = '';
+    $('aiResult').hidden = true;
+    $('aiResult').textContent = '';
+    $('aiStatus').textContent = '';
+    $('aiAsk').disabled = false;
+    $('aiAsk').textContent = 'Read my answer';
+    $('aiDialog').showModal();
+    $('aiCriteria').focus();
+  }
+
+  /* Reasons, not codes. Every one of these is a thing that can actually happen
+     to a student mid-revision, and "something went wrong" would leave them
+     unable to tell "wait an hour" apart from "this is broken". */
+  function aiErrorText(status, body) {
+    var e = body && body.error;
+    if (e === 'daily_limit') return 'That is your ten for today. It resets at 10am.';
+    if (e === 'account_limit') return 'The shared daily allowance is used up — nothing '
+      + 'you did. Try tomorrow.';
+    if (e === 'not_configured') return 'Feedback is not switched on yet.';
+    if (e === 'provider_unavailable') return 'The service behind this is down right now. '
+      + 'Your answer was not sent anywhere else.';
+    if (status === 401 || status === 403) return 'You need to be signed in for this.';
+    return 'That did not go through (' + (status || 'no reply') + '). Nothing was saved.';
+  }
+
+  function askAi() {
+    if (aiBusy || !aiQuestion) return;
+    var criteria = $('aiCriteria').value.trim();
+    if (!criteria) {
+      $('aiStatus').textContent = 'Paste the marking criteria first.';
+      $('aiCriteria').focus();
+      return;
+    }
+    if (!aiQuestion.response) {
+      $('aiStatus').textContent = 'Type your answer into the question first.';
+      return;
+    }
+    if (!navigator.onLine) {
+      $('aiStatus').textContent = 'This one needs the internet. Everything else does not.';
+      return;
+    }
+
+    var paper = {
+      question: $('aiQuestion').value.trim(),
+      outOf: aiQuestion.outOf || null,
+      criteria: criteria,
+      response: aiQuestion.response
+    };
+    var prompt = window.NexleyMarking.buildPrompt(paper);
+
+    aiBusy = true;
+    $('aiAsk').disabled = true;
+    $('aiAsk').textContent = 'Reading…';
+    $('aiStatus').textContent = '';
+    /* Clear the last answer BEFORE asking, not after the reply lands. Without
+       this, a second attempt that fails — "that is your ten for today" — left
+       the previous reading on screen underneath it, which reads as feedback on
+       the criteria you have just changed. Found in the harness. */
+    $('aiResult').hidden = true;
+    $('aiResult').textContent = '';
+
+    window.NexleyAuth.getSession().then(function (sess) {
+      if (!sess || !sess.access_token) throw { status: 401, body: null };
+      return fetch(window.NEXLEY_SUPABASE_URL + '/functions/v1/ai', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + sess.access_token,
+          'apikey': window.NEXLEY_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ system: prompt.system, user: prompt.user })
+      });
+    }).then(function (r) {
+      return r.json().then(function (body) {
+        if (!r.ok) throw { status: r.status, body: body };
+        return body;
+      });
+    }).then(function (body) {
+      var parsed = window.NexleyMarking.parseMarking(body.text, paper.outOf || null);
+      /* Deliberately not tracked. A new event name costs a hand-applied
+         migration on prod and dev (the CHECK constraint in 0012), and this
+         feature does not need a number to justify itself. */
+      renderAiResult(parsed, criteria, body);
+    }).catch(function (err) {
+      $('aiStatus').textContent = err && err.status
+        ? aiErrorText(err.status, err.body)
+        : 'That did not go through. Nothing was saved.';
+    }).then(function () {
+      aiBusy = false;
+      $('aiAsk').disabled = false;
+      $('aiAsk').textContent = 'Read it again';
+    });
+  }
+
+  function renderAiResult(parsed, criteriaText, body) {
+    var box = $('aiResult');
+    box.textContent = '';
+    box.hidden = false;
+
+    var unsupported = window.NexleyMarking.unsupportedCriteria(parsed, criteriaText);
+
+    /* A marker that returned 7/6, judged a criterion nobody supplied, or came
+       back in a shape the parser could not read has FAILED, and the student is
+       told that instead of being shown a confident wrong number. Showing it
+       anyway "with a warning" is how a wrong mark ends up remembered as a
+       mark. */
+    if (!parsed.ok || unsupported.length) {
+      var bad = document.createElement('p');
+      bad.className = 'ai-bad';
+      bad.textContent = unsupported.length
+        ? 'It marked you against something you did not give it — "'
+          + unsupported[0] + '". Ignore this one.'
+        : 'That came back in a shape this app will not show you. Nothing to read here.';
+      box.appendChild(bad);
+      return;
+    }
+
+    var head = document.createElement('p');
+    head.className = 'ai-head';
+    head.textContent = 'It would give this ' + parsed.mark + ' of ' + parsed.outOf + '.';
+    box.appendChild(head);
+
+    parsed.criteria.forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'ai-crit' + (c.unclear ? ' unclear' : '');
+
+      var score = document.createElement('span');
+      score.className = 'ai-score';
+      score.textContent = c.unclear ? 'unclear'
+        : c.awarded + (c.available !== null ? '/' + c.available : '');
+      row.appendChild(score);
+
+      var txt = document.createElement('span');
+      txt.className = 'ai-crit-text';
+      var q = document.createElement('b');
+      q.textContent = c.criterion;
+      txt.appendChild(q);
+      if (c.why) {
+        var why = document.createElement('span');
+        why.textContent = ' — ' + c.why;
+        txt.appendChild(why);
+      }
+      row.appendChild(txt);
+      box.appendChild(row);
+    });
+
+    if (parsed.fixes.length) {
+      var h = document.createElement('p');
+      h.className = 'ai-fixhead';
+      h.textContent = 'What to fix';
+      box.appendChild(h);
+      var ul = document.createElement('ul');
+      ul.className = 'ai-fixes';
+      parsed.fixes.forEach(function (f) {
+        var li = document.createElement('li');
+        li.textContent = f;
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+
+    if (body && typeof body.remaining === 'number') {
+      $('aiStatus').textContent = body.remaining + ' left today.';
+    }
   }
 
   /* ============================================================
@@ -5582,6 +5788,17 @@
     $('shareBtn').addEventListener('click', openShareDialog);
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
+
+    $('aiAsk').addEventListener('click', askAi);
+    $('aiClose').addEventListener('click', function () { $('aiDialog').close(); });
+    /* Cleared on close, not on open: nothing about one answer's feedback should
+       still be on screen while a different question's dialog is opening, and a
+       dialog dismissed with Escape never runs an open handler. */
+    $('aiDialog').addEventListener('close', function () {
+      aiQuestion = null;
+      $('aiResult').hidden = true;
+      $('aiResult').textContent = '';
+    });
     $('importFile').addEventListener('change', function (e) {
       if (e.target.files && e.target.files[0]) importFile(e.target.files[0]);
       e.target.value = '';

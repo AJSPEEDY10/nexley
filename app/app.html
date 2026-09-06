@@ -763,6 +763,45 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
+<!-- ============ AI FEEDBACK ============
+     Deliberately NOT called "AI marking" anywhere the student can see. It reads
+     one answer against criteria the student pasted and says what it thinks; the
+     number it produces is never written to the paper, never averaged with a real
+     mark, and is gone when this dialog closes. -->
+<dialog id="aiDialog">
+  <div class="dlgbody">
+    <h3>Feedback on this answer</h3>
+    <p class="dlgnote">Paste the marking criteria you were given — the actual words,
+      from the marking guide or the task sheet. It marks against those and nothing
+      else. Without them there is nothing to mark against, so it will not guess.</p>
+
+    <label class="fld">
+      <span>The question <i>(optional, helps it read the answer)</i></span>
+      <textarea id="aiQuestion" class="paste short" rows="2" spellcheck="false"
+        placeholder="Explain how the ATP-PC and anaerobic glycolytic systems…"></textarea>
+    </label>
+
+    <label class="fld">
+      <span>Marking criteria</span>
+      <textarea id="aiCriteria" class="paste" rows="5" spellcheck="false"
+        placeholder="- 2 marks: correctly identifies the fuel source of BOTH systems&#10;- 1 mark: names one correctly"></textarea>
+    </label>
+
+    <div id="aiResult" hidden></div>
+
+    <p class="dlgnote" id="aiFoot"><b>This is not your mark.</b> It never goes into the
+      paper, it is never averaged with a real mark, and it disappears when you close
+      this. A real mark is one a teacher gave you.</p>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="aiStatus"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="aiClose">Close</button>
+      <button type="button" class="btn primary" id="aiAsk">Read my answer</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="bugDialog">
   <div class="dlgbody">
     <h3>Report a problem</h3>
