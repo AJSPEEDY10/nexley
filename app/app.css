@@ -734,6 +734,13 @@ a{color:var(--structure)}
   background:var(--surface)}
 .filehint.past .fh-why{font-family:var(--text);font-style:italic;
   font-size:var(--t-sm);color:var(--ink-2)}
+/* Cross-subject links carry a whole dot-point title on each button, so the
+   default `.fh-text{flex:1}` squeezed the sentence to about 14 characters and
+   broke "This also comes up in PDHPE." across two lines with half the row
+   empty. The sentence is short and fixed; let it size to its content and let
+   the buttons wrap to the next line instead, which is what they already do
+   on a phone. */
+#crossLink .fh-text{flex:0 0 auto}
 
 /* confidence bands. Colour carries the reading, but never alone — every use
    pairs it with a word, because a coloured dot on its own is unreadable to
