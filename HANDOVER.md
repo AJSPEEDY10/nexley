@@ -605,9 +605,17 @@ before committing.** Use a fresh port every time - see the traps.
   in code, which is what Supabase itself recommends for that case.
 - **No Supabase CLI.** Migrations are applied by hand in the dashboard SQL editor;
   `supabase/migrations/` is a record of what was run, not something that runs itself. Apply
-  to **both** prod and dev. The Chrome extension can load SQL into the editor
-  (`window.monaco.editor.getModels()[0].setValue(sql)`) but is blocked from executing it;
-  ComputerControl clicks Run. **Verify against the server afterwards, never the dashboard.**
+  to **both** prod and dev. The Chrome extension loads SQL into the editor
+  (`window.monaco.editor.getModels()[0].setValue(sql)`) **and can click Run itself** — the
+  extension's `computer` click on the Run button works, so ComputerControl is NOT needed
+  for this and the earlier claim here that it was has been corrected (09-06). Even easier:
+  have the page `fetch()` the migration from its raw.githubusercontent URL after pushing,
+  which avoids pasting 20KB of SQL through a tool call.
+  **Verify against the server afterwards, never the dashboard**, and verify GRANTS by
+  listing `role_table_grants` rather than trusting the `grant` line you wrote — Supabase's
+  default privileges add extras you did not ask for (that is how 0019 was found).
+  **Run dev first, always.** 0016's first draft died on dev with 42P07 because a
+  `profiles` table has existed since 0001; on prod that would have been a live surprise.
 - Testable hooks: `NexleySync.run/status`, `NexleyErrors._capture/report/diagnostics/pending`,
   `NexleyAnalytics.sanitize/track/events/flush/pending`, `NexleyDB.all/get/put`.
 - **Adding an analytics event takes two edits** - the `ALLOWED` map in `analytics.js` and the
