@@ -202,6 +202,13 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     <p class="streakline" id="streakLine" hidden></p>
 
     <div class="rail-foot">
+      <!-- The handle other people address you by. Says "Choose a username" until
+           there is one, because everything social is unreachable without it and a
+           silent absence would read as the feature being missing. -->
+      <button class="linkbtn" id="meBtn" type="button">Choose a username</button>
+      <!-- hidden until the inbox itself exists. A button that does nothing is the
+           same overclaim as a "coming soon" list nobody is working on. -->
+      <button class="linkbtn" id="inboxBtn" type="button" hidden>Shared with me<i class="fbdot" id="inboxDot" hidden></i></button>
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
       <button class="linkbtn" id="importBtn" type="button">Import</button>
@@ -763,6 +770,37 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
+<!-- ============ USERNAME ============
+     The one piece of Nexley that another student ever sees of you. Deliberately
+     not your email: a school address is firstname.lastname.year, which is a real
+     identity rather than a handle. -->
+<dialog id="meDialog">
+  <div class="dlgbody">
+    <h3>Your username</h3>
+    <p class="dlgnote">This is how someone sends you a note or invites you to a
+      comp. Pick something you would say out loud — it is not your email, and it is
+      not your real name unless you want it to be.</p>
+
+    <label class="fld">
+      <span>Username</span>
+      <input type="text" id="meUsername" maxlength="20" autocomplete="off"
+             spellcheck="false" placeholder="alecj">
+    </label>
+    <p class="dlgnote">3 to 20 characters. Letters, numbers and underscores, starting
+      with a letter. You can change it later — anything already sent keeps the name
+      it was sent under.</p>
+
+    <p class="gate-err" id="meErr" hidden></p>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="meNote"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="meClose">Close</button>
+      <button type="button" class="btn primary" id="meSave">Save</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- ============ AI FEEDBACK ============
      Deliberately NOT called "AI marking" anywhere the student can see. It reads
      one answer against criteria the student pasted and says what it thinks; the
@@ -850,6 +888,9 @@ Module 2: Body systems and movement
 <script src="auth.js"></script>
 <script src="marking.js"></script>
 <script src="sync.js"></script>
+<!-- the only file that talks to other people; see its header for why it is the
+     one part of Nexley that is not offline-first -->
+<script src="social.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

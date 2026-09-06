@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.23.0';
+  var APP_VERSION = '0.24.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5499,6 +5499,106 @@
   }
 
   /* ============================================================
+     12n · your username
+     ------------------------------------------------------------
+     The handle another student addresses you by, and the gate in front of
+     every social feature: you cannot be sent a note or invited to a comp until
+     you have one, because there is nothing to address.
+
+     WHY THE RAIL SAYS "Choose a username" RATHER THAN NOTHING. An absent
+     feature and an unconfigured one look identical from the outside, and the
+     first is the interpretation people reach for. One line that names the
+     missing step costs nothing and answers the question before it is asked.
+
+     WHY THERE IS NO "check availability" BUTTON. `profiles` is select-own, so
+     a client asking whether `sam` is free gets the same empty answer whether
+     it is free or taken — by design, since a working availability check IS a
+     way to enumerate the user base one name at a time. The check happens
+     inside claim_username, on the server, and a refusal comes back as a
+     sentence written for a student to read.
+     ============================================================ */
+  var myUsername = null;
+
+  function refreshMe() {
+    if (!window.NexleySocial) return Promise.resolve(null);
+    return window.NexleySocial.myProfile().then(function (p) {
+      myUsername = p && p.username ? p.username : null;
+      renderMe();
+      return p;
+    }, function () {
+      /* Offline, or signed out. Neither is an error worth showing in the rail:
+         the notebook works without any of this, and a red line about a feature
+         you were not using is noise. */
+      renderMe();
+      return null;
+    });
+  }
+
+  function renderMe() {
+    var b = $('meBtn');
+    if (!b) return;
+    b.textContent = myUsername ? '@' + myUsername : 'Choose a username';
+    b.title = myUsername
+      ? 'Your username — how other people address you'
+      : 'Pick a handle so someone can send you a note';
+  }
+
+  function openMeDialog() {
+    $('meUsername').value = myUsername || '';
+    $('meErr').hidden = true;
+    $('meNote').textContent = myUsername
+      ? 'Changing this does not rename anything you have already sent.' : '';
+    $('meSave').disabled = false;
+    $('meSave').textContent = 'Save';
+    $('meDialog').showModal();
+    $('meUsername').focus();
+  }
+
+  function saveUsername() {
+    var want = $('meUsername').value.toLowerCase().trim();
+    $('meErr').hidden = true;
+    if (want === (myUsername || '')) { $('meDialog').close(); return; }
+
+    /* Checked here as well as in the database, purely so the common mistakes
+       get an instant, specific answer instead of a round trip. The database is
+       still the authority — this cannot be the only check, because anything in
+       this file can be edited by whoever is holding the laptop. */
+    if (!/^[a-z][a-z0-9_]{2,19}$/.test(want)) {
+      $('meErr').textContent = want.length < 3
+        ? 'A bit longer — at least 3 characters.'
+        : want.length > 20 ? 'A bit shorter — 20 characters at most.'
+        : !/^[a-z]/.test(want) ? 'It has to start with a letter.'
+        : 'Letters, numbers and underscores only.';
+      $('meErr').hidden = false;
+      return;
+    }
+
+    $('meSave').disabled = true;
+    $('meSave').textContent = 'Saving…';
+    window.NexleySocial.claimUsername(want).then(function (name) {
+      myUsername = name;
+      renderMe();
+      $('meDialog').close();
+      toast('You are @' + name + '.');
+    }, function (err) {
+      $('meErr').textContent = err.message;
+      $('meErr').hidden = false;
+      $('meSave').disabled = false;
+      $('meSave').textContent = 'Save';
+    });
+  }
+
+  /* Every social entry point calls this first. Returning the username rather
+     than a boolean means the caller has the thing it was going to ask for
+     next, and one prompt covers "you have not set one up" for all of them. */
+  function requireUsername() {
+    if (myUsername) return Promise.resolve(myUsername);
+    toast('Pick a username first — it is how someone addresses you.');
+    openMeDialog();
+    return Promise.reject(new Error('no_username'));
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -5789,6 +5889,13 @@
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
 
+    $('meBtn').addEventListener('click', openMeDialog);
+    $('meSave').addEventListener('click', saveUsername);
+    $('meClose').addEventListener('click', function () { $('meDialog').close(); });
+    $('meUsername').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); saveUsername(); }
+    });
+
     $('aiAsk').addEventListener('click', askAi);
     $('aiClose').addEventListener('click', function () { $('aiDialog').close(); });
     /* Cleared on close, not on open: nothing about one answer's feedback should
@@ -6036,6 +6143,10 @@
     return enterApp(session.user);
   }).then(function () {
     checkStorage();
+    /* Not awaited, and its failure is swallowed inside refreshMe: the notebook
+       does not need a username to work, and a network hiccup on boot must not
+       be able to stop the app opening. */
+    refreshMe();
     return maybeAutoBackup();
   }).catch(function (err) {
     var msg = (err && err.message) || 'Unknown error';

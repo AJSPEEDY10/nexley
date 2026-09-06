@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v36';
+var CACHE = 'nexley-v37';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -37,6 +37,7 @@ var SHELL = [
   './auth.js',
   './marking.js',
   './sync.js',
+  './social.js',
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
