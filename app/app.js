@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.31.0';
+  var APP_VERSION = '0.32.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -494,6 +494,11 @@
     state.account = { id: user.id, name: (user.user_metadata && user.user_metadata.name) || '', email: user.email };
     $('gate').hidden = true; $('app').hidden = false;
     return refresh()
+      /* The mode VARIABLE defaults to home, but the panes are driven by
+         setMode, so without this the app boots with Home lit in the nav and
+         the notebook on screen — the navigation lying about where you are,
+         which is the one thing navigation cannot do. */
+      .then(function () { setMode(mode); })
       .then(function () { return window.NexleySync.run(); })
       .then(function (res) { return maybeSeed(res); })
       .then(function (seeded) {
@@ -1787,8 +1792,7 @@
   function renderFeedbackBadge() {
     return all('feedback').then(function (rows) {
       fbCache = live(rows);
-      var dot = $('fbDot');
-      if (dot) dot.hidden = fbUnread(fbCache) === 0;
+      setFbDot(fbUnread(fbCache) > 0);
     }).catch(function () {});
   }
 
@@ -1833,8 +1837,7 @@
       fbCache.forEach(function (r) { wrap.appendChild(feedbackRow(r)); });
       // opening the list IS reading it
       fbMarkSeen(fbCache);
-      var dot = $('fbDot');
-      if (dot) dot.hidden = true;
+      setFbDot(false);
     });
   }
 
@@ -1941,18 +1944,24 @@
   /* The working area shows exactly one of: the notebook (browser + editor),
      Classwork, or Review. Everything that switches away from a mode goes through
      here so there is one place that decides what is visible. */
-  var mode = 'notebook';
+  /* Opens on Home. Not persisted across reloads on purpose: the app should
+     open on the same page every time so you always know where you are, and
+     "wherever I happened to be last Tuesday" is not that. */
+  var mode = 'home';
   function setMode(m) {
     mode = m;
     var btns = $('modeSwitch').getElementsByClassName('mode');
     for (var i = 0; i < btns.length; i++) {
       btns[i].classList.toggle('on', btns[i].getAttribute('data-mode') === m);
     }
+    $('home').hidden = m !== 'home';
     $('classwork').hidden = m !== 'classwork';
     $('review').hidden = m !== 'review';
     $('tasks').hidden = m !== 'tasks';
     $('marks').hidden = m !== 'marks';
     $('app').classList.toggle('moded', m !== 'notebook');
+
+    if (m === 'home') renderHome();
 
     if (m === 'classwork') {
       renderClasswork();
@@ -5536,11 +5545,25 @@
     });
   }
 
+  /* The unread mark shows on the rail button that OPENS settings and on the
+     Feedback line inside it, because a dot on a hidden menu item tells nobody
+     anything. One function so the two can never disagree. */
+  function setFbDot(on) {
+    ['fbDot', 'fbDot2'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.hidden = !on;
+    });
+  }
+
   function renderMe() {
-    var b = $('meBtn');
-    if (!b) return;
-    b.textContent = myUsername ? '@' + myUsername : 'Choose a username';
-    b.title = myUsername
+    var name = $('meName'), av = $('meAvatar');
+    if (!name || !av) return;
+    name.textContent = myUsername ? '@' + myUsername : 'Choose a username';
+    /* An initial, not a photograph. There is no avatar upload and there should
+       not be one: a picture of a school-age user is a category of data this
+       app has no reason to hold. */
+    av.textContent = myUsername ? myUsername.charAt(0) : '?';
+    $('meBtn').title = myUsername
       ? 'Your username — how other people address you'
       : 'Pick a handle so someone can send you a note';
   }
@@ -6528,6 +6551,187 @@
   }
 
   /* ============================================================
+     12s · home
+     ------------------------------------------------------------
+     WHY THIS EXISTS. Nexley opened on the notebook — a list of files. That
+     answers "what have I written" and never answers "what should I do now",
+     which is the question a student actually arrives with. Every number here
+     already existed; the app was just making you visit five screens to
+     assemble them, and never showing you the one thing that is true across
+     all of them.
+
+     A CARD WITH NOTHING TO SAY IS NOT RENDERED. A dashboard of zeroes is
+     worse than a short dashboard: it fills the screen with the absence of
+     work and makes the app feel like it is nagging. On a first run this page
+     is close to empty on purpose, and says one useful sentence instead.
+
+     NOTHING HERE IS A NEW MEASUREMENT. It reads dueCards(), coverageOf() and
+     the commitments the planner already uses. If a number on Home ever
+     disagrees with the screen it came from, that is a bug in this file and
+     not a second opinion.
+     ============================================================ */
+  function renderHome() {
+    var grid = $('homeGrid');
+    grid.textContent = '';
+
+    var now = new Date();
+    $('homeDate').textContent = now.toLocaleDateString(undefined,
+      { weekday: 'long', day: 'numeric', month: 'long' });
+    $('homeGreet').textContent = greeting(now.getHours())
+      + (myUsername ? ', ' + myUsername : '');
+
+    var cards = [
+      homeDue(),
+      homeThisWeek(),
+      homeCoverage(),
+      homeRecent()
+    ].filter(Boolean);
+
+    if (!cards.length) {
+      grid.appendChild(homeCard('Getting started', [
+        para('Add a subject, paste its syllabus, and write one note. Everything '
+           + 'on this page grows out of that — what is due, what you have covered, '
+           + 'and what is waiting to be reviewed.')
+      ], 'wide'));
+      return;
+    }
+    cards.forEach(function (c) { grid.appendChild(c); });
+  }
+
+  /* Hours, not a stored preference. Nothing about this needs to be configurable
+     and a greeting that is wrong about the time of day is worse than none. */
+  function greeting(h) {
+    if (h < 5) return 'Still up';
+    if (h < 12) return 'Morning';
+    if (h < 17) return 'Afternoon';
+    return 'Evening';
+  }
+
+  function para(text) {
+    var p = document.createElement('p');
+    p.className = 'hsub';
+    p.textContent = text;
+    return p;
+  }
+
+  function homeCard(title, children, extra) {
+    var el = document.createElement('div');
+    el.className = 'hcard' + (extra ? ' ' + extra : '');
+    var h = document.createElement('h3');
+    h.textContent = title;
+    el.appendChild(h);
+    children.forEach(function (c) { if (c) el.appendChild(c); });
+    return el;
+  }
+
+  function homeLink(label, fn) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'hlink';
+    b.textContent = label;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function homeDue() {
+    var due = dueCards().length;
+    if (!due) return null;
+    var big = document.createElement('div');
+    big.className = 'hbig';
+    big.textContent = due;
+    return homeCard('Waiting to be reviewed', [
+      big,
+      para(due === 1 ? 'One card is due.' : due + ' cards are due.'),
+      homeLink('Start reviewing', function () { setMode('review'); })
+    ], 'due');
+  }
+
+  /* The next fortnight, from the same commitments the planner reads. Anything
+     already done is gone; anything overdue is still here, because a deadline
+     that has passed is more urgent than one that has not, not less. */
+  function homeThisWeek() {
+    var horizon = Date.now() + 14 * 86400000;
+    var soon = state.commitments.filter(function (c) {
+      return !c.deleted && !c.done && c.due && c.due <= horizon;
+    }).sort(function (a, b) { return a.due - b.due; }).slice(0, 5);
+    if (!soon.length) return null;
+
+    var rows = soon.map(function (c) {
+      var row = document.createElement('div');
+      row.className = 'hrow';
+      var nm = document.createElement('span');
+      nm.className = 'hrow-name';
+      nm.textContent = c.title || 'Untitled';
+      row.appendChild(nm);
+      var meta = document.createElement('span');
+      meta.className = 'hrow-meta';
+      var days = Math.round((c.due - Date.now()) / 86400000);
+      meta.textContent = days < 0 ? Math.abs(days) + 'd late'
+        : days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + 'd';
+      row.appendChild(meta);
+      return row;
+    });
+    rows.push(homeLink('Open the plan', function () { setMode('tasks'); }));
+    return homeCard('Due in the next fortnight', rows);
+  }
+
+  function homeCoverage() {
+    if (!state.subjects.length) return null;
+    var rows = [];
+    state.subjects.forEach(function (s) {
+      var cov = coverageOf(s.id);
+      if (!cov || !cov.total) return;      // no syllabus loaded: nothing to cover
+      var row = document.createElement('div');
+      row.className = 'hrow';
+      var nm = document.createElement('span');
+      nm.className = 'hrow-name';
+      nm.textContent = s.name;
+      row.appendChild(nm);
+      var meta = document.createElement('span');
+      meta.className = 'hrow-meta';
+      meta.textContent = cov.covered + ' / ' + cov.total;
+      row.appendChild(meta);
+
+      var bar = document.createElement('div');
+      bar.className = 'hbar';
+      var fill = document.createElement('i');
+      fill.style.width = cov.pct + '%';
+      bar.appendChild(fill);
+
+      rows.push(row);
+      rows.push(bar);
+    });
+    if (!rows.length) return null;
+    return homeCard('Written up', rows, 'wide');
+  }
+
+  function homeRecent() {
+    var recent = notebookNotes().filter(function (n) { return !n.deleted; })
+      .sort(function (a, b) { return b.updated - a.updated; }).slice(0, 5);
+    if (!recent.length) return null;
+    var rows = recent.map(function (n) {
+      var row = document.createElement('div');
+      row.className = 'hrow';
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hrow-name hlink';
+      b.style.textAlign = 'left';
+      b.textContent = n.title || plain(n.body || '').slice(0, 48) || 'Untitled';
+      b.addEventListener('click', function () {
+        setMode('notebook');
+        openNote(n.id);
+      });
+      row.appendChild(b);
+      var meta = document.createElement('span');
+      meta.className = 'hrow-meta';
+      meta.textContent = when(n.updated);
+      row.appendChild(meta);
+      return row;
+    });
+    return homeCard('Picking up where you left off', rows);
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -6950,9 +7154,13 @@
       window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
     });
 
-    // day / night — cycles system -> light -> dark. 'system' clears the override
-    // and follows prefers-color-scheme.
+    /* Appearance now has two axes and both live in Settings. The old
+       "Theme: system" button cycled three states from one label, which meant
+       you could not see what the options were without pressing it, and there
+       was nowhere to put a second choice. */
     var THEMES = ['system', 'light', 'dark'];
+    var ACCENTS = ['eucalypt', 'ink', 'burgundy', 'brass'];
+
     function readTheme() {
       try { var t = localStorage.getItem('nexley-theme'); return THEMES.indexOf(t) > 0 ? t : 'system'; }
       catch (e) { return 'system'; }
@@ -6962,12 +7170,50 @@
       else document.documentElement.setAttribute('data-theme', t);
       try { t === 'system' ? localStorage.removeItem('nexley-theme') : localStorage.setItem('nexley-theme', t); }
       catch (e) {}
-      $('themeBtn').textContent = 'Theme: ' + t;
+      markPicked('themePick', 'theme', t);
+    }
+    function readAccent() {
+      try { var a = localStorage.getItem('nexley-accent'); return ACCENTS.indexOf(a) > 0 ? a : 'eucalypt'; }
+      catch (e) { return 'eucalypt'; }
+    }
+    /* Eucalypt is the default and clears the attribute rather than setting it,
+       so the palette in :root stays the one source of the app's own colour. */
+    function applyAccent(a) {
+      if (a === 'eucalypt') document.documentElement.removeAttribute('data-accent');
+      else document.documentElement.setAttribute('data-accent', a);
+      try { a === 'eucalypt' ? localStorage.removeItem('nexley-accent') : localStorage.setItem('nexley-accent', a); }
+      catch (e) {}
+      markPicked('accentPick', 'accent', a);
+      /* The ink layer reads its colours from the stylesheet, so a live accent
+         change has to repaint it or handwriting keeps the old one until the
+         note is reopened. */
+      if (inkPad) inkPad.redraw();
+    }
+    function markPicked(wrapId, attr, value) {
+      var w = $(wrapId);
+      if (!w) return;
+      Array.prototype.forEach.call(w.children, function (b) {
+        b.classList.toggle('on', b.dataset[attr] === value);
+      });
     }
     applyTheme(readTheme());
-    $('themeBtn').addEventListener('click', function () {
-      applyTheme(THEMES[(THEMES.indexOf(readTheme()) + 1) % THEMES.length]);
+    applyAccent(readAccent());
+    $('themePick').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-theme]');
+      if (b) applyTheme(b.dataset.theme);
     });
+    $('accentPick').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-accent]');
+      if (b) applyAccent(b.dataset.accent);
+    });
+    $('settingsBtn').addEventListener('click', function () {
+      $('setVersion').textContent = 'Nexley v' + APP_VERSION;
+      $('settingsDialog').showModal();
+    });
+    $('settingsClose').addEventListener('click', function () { $('settingsDialog').close(); });
+
+    $('homeNew').addEventListener('click', function () { setMode('notebook'); newNote(null); });
+    $('homeCapture').addEventListener('click', function () { setMode('classwork'); });
 
     // phone drawer
     $('menuBtn').addEventListener('click', function () { $('app').classList.toggle('nav-open'); });

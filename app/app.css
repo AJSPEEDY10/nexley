@@ -58,6 +58,11 @@
   --rule-soft:#E6E1D6;
   --structure:#21493B;  /* eucalypt: links, primary actions, active state. Reads as ink. */
   --structure-soft:#DEE7E0;
+  /* The accent is one token, so a whole-app recolour is four lines rather than
+     a find-and-replace. Set on <html> by the settings dialog. Every accent is
+     dark enough to read as INK on paper — a study app whose primary colour is
+     a bright hue looks like a toy, and the brief has been "professional, not
+     vibecoded" from the beginning. */
   --mark:#E7E24C;       /* the one accent. Selection, coverage fill, current-note spine. */
   --mark-ink:#23261A;
   --danger:#A03A22;
@@ -122,6 +127,23 @@
   --leading:1.75;       /* note-body line-height, also the ruled-paper pitch */
   --gutter:clamp(22px,5vw,64px);
 
+  /* ---------- icons ----------
+     Inline SVG as mask images: they take `currentColor`, so an icon follows
+     the active state of the item it sits in without a second asset, and they
+     are part of the stylesheet so there is no extra request and nothing to go
+     missing offline. Deliberately geometry rather than emoji — an emoji is a
+     different typeface on every platform, which is the fastest way to make an
+     interface look assembled rather than designed. */
+  --i-home:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M3%209.5%2012%203l9%206.5V20a1%201%200%200%201-1%201h-5v-6H9v6H4a1%201%200%200%201-1-1z%22%2F%3E%3C%2Fsvg%3E");
+  --i-book:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M4%204a2%202%200%200%201%202-2h13v18H6a2%202%200%200%200-2%202z%22%2F%3E%3Cpath%20d%3D%22M8%206h8M8%2010h8%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.6%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E");
+  --i-capture:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M4%207h4l1.5-2h5L16%207h4a1%201%200%200%201%201%201v10a1%201%200%200%201-1%201H4a1%201%200%200%201-1-1V8a1%201%200%200%201%201-1z%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2213%22%20r%3D%223.4%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E");
+  --i-review:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M12%204a8%208%200%201%201-7.4%205H2l3.5-4L9%209H6.7A6%206%200%201%200%2012%206z%22%2F%3E%3Cpath%20d%3D%22M12%208v5l3.5%202%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E");
+  --i-tasks:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M4%205h3v3H4zM4%2010.5h3v3H4zM4%2016h3v3H4z%22%2F%3E%3Cpath%20d%3D%22M9.5%206.5h11M9.5%2012h11M9.5%2017.5h11%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.8%22%2F%3E%3C%2Fsvg%3E");
+  --i-marks:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M4%2019h3v-7H4zM10.5%2019h3V5h-3zM17%2019h3v-10h-3z%22%2F%3E%3C%2Fsvg%3E");
+  --i-inbox:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M3%2013%206%205h12l3%208v6a1%201%200%200%201-1%201H4a1%201%200%200%201-1-1z%22%2F%3E%3Cpath%20d%3D%22M3%2013h5l1%202h6l1-2h5%22%20stroke%3D%22%23000%22%20stroke-width%3D%221.6%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E");
+  --i-comp:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M7%204h10v3a5%205%200%200%201-10%200z%22%2F%3E%3Cpath%20d%3D%22M11%2011h2v4h-2z%22%2F%3E%3Cpath%20d%3D%22M8%2019h8v2H8z%22%2F%3E%3Cpath%20d%3D%22M5%205h2v2a3%203%200%200%201-2-2zM17%205h2a3%203%200%200%201-2%202z%22%2F%3E%3C%2Fsvg%3E");
+  --i-more:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E");
+
   color-scheme:light dark;
 }
 /* --- night --- warm near-black. Desk dark, page a touch lit.
@@ -151,6 +173,21 @@
   --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
 }
+
+/* ---------- accents ----------
+   Four, each with a light-theme and a dark-theme pair, because a colour that
+   reads as ink on paper is washed out on charcoal and has to be lifted. */
+:root[data-accent="ink"]{--structure:#2F3336;--structure-soft:#E3E5E6}
+:root[data-accent="burgundy"]{--structure:#6E2438;--structure-soft:#F0E2E6}
+:root[data-accent="brass"]{--structure:#7A5E1E;--structure-soft:#F1E9D6}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"])[data-accent="ink"]{--structure:#C8CDD0;--structure-soft:#2A2D2F}
+  :root:not([data-theme="light"])[data-accent="burgundy"]{--structure:#DFA0B0;--structure-soft:#2E1A20}
+  :root:not([data-theme="light"])[data-accent="brass"]{--structure:#D8B45E;--structure-soft:#2A2417}
+}
+:root[data-theme="dark"][data-accent="ink"]{--structure:#C8CDD0;--structure-soft:#2A2D2F}
+:root[data-theme="dark"][data-accent="burgundy"]{--structure:#DFA0B0;--structure-soft:#2E1A20}
+:root[data-theme="dark"][data-accent="brass"]{--structure:#D8B45E;--structure-soft:#2A2417}
 
 *{box-sizing:border-box}
 /* JS toggles visibility with el.hidden; class rules (.gate/.app {display:grid}, etc.)
@@ -1435,3 +1472,128 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 @media (prefers-reduced-motion:reduce){ .rail{transition:none} }
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+
+/* ============================================================
+   THE RAIL, RESTRUCTURED (09-06)
+   ------------------------------------------------------------
+   Alec: "I still have seen no restructuring of home page, side bars, themes,
+   colourings." He was right. The rail had five text chips for navigation and
+   then eleven identical text links below them — snapshots, export, import,
+   share, feedback, report, lock, theme and three social ones — so the subjects
+   a student is actually studying competed for attention with "Report a
+   problem", and nothing in the column had more weight than anything else.
+
+   Navigation now looks like navigation: one column, a mark beside each item,
+   the current one filled. Everything that is not navigation moved into
+   Settings, where a list is the right shape.
+   ============================================================ */
+.modes{display:flex;flex-direction:column;gap:2px;padding:var(--s-4) var(--s-3)}
+.mode{display:flex;align-items:center;gap:var(--s-4);width:100%;
+  padding:8px var(--s-4);border:0;border-radius:var(--r-md);background:none;
+  font-family:var(--ui);font-size:var(--t-base);letter-spacing:0;text-transform:none;
+  color:var(--ink-2);cursor:pointer;text-align:left}
+.mode:hover{background:var(--surface);color:var(--ink)}
+.mode.on{background:var(--structure-soft);color:var(--structure);font-weight:500}
+.mode span{flex:1}
+/* A count only appears when there is something to count. */
+.mcount{font-family:var(--code);font-size:var(--t-2xs);background:var(--structure);
+  color:var(--card);border-radius:99px;padding:1px 6px;font-weight:400}
+
+/* Icons are drawn with current colour so they follow the active state, and
+   they are geometry rather than emoji — an emoji is a different typeface on
+   every platform and instantly makes an interface look assembled. */
+.mi{width:16px;height:16px;flex:none;display:inline-block;
+  background:currentColor;opacity:.85;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain}
+.mi-home{-webkit-mask-image:var(--i-home);mask-image:var(--i-home)}
+.mi-book{-webkit-mask-image:var(--i-book);mask-image:var(--i-book)}
+.mi-capture{-webkit-mask-image:var(--i-capture);mask-image:var(--i-capture)}
+.mi-review{-webkit-mask-image:var(--i-review);mask-image:var(--i-review)}
+.mi-tasks{-webkit-mask-image:var(--i-tasks);mask-image:var(--i-tasks)}
+.mi-marks{-webkit-mask-image:var(--i-marks);mask-image:var(--i-marks)}
+.mi-inbox{-webkit-mask-image:var(--i-inbox);mask-image:var(--i-inbox)}
+.mi-comp{-webkit-mask-image:var(--i-comp);mask-image:var(--i-comp)}
+.mi-more{-webkit-mask-image:var(--i-more);mask-image:var(--i-more)}
+
+/* ---------- the foot: who you are, and one door ---------- */
+.rail-foot{display:flex;align-items:center;gap:var(--s-3);
+  padding:var(--s-4);border-top:1px solid var(--rule);margin-top:auto}
+.acct{display:flex;align-items:center;gap:var(--s-3);flex:1;min-width:0;
+  background:none;border:0;padding:var(--s-2);border-radius:var(--r-md);
+  cursor:pointer;text-align:left}
+.acct:hover{background:var(--surface)}
+.avatar{width:26px;height:26px;flex:none;border-radius:99px;
+  background:var(--structure-soft);color:var(--structure);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--ui);font-size:var(--t-sm);font-style:normal;text-transform:uppercase}
+.acct-name{flex:1;min-width:0;font-size:var(--t-base);color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail-tools{display:flex;gap:2px}
+.toolbtn{position:relative;width:32px;height:32px;border:0;background:none;
+  border-radius:var(--r-md);color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.toolbtn:hover{background:var(--surface);color:var(--ink)}
+.toolbtn .fbdot{position:absolute;top:5px;right:5px}
+
+/* ---------- settings ---------- */
+.setgroup{margin:0 0 var(--s-7)}
+.setgroup h4{margin:0 0 var(--s-4);font-family:var(--code);font-size:var(--t-2xs);
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:400;
+  padding-bottom:var(--s-3);border-bottom:1px solid var(--rule)}
+.setrow{display:flex;align-items:center;gap:var(--s-5);margin:0 0 var(--s-4);flex-wrap:wrap}
+.setlabel{flex:1;min-width:9ch;font-size:var(--t-base);color:var(--ink-2)}
+.setlinks{display:flex;flex-direction:column;gap:var(--s-2);align-items:flex-start}
+.segmented{display:flex;border:1px solid var(--rule);border-radius:var(--r-md);overflow:hidden}
+.segmented button{border:0;background:none;padding:6px 12px;font-size:var(--t-sm);
+  color:var(--ink-2);cursor:pointer}
+.segmented button+button{border-left:1px solid var(--rule)}
+.segmented button.on{background:var(--structure);color:var(--card)}
+.accents{display:flex;gap:var(--s-3)}
+.accents button{width:26px;height:26px;border-radius:99px;cursor:pointer;
+  border:2px solid transparent;padding:0;background:var(--a)}
+.accents button[data-accent="eucalypt"]{--a:#21493B}
+.accents button[data-accent="ink"]{--a:#2F3336}
+.accents button[data-accent="burgundy"]{--a:#6E2438}
+.accents button[data-accent="brass"]{--a:#7A5E1E}
+.accents button.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+
+
+/* ============================================================
+   HOME
+   ------------------------------------------------------------
+   The app used to open on the notebook: a list of files. That answers "what
+   have I written" and never "what should I do now", and the second is the
+   question a student actually arrives with. Home answers it from data the app
+   already had and was only ever showing one screen at a time.
+
+   Cards are sized by what they hold rather than stamped to a grid, and the
+   ones with nothing to say are not rendered at all — an empty dashboard full
+   of zeroes is worse than a short one.
+   ============================================================ */
+.home-grid{display:grid;gap:var(--s-5);
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  padding:0 0 var(--s-8)}
+.hcard{border:1px solid var(--rule);border-radius:var(--r-lg);background:var(--card);
+  padding:var(--s-6);display:flex;flex-direction:column;gap:var(--s-4)}
+.hcard h3{margin:0;font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);font-weight:400}
+.hcard.wide{grid-column:1/-1}
+/* One number, when the number is the point. Tabular so a 9 and a 14 line up. */
+.hbig{font-family:var(--display);font-size:var(--t-3xl);line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.hsub{font-size:var(--t-base);color:var(--ink-2);line-height:1.6}
+.hrow{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s-4);
+  padding:var(--s-3) 0;border-top:1px solid var(--rule-soft)}
+.hrow:first-of-type{border-top:0}
+.hrow-name{flex:1;min-width:0;font-size:var(--t-base);color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow-meta{font-family:var(--code);font-size:var(--t-2xs);color:var(--muted);white-space:nowrap}
+.hbar{height:6px;border-radius:99px;background:var(--surface);overflow:hidden}
+.hbar i{display:block;height:100%;background:var(--structure)}
+.hlink{align-self:flex-start;background:none;border:0;padding:0;cursor:pointer;
+  font-size:var(--t-base);color:var(--structure)}
+.hlink:hover{text-decoration:underline}
+.hcard.due{border-color:var(--warn)}

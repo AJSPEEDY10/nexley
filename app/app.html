@@ -171,14 +171,17 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <span class="phase" id="appVersion">v…</span>
     </div>
 
-    <!-- the three ways of working. Classwork + Review are stubs for now, but the nav
-         model has to hold them or we restructure it twice. -->
+    <!-- Primary navigation. Six places, each with a mark beside it, in a single
+         column — the old version was five text chips wrapping onto three lines
+         with no visual weight, which read as a filter row rather than as the
+         navigation of an application. -->
     <div class="modes" id="modeSwitch">
-      <button type="button" class="mode on" data-mode="notebook">Notebook</button>
-      <button type="button" class="mode" data-mode="classwork">Classwork</button>
-      <button type="button" class="mode" data-mode="review">Review</button>
-      <button type="button" class="mode" data-mode="tasks">Tasks</button>
-      <button type="button" class="mode" data-mode="marks">Marks</button>
+      <button type="button" class="mode on" data-mode="home"><i class="mi mi-home"></i><span>Home</span></button>
+      <button type="button" class="mode" data-mode="notebook"><i class="mi mi-book"></i><span>Notebook</span></button>
+      <button type="button" class="mode" data-mode="classwork"><i class="mi mi-capture"></i><span>Classwork</span></button>
+      <button type="button" class="mode" data-mode="review"><i class="mi mi-review"></i><span>Review</span><b class="mcount" id="dueCount" hidden></b></button>
+      <button type="button" class="mode" data-mode="tasks"><i class="mi mi-tasks"></i><span>Tasks</span></button>
+      <button type="button" class="mode" data-mode="marks"><i class="mi mi-marks"></i><span>Marks</span></button>
     </div>
 
     <div class="rail-search">
@@ -201,28 +204,27 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          hidden until it is worth saying. See app.js 12j. -->
     <p class="streakline" id="streakLine" hidden></p>
 
+    <!-- ELEVEN TEXT LINKS USED TO LIVE HERE, in one undifferentiated column:
+         snapshots, export, import, share, feedback, report, lock, theme, and
+         the three social ones. That is a settings menu wearing the costume of
+         navigation, and it made the most important thing in the rail — the
+         subjects you are actually studying — compete with "Report a problem".
+
+         What is left is what you use while working: who you are, whether your
+         work is safe, and one door to everything else. -->
     <div class="rail-foot">
-      <!-- The handle other people address you by. Says "Choose a username" until
-           there is one, because everything social is unreachable without it and a
-           silent absence would read as the feature being missing. -->
-      <button class="linkbtn" id="meBtn" type="button">Choose a username</button>
-      <!-- hidden until the inbox itself exists. A button that does nothing is the
-           same overclaim as a "coming soon" list nobody is working on. -->
-      <button class="linkbtn" id="compBtn" type="button">Comps</button>
-      <button class="linkbtn" id="inboxBtn" type="button">Shared with me<i class="fbdot" id="inboxDot" hidden></i></button>
-      <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
-      <button class="linkbtn" id="exportBtn" type="button">Export all</button>
-      <button class="linkbtn" id="importBtn" type="button">Import</button>
-      <!-- Answers "how is school going" without handing over the notebook. No
-           marks, no note text — see app.js 12k. -->
-      <button class="linkbtn" id="shareBtn" type="button">Share progress</button>
-      <!-- Feedback and "Report a problem" are deliberately two different things.
-           A crash report is write-only and unanswerable by design (bug_reports has
-           no select policy). Feedback is the one that talks back. -->
-      <button class="linkbtn" id="fbBtn" type="button">Feedback<i class="fbdot" id="fbDot" hidden></i></button>
-      <button class="linkbtn" id="bugBtn" type="button">Report a problem</button>
-      <button class="linkbtn" id="lockBtn" type="button">Lock</button>
-      <button class="linkbtn" id="themeBtn" type="button" title="Day / night">Theme: system</button>
+      <button class="acct" id="meBtn" type="button">
+        <i class="avatar" id="meAvatar">?</i>
+        <span class="acct-name" id="meName">Choose a username</span>
+      </button>
+      <div class="rail-tools">
+        <button class="toolbtn" id="inboxBtn" type="button" title="Shared with me">
+          <i class="mi mi-inbox"></i><i class="fbdot" id="inboxDot" hidden></i></button>
+        <button class="toolbtn" id="compBtn" type="button" title="Comps">
+          <i class="mi mi-comp"></i></button>
+        <button class="toolbtn" id="settingsBtn" type="button" title="Settings, backups and feedback">
+          <i class="mi mi-more"></i><i class="fbdot" id="fbDot" hidden></i></button>
+      </div>
       <input type="file" id="importFile" accept="application/json" hidden>
     </div>
   </aside>
@@ -392,6 +394,26 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </footer>
    </div>
   </main>
+
+  <!-- ============ HOME ============
+       Where the app opens. Before this it opened on the notebook — a list of
+       files — which answers "what have I written" and never "what should I do
+       now", and the second is the question a student actually arrives with. -->
+  <section class="pane" id="home" hidden>
+    <header class="pane-head">
+      <div>
+        <span class="eyebrow" id="homeDate">Today</span>
+        <h2 id="homeGreet">Nexley</h2>
+      </div>
+      <div class="pane-actions">
+        <button class="btn" id="homeCapture" type="button">Capture something</button>
+        <button class="btn primary" id="homeNew" type="button">New note</button>
+      </div>
+    </header>
+    <div class="pane-body">
+      <div class="home-grid" id="homeGrid"></div>
+    </div>
+  </section>
 
   <!-- ============ CLASSWORK ============
        Rough capture, deliberately not the editor. One box, one button, no filing
@@ -1005,6 +1027,69 @@ Module 2: Body systems and movement
       <span style="flex:1"></span>
       <button type="button" class="btn ghost" id="photoClose">Cancel</button>
       <button type="button" class="btn primary" id="photoInsert" disabled>Put it in the note</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SETTINGS ============
+     Everything that used to be a link in the rail, grouped by what it is for.
+     A settings screen is allowed to be a list; a sidebar is not. -->
+<dialog id="settingsDialog">
+  <div class="dlgbody">
+    <h3>Settings</h3>
+
+    <section class="setgroup">
+      <h4>Appearance</h4>
+      <div class="setrow">
+        <span class="setlabel">Light or dark</span>
+        <div class="segmented" id="themePick">
+          <button type="button" data-theme="system">System</button>
+          <button type="button" data-theme="light">Light</button>
+          <button type="button" data-theme="dark">Dark</button>
+        </div>
+      </div>
+      <div class="setrow">
+        <span class="setlabel">Accent</span>
+        <div class="accents" id="accentPick">
+          <button type="button" data-accent="eucalypt" title="Eucalypt"></button>
+          <button type="button" data-accent="ink" title="Ink"></button>
+          <button type="button" data-accent="burgundy" title="Burgundy"></button>
+          <button type="button" data-accent="brass" title="Brass"></button>
+        </div>
+      </div>
+      <p class="dlgnote">The accent is the colour of everything the app does —
+        links, the current note, a filled progress bar. It is not the colour of
+        your subjects, which you choose per subject.</p>
+    </section>
+
+    <section class="setgroup">
+      <h4>Your work</h4>
+      <div class="setlinks">
+        <button type="button" class="linkbtn" id="snapBtn">Snapshots</button>
+        <button type="button" class="linkbtn" id="exportBtn">Export everything</button>
+        <button type="button" class="linkbtn" id="importBtn">Import a file</button>
+        <button type="button" class="linkbtn" id="shareBtn">Share progress</button>
+      </div>
+      <p class="dlgnote">A snapshot is taken automatically once a day. Export is a
+        plain file that needs no account and no internet to read back.</p>
+    </section>
+
+    <section class="setgroup">
+      <h4>Getting help</h4>
+      <div class="setlinks">
+        <button type="button" class="linkbtn" id="fbBtn">Feedback<i class="fbdot" id="fbDot2" hidden></i></button>
+        <button type="button" class="linkbtn" id="bugBtn">Report a problem</button>
+        <button type="button" class="linkbtn" id="lockBtn">Lock this device</button>
+      </div>
+      <p class="dlgnote">Feedback comes back to you with a reply. A problem report is
+        write-only on purpose — nothing in it can ever be read back out, which is
+        what keeps your notes out of a crash log.</p>
+    </section>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="setVersion"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="settingsClose">Close</button>
     </div>
   </div>
 </dialog>

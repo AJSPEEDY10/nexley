@@ -102,9 +102,33 @@ console.log('\n9. No forecasting anywhere in this section');
    loudly if someone adds a predicted band later. */
 const section = grab('12h · marks', '13 · export');
 const forbidden = ['predictedBand', 'predictBand', 'estimatedBand', 'projectedMark', 'atar'];
+
+/* Whole words, not bare substrings — and written by hand rather than with a
+    regex for two reasons found the hard way.
+
+   First, "atar" as a substring started matching `meAvatar` the moment the rail
+   grew an account row. A guard that cries wolf about a product rule is a guard
+   people start ignoring, which is worse than not having it.
+
+   Second,  is the wrong boundary here anyway: `atar_estimate` is exactly the
+   kind of name this is meant to catch, and  would let it through because an
+   underscore is a word character. Letters and digits are the boundary. */
+function mentions(hay, word) {
+  var h = hay.toLowerCase(), w = word.toLowerCase();
+  var isWordChar = function (ch) { return !!ch && /[a-z0-9]/.test(ch); };
+  for (var i = h.indexOf(w); i !== -1; i = h.indexOf(w, i + 1)) {
+    if (!isWordChar(h[i - 1]) && !isWordChar(h[i + w.length])) return true;
+  }
+  return false;
+}
+
+/* The guard has to be checked, or a broken one passes silently for ever. */
+ok('the guard catches a real ATAR mention', mentions('predicted ATAR band', 'atar'));
+ok('the guard catches atar_estimate', mentions('var atar_estimate = 1', 'atar'));
+ok('the guard is not fooled by meAvatar', !mentions('var av = meAvatar;', 'atar'));
+
 forbidden.forEach(function (word) {
-  ok('no "' + word + '" in the marks section',
-     section.toLowerCase().indexOf(word.toLowerCase()) === -1);
+  ok('no "' + word + '" in the marks section', !mentions(section, word));
 });
 
 /* ---------------------------------------------------------------
