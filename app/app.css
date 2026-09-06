@@ -1041,7 +1041,7 @@ a{color:var(--structure)}
 .ed-surface{position:relative}
 /* top/left/width/height are all set in JS from the body's own box — see
    sizeInk(). Nothing here may set them, or the two disagree. */
-.ink-canvas{position:absolute;
+.ink-canvas{position:absolute;--ink-accent:var(--structure);
   --ink-stroke:var(--ink);pointer-events:none;z-index:2;
   /* Height is set in JS to the full content height, not to 100% of the
      scroller — see sizeInk(). pan-y so a finger still scrolls in draw mode. */
@@ -1051,11 +1051,40 @@ a{color:var(--structure)}
 .paper-sel{font-family:var(--ui);font-size:var(--t-base);color:var(--ink-2);
   background:none;border:0;padding:2px 4px;cursor:pointer}
 .paper-sel:focus{outline:none;color:var(--structure)}
-.ink-tools{display:flex;gap:var(--s-3);align-items:center;flex-wrap:wrap;
-  margin:0 var(--gutter) var(--s-4);max-width:calc(var(--measure) + var(--gutter))}
+/* The palette floats over the page and is dragged by its grip. Fixed
+   positioning, so it stays put while the note scrolls underneath — a toolbar
+   that scrolls away is one you have to chase. */
+.ink-palette{position:fixed;left:auto;right:28px;bottom:26px;z-index:40;
+  display:flex;flex-direction:column;gap:var(--s-2);
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:var(--s-3) var(--s-4) var(--s-4);
+  box-shadow:0 6px 22px rgb(var(--shade) / .16), 0 1px 3px rgb(var(--shade) / .10)}
+.ink-grip{display:flex;align-items:center;gap:var(--s-3);cursor:grab;
+  touch-action:none}          /* the grip must not scroll the page while dragging */
+.ink-grip:active{cursor:grabbing}
+.ink-grip-dots{flex:1;height:8px;border-radius:99px;
+  background-image:radial-gradient(circle at 2px 2px, var(--rule) 1.4px, transparent 1.5px);
+  background-size:7px 8px}
+.ink-fold{border:0;background:none;color:var(--muted);cursor:pointer;
+  font-size:var(--t-md);line-height:1;padding:0 var(--s-2)}
+.ink-fold:hover{color:var(--ink)}
+.ink-row{display:flex;gap:var(--s-2);align-items:center;flex-wrap:wrap;max-width:330px}
+.inktool{border:1px solid transparent;background:none;border-radius:var(--r-sm);
+  padding:6px 9px;font-size:var(--t-sm);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.inktool:hover{border-color:var(--rule);color:var(--ink)}
+.inktool.on{border-color:var(--structure);color:var(--structure);background:var(--structure-soft)}
+.inktool.quiet{color:var(--muted)}
+.ink-sep{width:1px;align-self:stretch;background:var(--rule);margin:2px var(--s-2)}
 .ink-hint{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
-  text-transform:uppercase;color:var(--muted);margin-left:auto}
-.ink-tools .iconbtn.on{border-color:var(--structure);color:var(--structure)}
+  text-transform:uppercase;color:var(--muted);margin:0}
+/* Folded: the grip alone, so it can still be found and moved. */
+.ink-palette.folded .ink-row,.ink-palette.folded .ink-hint{display:none}
+@media (max-width:640px){
+  /* On a phone a floating panel in the corner covers the thing you are writing
+     on. Pin it to the bottom edge instead, full width, and let it wrap. */
+  .ink-palette{left:8px;right:8px;bottom:8px}
+  .ink-row{max-width:none}
+}
 
 /* ---------- paper ----------
    Lines and grids, per note, the way Apple Notes offers them — and for the

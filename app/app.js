@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.28.0';
+  var APP_VERSION = '0.29.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -6191,7 +6191,9 @@
            about what "saved" means. */
         markDirty();
         renderInkTools(n);
-      }
+        refreshSelectionUI();
+      },
+      onSelect: refreshSelectionUI
     });
     return inkPad;
   }
@@ -6261,12 +6263,108 @@
     if (on) sizeInk();
   }
 
+  /* Five tools, matching what Apple offers, with their names written the way a
+     student would say them out loud rather than the way a drawing app labels
+     them: "Rub out" and "Rub part", not "Object eraser" and "Pixel eraser". */
+  var INK_TOOLS = {
+    inkPen:   'draw',
+    inkLine:  'line',
+    inkLasso: 'lasso',
+    inkErase: 'object',
+    inkPixel: 'pixel'
+  };
+
   function setInkMode(mode) {
     var pad = ensureInk();
     if (!pad) return;
     pad.setMode(mode);
-    $('inkPen').classList.toggle('on', mode === 'draw');
-    $('inkErase').classList.toggle('on', mode === 'erase');
+    Object.keys(INK_TOOLS).forEach(function (id) {
+      $(id).classList.toggle('on', INK_TOOLS[id] === mode);
+    });
+    /* Delete only exists while something is circled. A button that is present
+       but does nothing is worse than one that appears when it can act. */
+    $('inkDelSel').hidden = !(mode === 'lasso' && pad.hasSelection());
+  }
+
+  function refreshSelectionUI() {
+    var pad = inkPad;
+    $('inkDelSel').hidden = !(pad && pad.mode === 'lasso' && pad.hasSelection());
+  }
+
+  /* ---------- moving the palette ----------
+     Where a toolbar needs to be depends on which hand you write with and which
+     corner of the page you are working in, which is exactly why Apple lets you
+     move theirs. Position is remembered in localStorage rather than in the
+     note: it is a property of this person on this device, not of the writing,
+     and it must never sync — an iPad's comfortable corner is not a laptop's.
+
+     Clamped back inside the window on load, because a position saved on a wide
+     monitor puts the palette off-screen on a laptop, and an off-screen toolbar
+     cannot be dragged back. */
+  var PALETTE_KEY = 'nexley-ink-palette';
+
+  function paletteRestore() {
+    var el = $('inkTools');
+    var raw;
+    try { raw = localStorage.getItem(PALETTE_KEY); } catch (e) { return; }
+    if (!raw) return;
+    var pos;
+    try { pos = JSON.parse(raw); } catch (e) { return; }
+    if (!pos || typeof pos.x !== 'number') return;
+    paletteMoveTo(el, pos.x, pos.y);
+    if (pos.folded) el.classList.add('folded');
+  }
+
+  function paletteMoveTo(el, x, y) {
+    var w = el.offsetWidth || 260, h = el.offsetHeight || 90;
+    x = Math.max(6, Math.min(x, window.innerWidth - w - 6));
+    y = Math.max(6, Math.min(y, window.innerHeight - h - 6));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  }
+
+  function paletteSave(el) {
+    try {
+      localStorage.setItem(PALETTE_KEY, JSON.stringify({
+        x: el.offsetLeft, y: el.offsetTop, folded: el.classList.contains('folded')
+      }));
+    } catch (e) { /* private window, or storage full. Not worth a message. */ }
+  }
+
+  function wirePaletteDrag() {
+    var el = $('inkTools'), grip = $('inkGrip');
+    if (!el || !grip) return;
+    var from = null;
+
+    grip.addEventListener('pointerdown', function (e) {
+      from = { x: e.clientX, y: e.clientY, left: el.offsetLeft, top: el.offsetTop };
+      grip.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    grip.addEventListener('pointermove', function (e) {
+      if (!from) return;
+      paletteMoveTo(el, from.left + (e.clientX - from.x), from.top + (e.clientY - from.y));
+    });
+    grip.addEventListener('pointerup', function () {
+      if (!from) return;
+      from = null;
+      paletteSave(el);
+    });
+
+    $('inkFold').addEventListener('click', function (e) {
+      e.stopPropagation();
+      var folded = el.classList.toggle('folded');
+      $('inkFold').textContent = folded ? '+' : '–';
+      $('inkFold').title = folded ? 'Bring the tools back' : 'Fold the tools away';
+      paletteSave(el);
+    });
+
+    /* A window that has been made smaller can leave the palette outside it. */
+    window.addEventListener('resize', function () {
+      paletteMoveTo(el, el.offsetLeft, el.offsetTop);
+    });
   }
 
   /* THE LINE THAT MAKES A PENCIL JUST WORK. The canvas cannot receive the
@@ -6585,9 +6683,15 @@
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
 
     $('inkBtn').addEventListener('click', toggleDraw);
-    $('inkPen').addEventListener('click', function () { setInkMode('draw'); });
-    $('inkErase').addEventListener('click', function () { setInkMode('erase'); });
+    Object.keys(INK_TOOLS).forEach(function (id) {
+      $(id).addEventListener('click', function () { setInkMode(INK_TOOLS[id]); });
+    });
     $('inkUndo').addEventListener('click', function () { if (inkPad) inkPad.undo(); });
+    $('inkDelSel').addEventListener('click', function () {
+      if (inkPad) { inkPad.deleteSelection(); refreshSelectionUI(); }
+    });
+    wirePaletteDrag();
+    paletteRestore();
     $('inkClear').addEventListener('click', function () {
       if (!inkPad || inkPad.isEmpty()) return;
       if (!confirm('Remove all handwriting from this note? The typed text stays.')) return;

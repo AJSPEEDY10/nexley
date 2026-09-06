@@ -341,14 +341,29 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          being about the other. Silent unless the match is genuinely specific. -->
     <div class="filehint past" id="crossLink" hidden></div>
 
-    <!-- The pen tools. Shown only when there is ink or you asked to draw —
-         a pencil needs no toolbar to start writing, it just writes. -->
-    <div class="ink-tools" id="inkTools" hidden>
-      <button type="button" class="iconbtn" id="inkPen" title="Write">Pen</button>
-      <button type="button" class="iconbtn" id="inkErase" title="Rub out a stroke">Erase</button>
-      <button type="button" class="iconbtn" id="inkUndo" title="Undo the last stroke">Undo</button>
-      <button type="button" class="iconbtn ghost" id="inkClear" title="Remove all handwriting">Clear</button>
-      <span class="ink-hint">Pencil writes · finger scrolls</span>
+    <!-- The pen tools. A floating palette you can drag out of your own way,
+         because where it needs to be depends on which hand you write with and
+         which corner of the page you are working in — the reason Apple lets
+         you move theirs. Shown only when there is ink or you asked to draw: a
+         pencil needs no toolbar to start writing, it just writes. -->
+    <div class="ink-palette" id="inkTools" hidden>
+      <div class="ink-grip" id="inkGrip" title="Drag to move these tools">
+        <span class="ink-grip-dots" aria-hidden="true"></span>
+        <button type="button" class="ink-fold" id="inkFold"
+                title="Fold the tools away">–</button>
+      </div>
+      <div class="ink-row" id="inkRow">
+        <button type="button" class="inktool on" id="inkPen" title="Write">Pen</button>
+        <button type="button" class="inktool" id="inkLine" title="Straight line">Line</button>
+        <button type="button" class="inktool" id="inkLasso" title="Circle some ink, then drag it">Lasso</button>
+        <button type="button" class="inktool" id="inkErase" title="Rub out whole strokes">Rub out</button>
+        <button type="button" class="inktool" id="inkPixel" title="Rub out only the parts you touch">Rub part</button>
+        <span class="ink-sep"></span>
+        <button type="button" class="inktool" id="inkUndo" title="Undo the last stroke">Undo</button>
+        <button type="button" class="inktool" id="inkDelSel" title="Delete what you circled" hidden>Delete</button>
+        <button type="button" class="inktool quiet" id="inkClear" title="Remove all handwriting">Clear</button>
+      </div>
+      <p class="ink-hint">Pencil writes · finger scrolls</p>
     </div>
 
     <!-- ONE SURFACE. The canvas is an overlay across the whole writing column,
