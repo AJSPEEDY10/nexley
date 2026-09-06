@@ -65,9 +65,43 @@
  *     Rule 2 (judge correctness; do not add requirements). Worth remembering
  *     that an adversarial case can itself be the thing that is wrong.
  *     REWRITTEN 09-06 to be genuinely correct-but-differently-worded, so it
- *     now tests what it was meant to test. Not yet re-run.
+ *     now tests what it was meant to test.
  *   irrelevant_wrong_fact, ambiguous_criterion: NOT YET RUN — hit the daily
  *     cap. Re-run after reset (10am AEST) and update this log.
+ *
+ *   2026-09-06, 10:17 AEST, the remaining three run after the reset. THE SET IS
+ *   NOW COMPLETE — all five have been run and judged by hand.
+ *   different_wording (rewritten): 2/2. Read "phosphagen system", "free
+ *     phosphate" and "glycolysis run without oxygen" as the things they are and
+ *     gave full marks. It marks understanding, not vocabulary.
+ *   irrelevant_wrong_fact: 2/2, and this is the cleanest result of the five.
+ *     The volunteered wrong claim ("both systems require oxygen") did NOT cost
+ *     a mark, because the supplied criterion was about fuel sources and nothing
+ *     else — Rule 1 holding under pressure. The wrong claim still got named,
+ *     in WHAT TO FIX, where it belongs.
+ *   ambiguous_criterion: 2/2 — a PARTIAL result, recorded honestly.
+ *     The failure this case exists to catch (invent a checklist for a vague
+ *     criterion, then deduct against it) did NOT happen; it gave the benefit of
+ *     the doubt, which is the right way to be wrong here. But Rule 4's UNCLEAR
+ *     path never fired either — the vagueness surfaced as advice instead:
+ *     "include brief details on the typical time frames (e.g. ATP-PC
+ *     predominates for ~0-10 s)". The criteria never asked for time frames.
+ *     The mark was unaffected, so this is the softest possible form of the
+ *     original bug, but a student reading a 2/2 next to a "what to fix" cannot
+ *     tell whether that advice is why something was withheld.
+ *     ACTIONED: Rule 7 added to marking.js — anything in WHAT TO FIX that the
+ *     criteria did not require must say "(not required by the criteria)".
+ *     Verified against the live model on this same case; see below.
+ *
+ *   2026-09-06, Rule 7 verification (1 further call, same case, rule spliced
+ *   into the live system prompt): mark unchanged at 2/2, and the two
+ *   beyond-the-criteria suggestions are GONE — WHAT TO FIX came back as
+ *   "None (response meets the criteria)". Not what the rule asked for (it
+ *   offered a tag, not a ban) and worth knowing: told to label advice as not
+ *   required, this model prefers to drop it. That is a small loss of useful
+ *   coaching in exchange for a mark sheet that cannot be misread, which is the
+ *   right side of the trade for a tool a student reads alone. Do not "fix"
+ *   this by softening rule 7 without re-running the whole set.
  */
 const PROBE_SCRIPT = `
 async function runNexleyProbe() {

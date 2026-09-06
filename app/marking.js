@@ -29,6 +29,11 @@
  *     other half of the same failure
  *   - "the criteria do not settle this" is an available answer, so the model has
  *     somewhere to go other than inventing
+ *   - advice that goes beyond the criteria has to say so, because the softest
+ *     form of the same failure is a "what to fix" line that reads like the
+ *     reason marks were withheld when it is not (2026-09-06: a vague criterion
+ *     was marked 2/2 and then told to "include typical time frames" — the mark
+ *     was right, but the criteria never asked for time frames)
  */
 (function () {
   'use strict';
@@ -54,6 +59,10 @@
     '   Guessing is worse than saying so.',
     '5. Never state or imply a band, grade, ATAR, percentage or predicted result.',
     '6. Never award more marks than the criterion is worth, or more than the total.',
+    '7. WHAT TO FIX may suggest something the criteria did not require, but every',
+    '   such suggestion must end with "(not required by the criteria)". The',
+    '   student must never have to guess whether a suggestion is the reason marks',
+    '   were withheld.',
     '',
     'FORMAT — exactly this, nothing before or after:',
     'MARK: <awarded>/<total>',
