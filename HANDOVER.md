@@ -539,6 +539,16 @@ before committing.** Use a fresh port every time - see the traps.
    exactly the class of bug this app's architecture exists to prevent, and it was live in
    the working tree for about twenty minutes on 09-04 before a browser pass caught it.
    `grep -n "all('cards')" app/app.js` finds every place a new store belongs.
+16. **A collapsed browser viewport makes every dashboard click a silent no-op, and you
+    will read the PREVIOUS result and believe it.** The prod SQL editor tab dropped to
+    639x125 mid-session (the extension reports the tab's viewport, not the window). Run
+    clicks at the coordinates from an earlier screenshot then land outside the viewport and
+    do nothing at all — no error — while the results panel still shows the last query's
+    output. That is how migration 0021 was "applied and verified" on prod twice without
+    ever running. **Before trusting any dashboard result, read `innerWidth`/`innerHeight`
+    and locate the Run button by `getBoundingClientRect()` rather than by memory**, and
+    make the verification query return something that could only come from THIS run.
+
 11. **Never let a client silently discard a failed write.** `errors.js` used to treat `42501`
    as an expected refusal and drop the batch, which made a misconfigured backend
    indistinguishable from a working one — the queue drained, the UI said "sent", nothing
