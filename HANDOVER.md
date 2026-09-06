@@ -1,10 +1,40 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.20.0, SW cache `nexley-v31`
-— bumped 09-06 because 0.19.1 had stopped being true: it is stamped into every
-crash report and snapshot, and the app had gained six features and two
-data-integrity fixes since. Nothing in the whole run needed a migration or
-changed the sync shape, so there is nothing for Alec to apply by hand.
+**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.22.0, SW cache `nexley-v35`
+— nothing in the whole run needed a migration or changed the sync shape, so
+there is nothing for Alec to apply by hand.
+
+**The last three things off the tracker, 09-06 morning.**
+- **Cross-subject links** (v0.21.0-0.21.1). The first thing in the app that
+  looks across a subject boundary — the 12e matcher is handed a subjectId and
+  never sees anything else. Open a filed note and, if its dot point shares
+  genuinely specific vocabulary with a point in a *different* subject, one
+  quiet line says so and takes you there. Three gates: the shared term must be
+  rare across the whole notebook, must not be syllabus scaffolding
+  ("describe", "students investigate"), and the survivors must add up. **Most
+  of the 25 assertions in `test_crosslinks.js` check that it says nothing** —
+  a version that linked everything would pass a "does it find the link" test
+  and be worse than not shipping. Two faults the harness caught before it went
+  out: the line said "two other subjects" when both links were in the same
+  one, and following a link set the active point without scrolling to it
+  (top=1585 in an 888px viewport).
+- **The adversarial marking set is COMPLETE.** All five cases have now been
+  run against the live model and judged by hand; the log at the top of
+  `test/probe_marking.js` is the record and is worth reading before touching
+  the prompt. `irrelevant_wrong_fact` is the cleanest result: a volunteered
+  wrong claim the criterion did not cover cost nothing and still got named in
+  WHAT TO FIX. `ambiguous_criterion` was a partial — the dangerous failure did
+  not happen, but rule 4's UNCLEAR path never fired and the vagueness came out
+  as advice for something the criteria never asked for. **Rule 7** now makes
+  any beyond-the-criteria advice say so; verified against the live model, and
+  the model responded by dropping such advice entirely rather than tagging it.
+- **AI feedback is wired into the UI** (v0.22.0). A question inside a paper,
+  once you have typed your answer in. **There is no save button and there is
+  no persistence** — the result lives in a local variable and dies with the
+  dialog. Verified by taking a 2/2 from the model on a question marked 1/2,
+  saving the paper, and reading the record back: still 1/2, nothing AI-shaped
+  stored. A reply that fails the arithmetic checks or quotes a criterion the
+  student did not supply is refused outright, not shown with a warning.
 
 **Live build-plan tracker: https://claude.ai/code/artifact/08ba57da-71d6-477f-8eb5-9ede9416af85**
 — the whole idea archive cross-referenced against what's shipped, updated
@@ -154,9 +184,14 @@ bugs found and fixed, both pushed:**
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
-**Tests:** `node test/test_parser.js`, `test_matcher.js`, `test_confidence.js`,
-`test_feedback.js`, `test_marks.js`, `test_plan.js`, `test_events.js`,
-`test_marking.js` - all green (230 assertions).
+**Tests:** twelve files, all green (310 assertions) — `test_parser.js`,
+`test_matcher.js`, `test_confidence.js`, `test_feedback.js`, `test_marks.js`,
+`test_plan.js`, `test_events.js`, `test_marking.js`, `test_pastyou.js`,
+`test_streak.js`, `test_title.js`, `test_crosslinks.js`.
+`for f in test/test_*.js; do node "$f"; done` runs the lot.
+`test/probe_marking.js` is NOT one of them: it spends real Groq quota against
+the live model and is judged by a human. Read its log before changing the
+marking prompt.
 Plus `node test/measure_matcher.js`, which is a MEASUREMENT, not a test: it prints
 coverage/precision for auto-filing and never fails.
 
