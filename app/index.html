@@ -116,6 +116,9 @@ try{
   .log li i{flex:none;width:6px;height:6px;border-radius:999px;background:var(--good);
     transform:translateY(-2px)}
   .log li.soon i{background:none;border:1px solid var(--muted)}
+  /* Says what the list above does NOT contain. A "coming soon" column is the
+     easiest place on a site to overclaim, so this one names its own limit. */
+  .soonnote{margin:14px 0 0;font-size:.82rem;line-height:1.6;color:var(--muted)}
   .log .caveat{font-family:var(--text);font-size:.9375rem;line-height:1.6;
     color:var(--muted);max-width:58ch;margin-top:22px}
 
@@ -300,11 +303,13 @@ try{
       <div>
         <h3>Being built</h3>
         <ul>
-          <li class="soon"><i></i>A photo of the marked paper itself, not just the answer
-            you typed back in</li>
-          <li class="soon"><i></i>Handwriting capture, on every device rather than one</li>
-          <li class="soon"><i></i>Photographing a textbook page straight into a note</li>
+          <li class="soon"><i></i>Writing by hand with a pencil on an iPad, in the note
+            itself</li>
+          <li class="soon"><i></i>Photographing a page — the board, a textbook, your own
+            marked paper — straight into a note</li>
         </ul>
+        <p class="soonnote">Two things, both started. Nothing else is on this list,
+          because nothing else is actually being worked on.</p>
       </div>
     </div>
     <p class="caveat">One thing that is deliberately not on either list: a predicted
