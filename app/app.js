@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.29.0';
+  var APP_VERSION = '0.30.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -6268,19 +6268,33 @@
      them: "Rub out" and "Rub part", not "Object eraser" and "Pixel eraser". */
   var INK_TOOLS = {
     inkPen:   'draw',
+    inkHi:    'draw',
     inkLine:  'line',
     inkLasso: 'lasso',
     inkErase: 'object',
     inkPixel: 'pixel'
   };
 
-  function setInkMode(mode) {
+  /* The highlighter is the pen with a different nib, not a different mode:
+     everything about drawing, erasing and lassoing is identical, and the only
+     difference is how the stroke is painted. Keeping it out of the mode list
+     is what stops "am I in highlight mode?" becoming a question the rest of
+     this file has to answer. */
+  function setInkMode(mode, hi) {
     var pad = ensureInk();
     if (!pad) return;
     pad.setMode(mode);
+    if (mode === 'draw' || mode === 'line') pad.setHighlight(!!hi);
+    else pad.setHighlight(false);
+
     Object.keys(INK_TOOLS).forEach(function (id) {
-      $(id).classList.toggle('on', INK_TOOLS[id] === mode);
+      var on = INK_TOOLS[id] === mode
+        && (id !== 'inkPen' || !hi) && (id !== 'inkHi' || !!hi);
+      $(id).classList.toggle('on', on);
     });
+    /* The swatches show the colours you would actually get, which are not the
+       same hues at highlighter strength. */
+    $('inkTools').classList.toggle('hi', !!hi);
     /* Delete only exists while something is circled. A button that is present
        but does nothing is worse than one that appears when it can act. */
     $('inkDelSel').hidden = !(mode === 'lasso' && pad.hasSelection());
@@ -6684,7 +6698,18 @@
 
     $('inkBtn').addEventListener('click', toggleDraw);
     Object.keys(INK_TOOLS).forEach(function (id) {
-      $(id).addEventListener('click', function () { setInkMode(INK_TOOLS[id]); });
+      $(id).addEventListener('click', function () {
+        setInkMode(INK_TOOLS[id], id === 'inkHi');
+      });
+    });
+    Array.prototype.forEach.call($('inkSwatches').children, function (b) {
+      b.addEventListener('click', function () {
+        if (!inkPad) ensureInk();
+        inkPad.setColour(b.dataset.colour);
+        Array.prototype.forEach.call($('inkSwatches').children, function (o) {
+          o.classList.toggle('on', o === b);
+        });
+      });
     });
     $('inkUndo').addEventListener('click', function () { if (inkPad) inkPad.undo(); });
     $('inkDelSel').addEventListener('click', function () {

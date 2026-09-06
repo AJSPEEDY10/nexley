@@ -354,6 +354,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       </div>
       <div class="ink-row" id="inkRow">
         <button type="button" class="inktool on" id="inkPen" title="Write">Pen</button>
+        <button type="button" class="inktool" id="inkHi" title="Highlight — sits behind the words">Highlight</button>
         <button type="button" class="inktool" id="inkLine" title="Straight line">Line</button>
         <button type="button" class="inktool" id="inkLasso" title="Circle some ink, then drag it">Lasso</button>
         <button type="button" class="inktool" id="inkErase" title="Rub out whole strokes">Rub out</button>
@@ -362,6 +363,15 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
         <button type="button" class="inktool" id="inkUndo" title="Undo the last stroke">Undo</button>
         <button type="button" class="inktool" id="inkDelSel" title="Delete what you circled" hidden>Delete</button>
         <button type="button" class="inktool quiet" id="inkClear" title="Remove all handwriting">Clear</button>
+      </div>
+      <!-- Four colours, not a wheel. One per subject, or ink for notes and red
+           for corrections — enough to mean something, few enough not to be a
+           decision. -->
+      <div class="ink-swatches" id="inkSwatches">
+        <button type="button" class="swatch on" data-colour="ink" title="Ink"></button>
+        <button type="button" class="swatch" data-colour="green" title="Green"></button>
+        <button type="button" class="swatch" data-colour="red" title="Red"></button>
+        <button type="button" class="swatch" data-colour="blue" title="Blue"></button>
       </div>
       <p class="ink-hint">Pencil writes · finger scrolls</p>
     </div>

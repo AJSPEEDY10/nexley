@@ -1041,7 +1041,22 @@ a{color:var(--structure)}
 .ed-surface{position:relative}
 /* top/left/width/height are all set in JS from the body's own box — see
    sizeInk(). Nothing here may set them, or the two disagree. */
-.ink-canvas{position:absolute;--ink-accent:var(--structure);
+/* The pen and highlighter palette. ink.js reads these by token name at draw
+   time, so a stroke saved in dark mode comes back correct in daylight — a
+   stored hex would freeze it at whichever theme drew it. The hi- variants are
+   the same hues at highlighter strength; they are separate tokens rather than
+   an alpha applied to the pen colour because a readable highlight is not the
+   pen colour made transparent, it is a lighter, yellower relative of it. */
+.ink-canvas{position:absolute;
+  --ink-accent:var(--structure);
+  --ink-ink:var(--ink);
+  --ink-green:#2C6B4F;
+  --ink-red:#A03A22;
+  --ink-blue:#2B4D82;
+  --ink-hi-ink:#E7E24C;
+  --ink-hi-green:#7FD4A6;
+  --ink-hi-red:#F2A08A;
+  --ink-hi-blue:#8FC0F0;
   --ink-stroke:var(--ink);pointer-events:none;z-index:2;
   /* Height is set in JS to the full content height, not to 100% of the
      scroller — see sizeInk(). pan-y so a finger still scrolls in draw mode. */
@@ -1075,6 +1090,20 @@ a{color:var(--structure)}
 .inktool.on{border-color:var(--structure);color:var(--structure);background:var(--structure-soft)}
 .inktool.quiet{color:var(--muted)}
 .ink-sep{width:1px;align-self:stretch;background:var(--rule);margin:2px var(--s-2)}
+.ink-swatches{display:flex;gap:var(--s-3);align-items:center}
+.swatch{width:22px;height:22px;border-radius:99px;border:2px solid transparent;
+  cursor:pointer;padding:0;background:var(--sw)}
+.swatch[data-colour="ink"]{--sw:var(--ink)}
+.swatch[data-colour="green"]{--sw:#2C6B4F}
+.swatch[data-colour="red"]{--sw:#A03A22}
+.swatch[data-colour="blue"]{--sw:#2B4D82}
+/* The ring, not a fill change, marks the chosen one — a swatch has to keep
+   showing its own colour to be a swatch at all. */
+.swatch.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+.ink-palette.hi .swatch[data-colour="ink"]{--sw:#E7E24C}
+.ink-palette.hi .swatch[data-colour="green"]{--sw:#7FD4A6}
+.ink-palette.hi .swatch[data-colour="red"]{--sw:#F2A08A}
+.ink-palette.hi .swatch[data-colour="blue"]{--sw:#8FC0F0}
 .ink-hint{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
   text-transform:uppercase;color:var(--muted);margin:0}
 /* Folded: the grip alone, so it can still be found and moved. */

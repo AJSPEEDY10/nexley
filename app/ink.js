@@ -35,13 +35,17 @@
 (function () {
   'use strict';
 
-  /* One pen. Deliberately not a palette: this is for annotating your own
-     notes, and a colour picker is the kind of thing that turns a study tool
-     into an art app you then tidy instead of revise with. Pressure varies the
-     width, which is the part that actually makes handwriting legible. */
+  /* A pen and a highlighter, in four colours each. Deliberately NOT Apple's
+     six nib types and a full colour wheel: this is for marking up your own
+     notes, and an art-supplies drawer is how a study tool becomes something
+     you tidy instead of revise with. Four is enough to mean something — one
+     colour per subject, or ink for notes and red for corrections — and few
+     enough that the choice is not a decision. Pressure varies pen width,
+     which is the part that makes handwriting legible. */
   var BASE_WIDTH = 2.2;
   var PRESSURE_RANGE = 2.6;   // width = BASE + pressure * RANGE
   var ERASER_RADIUS = 0.02;   // in normalised units, ~2% of the width
+  var HIGHLIGHT_WIDTH = 15;   // px, fixed: a chisel tip has one width
 
   function Ink(canvas, opts) {
     this.canvas = canvas;
@@ -53,6 +57,8 @@
     this.lasso = null;     // the loop being drawn right now
     this.drag = null;      // an in-progress move of the selection
     this.line = null;      // an in-progress straight line
+    this.colourKey = 'ink';  // a TOKEN NAME, never a hex — see colourOf()
+    this.highlight = false;  // is the pen a highlighter right now
     this.onChange = (opts && opts.onChange) || function () {};
     /* Selecting is not a change to the drawing, so it must not go through
        onChange — that marks the note dirty and would make circling something
@@ -94,6 +100,18 @@
     if (type === 'pointerdown') this._down(e);
     else if (type === 'pointermove') this._move(e);
     else this._up(e);
+  };
+
+  /* Colours are stored as token NAMES and resolved through the stylesheet at
+     draw time. Storing a hex would freeze a stroke at the colour of whichever
+     theme it was drawn in — write a note in dark mode and every mark comes
+     back as pale grey on white paper the next morning. */
+  Ink.prototype.setColour = function (key) { this.colourKey = key || 'ink'; };
+  Ink.prototype.setHighlight = function (on) { this.highlight = !!on; };
+
+  Ink.prototype.colourOf = function (key) {
+    var v = getComputedStyle(this.canvas).getPropertyValue('--ink-' + (key || 'ink'));
+    return (v && v.trim()) || this.colour();
   };
 
   Ink.prototype.load = function (strokes) {
@@ -181,7 +199,12 @@
 
     if (this.mode === 'line') { this.line = { a: pt, b: pt }; this.redraw(); return; }
 
+    /* A stroke carries its own colour and tool. Both are omitted when they are
+       the default, so a page of ordinary handwriting stores exactly what it
+       stored before this existed and old notes keep working untouched. */
     this.current = { p: [pt] };
+    if (this.colourKey !== 'ink') this.current.c = this.colourKey;
+    if (this.highlight) this.current.h = 1;
     this.strokes.push(this.current);
   };
 
@@ -227,7 +250,9 @@
        most of those samples are noise that costs storage and draws worse. */
     if (Math.abs(pt[0] - last[0]) < 0.0015 && Math.abs(pt[1] - last[1]) < 0.0015) return;
     this.current.p.push(pt);
-    this._drawSegment(last, pt);
+    /* Passing the stroke means an in-progress highlight is drawn as a
+       highlight rather than as a thin pen line that changes on release. */
+    this._drawSegment(last, pt, false, this.current);
   };
 
   Ink.prototype._up = function (e) {
@@ -255,7 +280,10 @@
          committing a zero-length line leaves an invisible stroke that undo
          then appears to do nothing to. */
       if (Math.abs(b[0] - a[0]) > 0.004 || Math.abs(b[1] - a[1]) > 0.004) {
-        this.strokes.push({ p: [a, b] });
+        var st = { p: [a, b] };
+        if (this.colourKey !== 'ink') st.c = this.colourKey;
+        if (this.highlight) st.h = 1;
+        this.strokes.push(st);
         this.onChange();
       }
       this.redraw();
@@ -454,16 +482,29 @@
     return [p[0] * w, p[1] * w];
   };
 
-  Ink.prototype._drawSegment = function (a, b, selected) {
+  Ink.prototype._drawSegment = function (a, b, selected, stroke) {
     var dpr = window.devicePixelRatio || 1;
     var ctx = this.ctx;
     var pa = this._px(a), pb = this._px(b);
+    var hi = stroke ? !!stroke.h : this.highlight;
+    var key = stroke ? (stroke.c || 'ink') : this.colourKey;
+
     ctx.save();
     ctx.scale(dpr, dpr);
-    ctx.strokeStyle = selected ? this.accent() : this.colour();
-    ctx.lineCap = 'round';
+    ctx.strokeStyle = selected ? this.accent() : this.colourOf(hi ? 'hi-' + key : key);
+    ctx.lineCap = hi ? 'butt' : 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = BASE_WIDTH + b[2] * PRESSURE_RANGE;
+    if (hi) {
+      /* Fixed width and no pressure: a highlighter has a chisel tip and does
+         not get thinner when you press lightly. multiply so overlapping passes
+         darken like real ink rather than stacking to opaque and hiding the
+         words underneath — which is the one thing a highlighter must not do. */
+      ctx.globalAlpha = 0.38;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.lineWidth = HIGHLIGHT_WIDTH;
+    } else {
+      ctx.lineWidth = BASE_WIDTH + b[2] * PRESSURE_RANGE;
+    }
     ctx.beginPath();
     ctx.moveTo(pa[0], pa[1]);
     ctx.lineTo(pb[0], pb[1]);
@@ -483,9 +524,16 @@
     var ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     var self = this;
-    this.strokes.forEach(function (s, i) {
-      var on = self.selection.indexOf(i) > -1;
-      for (var k = 1; k < s.p.length; k++) self._drawSegment(s.p[k - 1], s.p[k], on);
+    /* Highlighter first, pen second, always. A highlight drawn after the
+       writing would wash over it; drawn before, it sits behind the words the
+       way a real one does — under the ink, over the paper. Two passes is the
+       whole trick. */
+    [true, false].forEach(function (hiPass) {
+      self.strokes.forEach(function (s, i) {
+        if (!!s.h !== hiPass) return;
+        var on = self.selection.indexOf(i) > -1;
+        for (var k = 1; k < s.p.length; k++) self._drawSegment(s.p[k - 1], s.p[k], on, s);
+      });
     });
     if (this.lasso) this._drawGuide(this.lasso, true);
     if (this.line) this._drawGuide([this.line.a, this.line.b], false);
