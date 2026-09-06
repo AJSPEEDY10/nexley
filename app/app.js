@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.25.0';
+  var APP_VERSION = '0.26.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5856,6 +5856,287 @@
   }
 
   /* ============================================================
+     12p · comps
+     ------------------------------------------------------------
+     Several people sit the same test and compare afterwards.
+
+     WHAT MAKES THIS NOT A LEADERBOARD, since that distinction is the only
+     reason it exists at all: a comp is joined with a CODE. It is not listed,
+     not discoverable, not ranked against a year group, and there is no query
+     anywhere in the schema that returns everyone ordered by score. You see the
+     people who were given the same code as you. A live cohort percentile is
+     motivating for whoever is at the top and corrosive for the people who most
+     need to keep going, and these are sixteen-year-olds.
+
+     EVERYONE MARKS THEMSELVES, AND THE UI SAYS SO. There is no invigilation
+     here and there cannot be. A comp is only as honest as the people in it,
+     which is fine between friends and worthless as a measurement — so the
+     dialog states it plainly rather than implying a rigour it does not have.
+     This is also why a comp score never touches the Marks screen: a real mark
+     is one a teacher gave you, and that rule has survived every feature so
+     far (see 12h and 12m).
+
+     UNSUBMITTED IS NOT ZERO. Someone who has joined and not sat it yet shows
+     as "still sitting it" and sorts last, never as a nought — the same rule
+     the term planner follows for unestimated work.
+     ============================================================ */
+  var QLINE = /^(.*?)[\s ]+(\d+(?:\.\d+)?)$/;
+
+  /* "Describe replication   3" → { prompt, outOf }. Marks at the END of the
+     line, because that is how a question is written on a real paper, and a
+     line with no number is worth one mark, because that is what a bare
+     question means on a real paper too. */
+  function parseQuestions(text) {
+    var out = [];
+    String(text || '').split('\n').forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) return;
+      var m = QLINE.exec(line);
+      out.push(m
+        ? { prompt: m[1].trim(), outOf: parseFloat(m[2]) }
+        : { prompt: line, outOf: 1 });
+    });
+    return out;
+  }
+
+  function questionsTotal(qs) {
+    return qs.reduce(function (a, q) { return a + (q.outOf || 0); }, 0);
+  }
+
+  function openComps() {
+    requireUsername().then(function () {
+      $('compCode').value = '';
+      $('compErr').hidden = true;
+      $('compMsg').textContent = '';
+      $('compList').textContent = 'Loading…';
+      $('compDialog').showModal();
+      loadComps();
+    }, function () {});
+  }
+
+  function loadComps() {
+    return window.NexleySocial.myComps().then(function (rows) {
+      $('compList').textContent = '';
+      if (!rows.length) {
+        $('compList').appendChild(note('None yet. Write a test, or join one with a code.'));
+        return;
+      }
+      rows.forEach(function (c) { $('compList').appendChild(compRow(c)); });
+    }, function (err) { $('compList').textContent = err.message; });
+  }
+
+  function compRow(c) {
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'comp-row';
+
+    var t = document.createElement('span');
+    t.className = 'comp-title';
+    t.textContent = c.title;
+    row.appendChild(t);
+
+    var m = document.createElement('span');
+    m.className = 'comp-meta';
+    m.textContent = [c.subject_name, 'out of ' + c.out_of, 'code ' + c.join_code]
+      .filter(Boolean).join('  ·  ');
+    row.appendChild(m);
+
+    row.addEventListener('click', function () { openComp(c.id); });
+    return row;
+  }
+
+  function openCompNew() {
+    $('compTitle').value = '';
+    $('compSubject').value = '';
+    $('compQs').value = '';
+    $('compOutOf').textContent = 'Out of 0.';
+    $('compNewErr').hidden = true;
+    $('compCreate').disabled = false;
+    $('compCreate').textContent = 'Create';
+    $('compNewDialog').showModal();
+    $('compTitle').focus();
+  }
+
+  function createComp() {
+    var title = $('compTitle').value.trim();
+    var qs = parseQuestions($('compQs').value);
+    var total = questionsTotal(qs);
+    $('compNewErr').hidden = true;
+
+    if (!title) return compNewFail('Give it a name people will recognise.');
+    if (!qs.length) return compNewFail('Add at least one question.');
+    if (total <= 0) return compNewFail('The marks add up to zero — put a number at the end of each line.');
+
+    $('compCreate').disabled = true;
+    $('compCreate').textContent = 'Creating…';
+
+    var id = uid();
+    window.NexleySocial.createComp({
+      id: id,
+      ownerUsername: myUsername,
+      title: title,
+      subjectName: $('compSubject').value.trim() || null,
+      questions: qs,
+      outOf: total,
+      device: state.deviceId
+    }).then(function (row) {
+      /* The owner joins their own comp immediately. Without this, a comp you
+         wrote shows you no entry to submit against, which reads as the feature
+         being broken rather than as a rule about ownership. */
+      return window.NexleySocial.joinComp(row.join_code, uid(), myUsername)
+        .then(function () { return row; });
+    }).then(function (row) {
+      $('compNewDialog').close();
+      loadComps();
+      toast('Made. The code is ' + row.join_code + '.');
+      openComp(row.id);
+    }, function (err) {
+      compNewFail(err.message);
+      $('compCreate').disabled = false;
+      $('compCreate').textContent = 'Create';
+    });
+  }
+
+  function compNewFail(msg) {
+    $('compNewErr').textContent = msg;
+    $('compNewErr').hidden = false;
+    return false;
+  }
+
+  function joinComp() {
+    var code = $('compCode').value.toUpperCase().trim();
+    $('compErr').hidden = true;
+    if (code.length !== 6) {
+      $('compErr').textContent = 'A code is six characters.';
+      $('compErr').hidden = false;
+      return;
+    }
+    $('compJoin').disabled = true;
+    window.NexleySocial.joinComp(code, uid(), myUsername).then(function (compId) {
+      $('compJoin').disabled = false;
+      $('compCode').value = '';
+      loadComps();
+      openComp(compId);
+    }, function (err) {
+      $('compJoin').disabled = false;
+      $('compErr').textContent = err.message;
+      $('compErr').hidden = false;
+    });
+  }
+
+  var viewingComp = null;
+
+  function openComp(compId) {
+    viewingComp = null;
+    $('compViewTitle').textContent = 'Loading…';
+    $('compViewMeta').textContent = '';
+    $('compViewQs').textContent = '';
+    $('compEntries').textContent = '';
+    $('compViewErr').hidden = true;
+    $('compViewMsg').textContent = '';
+    $('compViewDialog').showModal();
+
+    window.NexleySocial.compDetail(compId).then(function (d) {
+      if (!d.comp) { $('compViewTitle').textContent = 'That comp is not there.'; return; }
+      viewingComp = d;
+      renderComp(d);
+    }, function (err) { $('compViewTitle').textContent = err.message; });
+  }
+
+  function renderComp(d) {
+    var c = d.comp;
+    $('compViewTitle').textContent = c.title;
+    $('compViewMeta').textContent = [c.subject_name, 'out of ' + c.out_of,
+      'code ' + c.join_code, 'by @' + c.owner_username].filter(Boolean).join('  ·  ');
+
+    var qs = Array.isArray(c.questions) ? c.questions : [];
+    $('compViewQs').textContent = '';
+    qs.forEach(function (q, i) {
+      var row = document.createElement('div');
+      row.className = 'comp-q';
+      var n = document.createElement('span');
+      n.className = 'comp-qn';
+      n.textContent = (i + 1) + '.';
+      row.appendChild(n);
+      var p = document.createElement('span');
+      p.className = 'comp-qp';
+      p.textContent = q.prompt;
+      row.appendChild(p);
+      var m = document.createElement('span');
+      m.className = 'comp-qm';
+      m.textContent = marksLabel(q.outOf);
+      row.appendChild(m);
+      $('compViewQs').appendChild(row);
+    });
+
+    var me = null;
+    d.entries.forEach(function (e) { if (e.username === myUsername) me = e; });
+    $('compScore').value = me && me.score !== null ? me.score : '';
+    $('compScore').max = c.out_of;
+    $('compSubmit').textContent = me && me.score !== null ? 'Update' : 'Submit';
+    $('compSubmit').disabled = !me;
+    $('compViewMsg').textContent = me ? '' : 'Join it first.';
+
+    $('compEntries').textContent = '';
+    d.entries.forEach(function (e) {
+      var row = document.createElement('div');
+      row.className = 'comp-entry' + (e.username === myUsername ? ' me' : '');
+
+      var who = document.createElement('span');
+      who.className = 'comp-who';
+      who.textContent = '@' + e.username + (e.username === myUsername ? ' (you)' : '');
+      row.appendChild(who);
+
+      var sc = document.createElement('span');
+      sc.className = 'comp-score';
+      /* Not a zero, and not a blank either — "still sitting it" is a real
+         state and saying so is the difference between a comp and a scoreboard
+         that quietly punishes anyone who has not started. */
+      sc.textContent = e.score === null ? 'still sitting it'
+        : e.score + ' / ' + c.out_of;
+      if (e.score === null) sc.classList.add('pending');
+      row.appendChild(sc);
+
+      $('compEntries').appendChild(row);
+    });
+  }
+
+  function submitCompScore() {
+    if (!viewingComp) return;
+    var c = viewingComp.comp;
+    var me = null;
+    viewingComp.entries.forEach(function (e) { if (e.username === myUsername) me = e; });
+    if (!me) return;
+
+    var raw = $('compScore').value;
+    var score = raw === '' ? null : parseFloat(raw);
+    $('compViewErr').hidden = true;
+    if (score === null || isNaN(score) || score < 0) {
+      $('compViewErr').textContent = 'What did you get?';
+      $('compViewErr').hidden = false;
+      return;
+    }
+    if (score > c.out_of) {
+      $('compViewErr').textContent = 'That is more than the test is worth (' + c.out_of + ').';
+      $('compViewErr').hidden = false;
+      return;
+    }
+
+    $('compSubmit').disabled = true;
+    window.NexleySocial.submitScore(me.id, score).then(function () {
+      return window.NexleySocial.compDetail(c.id);
+    }).then(function (d) {
+      viewingComp = d;
+      renderComp(d);
+      toast('In.');
+    }, function (err) {
+      $('compSubmit').disabled = false;
+      $('compViewErr').textContent = err.message;
+      $('compViewErr').hidden = false;
+    });
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -6145,6 +6426,24 @@
     $('shareBtn').addEventListener('click', openShareDialog);
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
+
+    $('compBtn').addEventListener('click', openComps);
+    $('compClose').addEventListener('click', function () { $('compDialog').close(); });
+    $('compNew').addEventListener('click', openCompNew);
+    $('compNewClose').addEventListener('click', function () { $('compNewDialog').close(); });
+    $('compCreate').addEventListener('click', createComp);
+    $('compJoin').addEventListener('click', joinComp);
+    $('compViewClose').addEventListener('click', function () { $('compViewDialog').close(); });
+    $('compSubmit').addEventListener('click', submitCompScore);
+    /* The running total is the only feedback that the "3 marks at the end of
+       the line" format was understood at all. Without it you find out the
+       parse was wrong after everyone has already joined. */
+    $('compQs').addEventListener('input', function () {
+      var qs = parseQuestions(this.value);
+      $('compOutOf').textContent = qs.length
+        ? qs.length + ' question' + (qs.length === 1 ? '' : 's') + ', out of ' + questionsTotal(qs) + '.'
+        : 'Out of 0.';
+    });
 
     $('sendNote').addEventListener('click', openSendDialog);
     $('sendGo').addEventListener('click', doSend);

@@ -1015,6 +1015,45 @@ a{color:var(--structure)}
 .q-actions{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
 .q-spanlist{display:flex;flex-direction:column;gap:var(--s-2)}
 
+/* Comps. The code is set in the mono face everywhere it appears, because it
+   gets read aloud and typed by somebody else — it is data, not prose. */
+.comp-join,.comp-mine{display:flex;gap:var(--s-4);align-items:flex-end}
+/* Trap 13, again: `.fld input[type=number]{width:100%}` is (0,2,1) and sits
+   later in this file, so it silently beats `.q-num{width:64px}` and stretched
+   the score box across the whole dialog.
+
+   And the FIRST attempt at this fix did not work either, which is the part
+   worth writing down: `.comp-mine input.q-num` is also (0,2,1), an exact tie,
+   and this block sits EARLIER in the file than the .fld rule — so the tie was
+   broken by source order in favour of the thing being overridden. Three class
+   levels is what it takes. Third time this one rule has quietly won an
+   argument it should not have been in; check the computed width, never the
+   selector you wrote. */
+.comp-mine .fld input.q-num{width:96px;flex:none}
+.comp-mine .fld{flex:none}
+.code-in{font-family:var(--code);letter-spacing:.18em;text-transform:uppercase}
+.comp-row{display:flex;flex-direction:column;gap:var(--s-2);width:100%;text-align:left;
+  border:1px solid var(--rule);border-radius:var(--r-md);background:var(--card);
+  padding:var(--s-4) var(--s-5);margin:0 0 var(--s-3);cursor:pointer}
+.comp-row:hover{border-color:var(--structure)}
+.comp-title{font-family:var(--display);font-size:var(--t-md);color:var(--ink)}
+.comp-meta{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+.comp-q{display:flex;gap:var(--s-4);align-items:baseline;padding:var(--s-3) 0;
+  border-top:1px solid var(--rule)}
+.comp-qn{font-family:var(--code);font-size:var(--t-xs);color:var(--muted);min-width:2ch}
+.comp-qp{flex:1;font-size:var(--t-base);color:var(--ink-2);line-height:1.6}
+.comp-qm{font-family:var(--code);font-size:var(--t-2xs);color:var(--muted);white-space:nowrap}
+.comp-entry{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s-4);
+  padding:var(--s-3) var(--s-4);border-radius:var(--r-sm)}
+/* Brass, not eucalypt: this is a record of what happened, which is the one
+   thing that colour means anywhere in the app. */
+.comp-entry.me{background:var(--brass-soft)}
+.comp-who{font-size:var(--t-base);color:var(--ink)}
+.comp-score{font-family:var(--code);font-size:var(--t-sm);color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+.comp-score.pending{color:var(--muted);font-style:italic}
+
 /* A note somebody else wrote. Deliberately looks like a quotation and not
    like one of your own note cards: it sits on the recessed surface, and its
    body keeps the reading serif so it reads as writing rather than as data. */

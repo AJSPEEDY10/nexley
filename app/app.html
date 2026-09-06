@@ -208,6 +208,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button class="linkbtn" id="meBtn" type="button">Choose a username</button>
       <!-- hidden until the inbox itself exists. A button that does nothing is the
            same overclaim as a "coming soon" list nobody is working on. -->
+      <button class="linkbtn" id="compBtn" type="button">Comps</button>
       <button class="linkbtn" id="inboxBtn" type="button">Shared with me<i class="fbdot" id="inboxDot" hidden></i></button>
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
@@ -820,6 +821,97 @@ Module 2: Body systems and movement
       <span class="dlgnote" id="inboxMsg"></span>
       <span style="flex:1"></span>
       <button type="button" class="btn ghost" id="inboxClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ COMPS ============
+     Several people sit the same test and compare. Joined by a code, never
+     discoverable, never ranked against a year group — see migration 0018 for
+     why that distinction is the whole design and not a limitation. -->
+<dialog id="compDialog">
+  <div class="dlgbody">
+    <h3>Comps</h3>
+    <p class="dlgnote">Write a test, send the code to whoever you want, and compare
+      when you have all sat it. Only people you give the code to can see it, and
+      nobody is ranked against anyone they did not choose.</p>
+
+    <div class="comp-join">
+      <label class="fld" style="flex:1">
+        <span>Join with a code</span>
+        <input type="text" id="compCode" maxlength="6" autocomplete="off"
+               spellcheck="false" placeholder="e.g. K7QM2P" class="code-in">
+      </label>
+      <button type="button" class="btn" id="compJoin">Join</button>
+    </div>
+    <p class="gate-err" id="compErr" hidden></p>
+
+    <h3 style="margin-top:20px">Yours</h3>
+    <div id="compList"></div>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="compMsg"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="compClose">Close</button>
+      <button type="button" class="btn primary" id="compNew">Write a test</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="compNewDialog">
+  <div class="dlgbody">
+    <h3>Write a test</h3>
+    <p class="dlgnote">Your own questions — Nexley has no question bank, so this is a
+      paper you write out. Everyone who joins sits the same one and marks their own,
+      which means a comp is only as honest as the people in it. That is the deal, and
+      it is stated here rather than pretended away.</p>
+
+    <label class="fld">
+      <span>What is it called?</span>
+      <input type="text" id="compTitle" maxlength="120" placeholder="Module 5 quick test">
+    </label>
+    <label class="fld">
+      <span>Subject <i>(optional)</i></span>
+      <input type="text" id="compSubject" maxlength="80" placeholder="Biology">
+    </label>
+    <label class="fld">
+      <span>The questions</span>
+      <textarea id="compQs" class="paste" rows="6" spellcheck="false"
+        placeholder="One per line, marks at the end:&#10;Describe semi-conservative replication  3&#10;Name the enzyme that unwinds DNA  1"></textarea>
+    </label>
+    <p class="dlgnote" id="compOutOf">Out of 0.</p>
+    <p class="gate-err" id="compNewErr" hidden></p>
+
+    <div class="dlg-actions">
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="compNewClose">Cancel</button>
+      <button type="button" class="btn primary" id="compCreate">Create</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="compViewDialog">
+  <div class="dlgbody">
+    <h3 id="compViewTitle">Comp</h3>
+    <p class="dlgnote" id="compViewMeta"></p>
+    <div id="compViewQs"></div>
+
+    <div class="comp-mine">
+      <label class="fld" style="flex:1">
+        <span>Your score</span>
+        <input type="number" id="compScore" min="0" step="0.5" class="q-num">
+      </label>
+      <button type="button" class="btn" id="compSubmit">Submit</button>
+    </div>
+    <p class="gate-err" id="compViewErr" hidden></p>
+
+    <h3 style="margin-top:18px">Everyone</h3>
+    <div id="compEntries"></div>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="compViewMsg"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="compViewClose">Close</button>
     </div>
   </div>
 </dialog>
