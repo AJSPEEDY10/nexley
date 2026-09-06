@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.27.0';
+  var APP_VERSION = '0.28.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -1164,6 +1164,7 @@
     setKindButtons(n.kind || 'personal');
     renderCrumbAndHint(n);
     applyFont(n.font || 'standard');
+    renderPaper(n);
     renderInk(n);
     markSaved();
     countWords();
@@ -6138,23 +6139,39 @@
   }
 
   /* ============================================================
-     12q · handwriting
+     12q · handwriting — one surface, not a box under the text
      ------------------------------------------------------------
-     The pencil surface on a note. The drawing itself lives in ink.js; this is
-     the part that knows about notes, saving and the editor.
+     Rebuilt after Alec: "notes and pen notes should be the same thing", and
+     after reading how Apple Notes actually does it. Apple keeps typed text and
+     handwriting in separate BLOCKS with a separator down the margin; their own
+     reviewers name that as the limitation it is ("intermingling the two is
+     somewhat limited"). Nexley does the thing that was wanted instead: the
+     canvas is an OVERLAY across the whole writing column, so the pencil marks
+     the page wherever the page is — over a paragraph, out in the margin,
+     around a word you want to come back to.
 
-     IT IS A LAYER ON A NOTE, NOT A KIND OF NOTE. Everything Nexley does —
-     search, auto-filing, the matcher, coverage, sharing, AI feedback — reads
-     TEXT. A note that is purely ink would silently drop out of every one of
-     those, which is a much worse feature than it looks. So a note keeps its
-     typed body and can additionally carry handwriting: a diagram off the
-     board next to the sentence explaining it.
+     HOW IT AVOIDS EATING EVERY OTHER INTERACTION. The canvas is
+     pointer-events:none, so a finger scrolls and a mouse selects and types
+     straight through it as if it were not there. Pen input is routed to it
+     explicitly by the capture listener below, which is what makes "just start
+     writing" work with no mode switch — the thing an iPad user expects and
+     the reason a Handwrite button was the wrong idea.
 
-     WHAT IS DELIBERATELY NOT HERE: no handwriting recognition. Converting ink
-     to text badly is worse than not converting it, and doing it well needs a
-     model, a round trip and a per-user cost — none of which is justified for
-     the thing this is actually for, which is diagrams.
+     A laptop has no stylus, so Draw turns pointer-events back on for the
+     mouse. That is a mode, and it is one you asked for rather than one you
+     have to leave.
+
+     PAPER IS A PROPERTY OF THE PAGE, NOT OF THE INK. Lines, wide lines, grid,
+     small grid, blank — chosen per note and drawn behind BOTH the typing and
+     the handwriting, at the typed line pitch so "lines" means the lines your
+     own text sits on. Apple offers the same set for the same reason:
+     handwriting on blank white drifts, and a grid is what makes a diagram sit
+     straight.
+
+     STILL DELIBERATELY ABSENT: handwriting recognition. Converting ink to text
+     badly is worse than not converting it.
      ============================================================ */
+  var PAPERS = ['lines', 'lines-wide', 'grid', 'grid-small', 'blank'];
   var inkPad = null;
 
   function inkFor(note) {
@@ -6169,47 +6186,79 @@
         var n = state.activeNote && noteById(state.activeNote);
         if (!n) return;
         n.ink = inkPad.toJSON();
-        /* Same dirty flag the typed body uses, so handwriting is covered by
-           the existing autosave rather than a second save path that could
-           disagree with it about what "saved" means. */
+        /* The same dirty flag typing uses, so handwriting rides the existing
+           autosave rather than a second save path that could disagree with it
+           about what "saved" means. */
         markDirty();
+        renderInkTools(n);
       }
     });
     return inkPad;
   }
 
-  function renderInk(note) {
-    var wrap = $('inkWrap');
-    if (!wrap) return;
-    var strokes = inkFor(note);
-    var open = !!(note && (openInkFor === note.id || strokes.length));
-    wrap.hidden = !open;
-    if (!open) return;
-
+  /* The overlay has to be exactly as tall as the text it covers, or ink drawn
+     at the bottom of a long note lands outside the canvas. Measured from the
+     body's scroll height rather than its box, because the body scrolls. */
+  function sizeInk() {
     var pad = ensureInk();
-    if (!pad) { wrap.hidden = true; return; }
-    pad.load(strokes);
-    /* Measured after it is visible: a hidden element has no width, and sizing
-       the canvas from zero produces a blank one that only fixes itself on the
-       next resize. */
-    requestAnimationFrame(function () { pad.resize(); });
+    if (!pad) return;
+    var body = $('noteBody');
+    var c = $('inkCanvas');
+    var h = Math.max(body.offsetHeight, $('edSurface').scrollHeight);
+
+    /* Pinned to the BODY's box, not the surface's. In the wide layout the
+       surface is a grid cell 88px wider than the text inside it and the body
+       sits 40px down from its top — so a canvas at inset:0 of the surface is
+       offset from the page it is supposed to be drawn on, and every stroke
+       lands in the wrong place by a margin that grows with the width of the
+       window. offsetTop/offsetLeft are measured against the surface because
+       the surface is the positioned ancestor, which makes them exactly the
+       numbers this needs. */
+    c.style.top = body.offsetTop + 'px';
+    c.style.left = body.offsetLeft + 'px';
+    c.style.width = body.offsetWidth + 'px';
+    c.style.height = h + 'px';
+    pad.resize(body.offsetWidth, h);
   }
 
-  /* Which note the pad has been opened on, for a note that has no ink yet.
-     Not stored: an empty pad is a UI state, and persisting it would mean every
-     note you once tapped "Handwrite" on reopens with a canvas forever. */
-  var openInkFor = null;
+  function renderInk(note) {
+    var pad = ensureInk();
+    if (!pad) return;
+    pad.load(inkFor(note));
+    renderInkTools(note);
+    /* After layout: a canvas sized while the editor is still hidden gets zero
+       width and comes back blank until something else resizes it. */
+    requestAnimationFrame(sizeInk);
+  }
 
-  function toggleInk() {
+  /* The toolbar earns its space only once there is ink to manage, or you have
+     asked for the mouse to draw. A pencil does not need a button to start. */
+  function renderInkTools(note) {
+    var show = inkFor(note).length > 0 || $('edSurface').classList.contains('drawing');
+    $('inkTools').hidden = !show;
+  }
+
+  function renderPaper(note) {
+    var p = (note && PAPERS.indexOf(note.paper) > -1) ? note.paper : 'lines';
+    $('noteBody').dataset.paper = p;
+    $('paperSel').value = p;
+  }
+
+  function setPaper(value) {
     var n = state.activeNote && noteById(state.activeNote);
     if (!n) return;
-    if (!$('inkWrap').hidden && !inkFor(n).length) {
-      openInkFor = null;              // opened and unused — just close it
-    } else {
-      openInkFor = n.id;
-    }
-    renderInk(n);
-    if (openInkFor) $('inkWrap').scrollIntoView({ block: 'nearest' });
+    n.paper = PAPERS.indexOf(value) > -1 ? value : 'lines';
+    $('noteBody').dataset.paper = n.paper;
+    markDirty();
+  }
+
+  /* Mouse-draw mode, for a machine with no stylus. Never needed on an iPad. */
+  function toggleDraw() {
+    var on = $('edSurface').classList.toggle('drawing');
+    $('inkBtn').classList.toggle('on', on);
+    var n = state.activeNote && noteById(state.activeNote);
+    if (n) renderInkTools(n);
+    if (on) sizeInk();
   }
 
   function setInkMode(mode) {
@@ -6218,6 +6267,30 @@
     pad.setMode(mode);
     $('inkPen').classList.toggle('on', mode === 'draw');
     $('inkErase').classList.toggle('on', mode === 'erase');
+  }
+
+  /* THE LINE THAT MAKES A PENCIL JUST WORK. The canvas cannot receive the
+     event itself (it is pointer-events:none, which is what lets a finger
+     scroll through it), so pen input is caught on the way down at the surface
+     and handed over. Capture phase, so it arrives before the contenteditable
+     below has a chance to put a caret where the pencil landed. */
+  function routePenToInk() {
+    var surface = $('edSurface');
+    if (!surface) return;
+    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function (type) {
+      surface.addEventListener(type, function (e) {
+        if (e.pointerType !== 'pen') return;
+        if (surface.classList.contains('drawing')) return;   // canvas has it already
+        var pad = ensureInk();
+        if (!pad) return;
+        if (type === 'pointerdown') {
+          e.preventDefault();
+          sizeInk();
+          $('inkTools').hidden = false;
+        }
+        pad.handle(type, e);
+      }, true);
+    });
   }
 
   /* ============================================================
@@ -6511,7 +6584,7 @@
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
 
-    $('inkBtn').addEventListener('click', toggleInk);
+    $('inkBtn').addEventListener('click', toggleDraw);
     $('inkPen').addEventListener('click', function () { setInkMode('draw'); });
     $('inkErase').addEventListener('click', function () { setInkMode('erase'); });
     $('inkUndo').addEventListener('click', function () { if (inkPad) inkPad.undo(); });
@@ -6520,11 +6593,12 @@
       if (!confirm('Remove all handwriting from this note? The typed text stays.')) return;
       inkPad.clear();
     });
-    /* The canvas is sized from its CSS width, so a rotation or a window resize
-       has to re-measure or the ink is drawn at the old scale. */
-    window.addEventListener('resize', function () {
-      if (inkPad && !$('inkWrap').hidden) inkPad.resize();
-    });
+    $('paperSel').addEventListener('change', function () { setPaper(this.value); });
+    routePenToInk();
+    /* The overlay is sized to the text it covers, so anything that reflows the
+       text has to re-measure: a rotation, a window resize, and typing itself. */
+    window.addEventListener('resize', sizeInk);
+    $('noteBody').addEventListener('input', function () { requestAnimationFrame(sizeInk); });
 
     $('compBtn').addEventListener('click', openComps);
     $('compClose').addEventListener('click', function () { $('compDialog').close(); });

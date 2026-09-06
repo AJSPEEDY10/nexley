@@ -524,14 +524,18 @@ a{color:var(--structure)}
    the words drift off the lines. Deliberately NOT written with `em` — a custom property
    resolves its units against the element that USES it, so `1em` inside --line would
    mean the heading's font size, not the body's. */
-.ed-body{flex:1;overflow-y:auto;padding:14px var(--gutter) 40vh;
+/* The SURFACE scrolls, not the body. The ink canvas is a sibling of the text
+   sized to the whole content height, so it has to scroll with it — pinning the
+   canvas to the visible box instead clipped every stroke at the fold, which is
+   exactly what the first version of this did. */
+.ed-surface{flex:1;overflow-y:auto;position:relative;min-height:0}
+.ed-body{overflow:visible;height:auto;min-height:100%;padding:14px var(--gutter) 40vh;
   font-family:var(--text);font-size:var(--t-lg);
   --line:calc(var(--leading) * 1.0625rem);line-height:var(--line);
   color:var(--ink);outline:none;max-width:calc(var(--measure) + 2 * var(--gutter));
-  /* feint ruling — a hairline under each text line, barely there */
-  background-image:repeating-linear-gradient(to bottom,
-    transparent 0, transparent calc(var(--line) - 1px),
-    var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line));
+  /* The ruling itself now comes from [data-paper] below, so the reader can
+     choose lines, wide lines, a grid, or nothing — see the paper block. This
+     only fixes where it starts and how it scrolls. */
   background-position:0 calc(14px + .4em);
   background-attachment:local;
   position:relative}
@@ -552,8 +556,7 @@ a{color:var(--structure)}
 /* A pseudo-element is not a child, so :empty still matches and the placeholder
    still shows — the margin rule stays, which is the point: an empty page in a
    notebook is still a page. */
-.ed-body:empty{background-image:none}
-.ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
+
 /* a heading has to occupy a whole number of ruled lines or the paper stops lining up
    under it. One line for itself, one line of space above — expressed in the BODY's
    line unit, not the heading's own em, which is bigger and would drift. */
@@ -592,8 +595,9 @@ a{color:var(--structure)}
   .crumb{display:none}
   .ed-actions{margin-left:auto}   /* keep them right once the crumb is gone */
   .toolbar {grid-column:2;grid-row:4;padding-left:0;padding-right:var(--gutter)}
-  .ed-body {grid-column:2;grid-row:5;padding-left:0;padding-right:var(--gutter);
+  .ed-surface {grid-column:2;grid-row:5;
     max-width:calc(var(--measure) + var(--gutter))}
+  .ed-body {padding-left:0;padding-right:var(--gutter)}
   .ed-foot{grid-column:1/-1;grid-row:6}
 
   .ed-meta{grid-column:1;grid-row:3/6;
@@ -1017,22 +1021,70 @@ a{color:var(--structure)}
 
 /* Handwriting. Sits under the typed body in the same column, on the same
    ruled paper, because it is part of the note rather than an attachment to it. */
-.ink-wrap{margin:0 var(--gutter) var(--s-6);max-width:calc(var(--measure) + var(--gutter));
-  display:flex;flex-direction:column;gap:var(--s-3)}
-.ink-tools{display:flex;gap:var(--s-3);align-items:center;flex-wrap:wrap}
+/* ============================================================
+   HANDWRITING — one surface, not a box under the text
+   ------------------------------------------------------------
+   Rebuilt 09-06 after Alec: "notes and pen notes should be the same thing",
+   and after actually reading how Apple Notes does it. Apple keeps typed text
+   and handwriting in separate BLOCKS with a margin separator between them,
+   which their own reviewers call the limitation it is. Nexley goes further:
+   the canvas is an overlay across the whole writing column, so a pencil marks
+   the page wherever the page is — over a paragraph, in the margin, across a
+   diagram you typed a caption under.
+
+   It works because the canvas is pointer-events:none by default. A finger
+   scrolls, a mouse selects and types, both straight through the glass. A PEN
+   is routed to it explicitly by app.js, which is what makes "just start
+   writing" possible without a mode switch — the thing an iPad user expects.
+   The Draw toggle turns pointer-events back on for laptops with no stylus.
+   ============================================================ */
+.ed-surface{position:relative}
+/* top/left/width/height are all set in JS from the body's own box — see
+   sizeInk(). Nothing here may set them, or the two disagree. */
+.ink-canvas{position:absolute;
+  --ink-stroke:var(--ink);pointer-events:none;z-index:2;
+  /* Height is set in JS to the full content height, not to 100% of the
+     scroller — see sizeInk(). pan-y so a finger still scrolls in draw mode. */
+  touch-action:pan-y}
+.ed-surface.drawing .ink-canvas{pointer-events:auto;cursor:crosshair}
+
+.paper-sel{font-family:var(--ui);font-size:var(--t-base);color:var(--ink-2);
+  background:none;border:0;padding:2px 4px;cursor:pointer}
+.paper-sel:focus{outline:none;color:var(--structure)}
+.ink-tools{display:flex;gap:var(--s-3);align-items:center;flex-wrap:wrap;
+  margin:0 var(--gutter) var(--s-4);max-width:calc(var(--measure) + var(--gutter))}
 .ink-hint{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
   text-transform:uppercase;color:var(--muted);margin-left:auto}
 .ink-tools .iconbtn.on{border-color:var(--structure);color:var(--structure)}
-/* The stroke colour is read off this custom property by ink.js, so handwriting
-   matches typed text in both themes without the canvas knowing about themes. */
-.ink-canvas{--ink-stroke:var(--ink);width:100%;display:block;
-  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
-  /* Same ruling and the same margin rule as the typed surface above it — the
-     point is that it reads as more of the same page, not as a widget. */
-  background-image:repeating-linear-gradient(to bottom,
-    transparent 0, transparent calc(var(--line, 1.85rem) - 1px),
-    var(--rule-soft) calc(var(--line, 1.85rem) - 1px), var(--rule-soft) var(--line, 1.85rem));
-  cursor:crosshair}
+
+/* ---------- paper ----------
+   Lines and grids, per note, the way Apple Notes offers them — and for the
+   same reason: handwriting on blank white drifts, and a grid is what makes a
+   diagram sit straight. Applied to the WRITING SURFACE, so it is behind both
+   the typed text and the ink rather than being a property of one of them.
+
+   --line is the typed body's own line unit, so "lines" means the lines your
+   typing already sits on, not a decorative rule at some unrelated pitch. */
+.ed-body[data-paper="blank"]{background-image:none}
+.ed-body[data-paper="lines"]{background-image:repeating-linear-gradient(to bottom,
+  transparent 0, transparent calc(var(--line) - 1px),
+  var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line))}
+.ed-body[data-paper="lines-wide"]{background-image:repeating-linear-gradient(to bottom,
+  transparent 0, transparent calc(var(--line) * 2 - 1px),
+  var(--rule-soft) calc(var(--line) * 2 - 1px), var(--rule-soft) calc(var(--line) * 2))}
+.ed-body[data-paper="grid"]{background-image:
+  repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--line) - 1px),
+    var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line)),
+  repeating-linear-gradient(to right, transparent 0, transparent calc(var(--line) - 1px),
+    var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line))}
+.ed-body[data-paper="grid-small"]{background-image:
+  repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--line) / 2 - 1px),
+    var(--rule-soft) calc(var(--line) / 2 - 1px), var(--rule-soft) calc(var(--line) / 2)),
+  repeating-linear-gradient(to right, transparent 0, transparent calc(var(--line) / 2 - 1px),
+    var(--rule-soft) calc(var(--line) / 2 - 1px), var(--rule-soft) calc(var(--line) / 2))}
+/* An empty note keeps its paper. A blank ruled page is still a page — the old
+   rule here dropped the ruling entirely and made an empty note look broken. */
+.ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
 
 /* Comps. The code is set in the mono face everywhere it appears, because it
    gets read aloud and typed by somebody else — it is data, not prose. */

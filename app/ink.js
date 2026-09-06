@@ -6,9 +6,11 @@
  * the page your hand is resting on, and you cannot rest your hand on it while
  * writing either. So:
  *
- *   pointerType 'pen'    -> draws, always
- *   pointerType 'mouse'  -> draws (a laptop has no stylus and still needs to
- *                           be able to sketch)
+ *   pointerType 'pen'    -> draws, always, routed in by app.js even when the
+ *                           canvas is a pointer-events:none overlay
+ *   pointerType 'mouse'  -> draws only in the explicit Draw mode, because as
+ *                           an overlay it otherwise sits between the reader
+ *                           and their own text
  *   pointerType 'touch'  -> NEVER draws. The event is not consumed, so the
  *                           browser scrolls the page exactly as it would if
  *                           this canvas were not here.
@@ -65,6 +67,17 @@
 
   Ink.prototype.setMode = function (mode) { this.mode = mode; };
 
+  /* Events routed in from outside. The canvas is pointer-events:none when it
+     is an overlay — that is what lets a finger scroll and a mouse select
+     through it — so it cannot hear its own pointer events and app.js hands
+     them over instead. Same handlers either way, so there is one code path for
+     "a pen wrote on the page" no matter which side caught the event. */
+  Ink.prototype.handle = function (type, e) {
+    if (type === 'pointerdown') this._down(e);
+    else if (type === 'pointermove') this._move(e);
+    else this._up(e);
+  };
+
   Ink.prototype.load = function (strokes) {
     this.strokes = Array.isArray(strokes) ? strokes.slice() : [];
     this.redraw();
@@ -112,7 +125,12 @@
   Ink.prototype._down = function (e) {
     if (!this._draws(e)) return;
     e.preventDefault();
-    this.canvas.setPointerCapture(e.pointerId);
+    /* Capture keeps a stroke going when the pointer leaves the element, but a
+       pointer-events:none overlay cannot capture — the call throws, and an
+       exception here would abandon the stroke before it starts. The routed
+       path does not need it anyway: it listens on the surface, which is bigger
+       than the canvas. */
+    try { this.canvas.setPointerCapture(e.pointerId); } catch (err) {}
 
     if (this.mode === 'erase') { this._erase(this._point(e)); return; }
 
@@ -167,19 +185,31 @@
   /* Sized to the element's CSS width times devicePixelRatio, so ink is sharp
      on a retina screen instead of being drawn at half resolution and scaled
      up — the most common way a canvas ends up looking like a fax. */
-  Ink.prototype.resize = function () {
-    var r = this.canvas.getBoundingClientRect();
-    if (!r.width) return;
+  /* Takes explicit dimensions because as an overlay the canvas is sized to the
+     TEXT it covers, which can be far taller than the visible box — ink drawn
+     at the bottom of a long note would otherwise land outside the bitmap.
+     Backed by devicePixelRatio so strokes are sharp on a retina screen rather
+     than drawn at half resolution and scaled up, which is the most common way
+     a canvas ends up looking like a fax. */
+  Ink.prototype.resize = function (cssWidth, cssHeight) {
+    var w = cssWidth || this.canvas.getBoundingClientRect().width;
+    if (!w) return;
+    var h = cssHeight || w * this.ratio;
     var dpr = window.devicePixelRatio || 1;
-    this.canvas.width = Math.round(r.width * dpr);
-    this.canvas.height = Math.round(r.width * this.ratio * dpr);
-    this.canvas.style.height = (r.width * this.ratio) + 'px';
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.cssWidth = w;
     this.redraw();
   };
 
+  /* Measured from the canvas's OWN rect, which is exactly what _point()
+     normalised against. Using anything else — the width the caller passed in,
+     the bitmap width over dpr — puts recording and playback on two different
+     scales, and the error grows with distance down the page: the first version
+     of the overlay clipped the top of every stroke because of precisely this.
+     One source of truth, even at the cost of a layout read per segment. */
   Ink.prototype._px = function (p) {
-    var dpr = window.devicePixelRatio || 1;
-    var w = this.canvas.width / dpr;
+    var w = this.canvas.getBoundingClientRect().width;
     return [p[0] * w, p[1] * w];
   };
 

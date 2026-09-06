@@ -313,7 +313,16 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <span class="tsep"></span>
       <button type="button" id="fontBtn" title="Note font">Font: Standard</button>
       <span class="tsep"></span>
-      <button type="button" id="inkBtn" title="Write or draw with a pencil">Handwrite</button>
+      <button type="button" id="inkBtn" title="Draw with the mouse. A pencil needs no button — it just writes.">Draw</button>
+      <span class="tsep"></span>
+      <!-- Paper. Per note, behind both the typing and the ink. -->
+      <select id="paperSel" class="paper-sel" title="Paper">
+        <option value="lines">Lines</option>
+        <option value="lines-wide">Wide lines</option>
+        <option value="grid">Grid</option>
+        <option value="grid-small">Small grid</option>
+        <option value="blank">Blank</option>
+      </select>
       <span class="tsep"></span>
       <button type="button" id="makeCard"
               title="Turn the selected text into a review card">+ Card</button>
@@ -332,21 +341,24 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          being about the other. Silent unless the match is genuinely specific. -->
     <div class="filehint past" id="crossLink" hidden></div>
 
-    <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
-         aria-label="Note body"></div>
+    <!-- The pen tools. Shown only when there is ink or you asked to draw —
+         a pencil needs no toolbar to start writing, it just writes. -->
+    <div class="ink-tools" id="inkTools" hidden>
+      <button type="button" class="iconbtn" id="inkPen" title="Write">Pen</button>
+      <button type="button" class="iconbtn" id="inkErase" title="Rub out a stroke">Erase</button>
+      <button type="button" class="iconbtn" id="inkUndo" title="Undo the last stroke">Undo</button>
+      <button type="button" class="iconbtn ghost" id="inkClear" title="Remove all handwriting">Clear</button>
+      <span class="ink-hint">Pencil writes · finger scrolls</span>
+    </div>
 
-    <!-- Handwriting. Collapsed until asked for, because the overwhelming
-         majority of notes are typed and an always-present canvas would cost
-         height on every one of them to serve the few that use it. -->
-    <div class="ink-wrap" id="inkWrap" hidden>
-      <div class="ink-tools">
-        <button type="button" class="iconbtn" id="inkPen" title="Write">Pen</button>
-        <button type="button" class="iconbtn" id="inkErase" title="Rub out a stroke">Erase</button>
-        <button type="button" class="iconbtn" id="inkUndo" title="Undo the last stroke">Undo</button>
-        <button type="button" class="iconbtn ghost" id="inkClear" title="Remove all handwriting">Clear</button>
-        <span class="ink-hint">Pencil writes · finger scrolls</span>
-      </div>
-      <canvas id="inkCanvas" class="ink-canvas" aria-label="Handwriting area"></canvas>
+    <!-- ONE SURFACE. The canvas is an overlay across the whole writing column,
+         not a box underneath it, so a pencil marks the page wherever the page
+         is. It is pointer-events:none, so a finger scrolls and a mouse selects
+         straight through it; app.js routes pen input to it explicitly. -->
+    <div class="ed-surface" id="edSurface">
+      <div class="ed-body" id="noteBody" contenteditable="true" spellcheck="true"
+           aria-label="Note body"></div>
+      <canvas id="inkCanvas" class="ink-canvas" aria-label="Handwriting layer"></canvas>
     </div>
 
     <footer class="ed-foot">
