@@ -208,7 +208,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button class="linkbtn" id="meBtn" type="button">Choose a username</button>
       <!-- hidden until the inbox itself exists. A button that does nothing is the
            same overclaim as a "coming soon" list nobody is working on. -->
-      <button class="linkbtn" id="inboxBtn" type="button" hidden>Shared with me<i class="fbdot" id="inboxDot" hidden></i></button>
+      <button class="linkbtn" id="inboxBtn" type="button">Shared with me<i class="fbdot" id="inboxDot" hidden></i></button>
       <button class="linkbtn" id="snapBtn" type="button">Snapshots</button>
       <button class="linkbtn" id="exportBtn" type="button">Export all</button>
       <button class="linkbtn" id="importBtn" type="button">Import</button>
@@ -258,6 +258,11 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <div class="crumb" id="crumb"></div>
       <div class="ed-actions">
         <span class="saved" id="savedState">Saved</span>
+        <!-- Sends a COPY to one named person. Not a link, not a feed — see
+             social.js and migration 0017 for why that distinction is the whole
+             design. -->
+        <button class="iconbtn" id="sendNote" type="button"
+                title="Send a copy of this note to someone">Send</button>
         <button class="iconbtn" id="deleteNote" type="button" title="Delete note">Delete</button>
       </div>
     </header>
@@ -766,6 +771,55 @@ Module 2: Body systems and movement
       <span style="flex:1"></span>
       <button type="button" class="btn ghost" id="shareClose">Close</button>
       <button type="button" class="btn primary" id="shareCopy">Copy</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SEND A NOTE ============
+     Addressed to one person, by the handle they chose. What goes is a snapshot
+     of the text as it is right now — not a live view of the note, which would
+     mean the server holding a running copy of your notebook. -->
+<dialog id="sendDialog">
+  <div class="dlgbody">
+    <h3>Send this note</h3>
+    <p class="dlgnote">Type someone's Nexley username. They get a copy of this note
+      as it is now — not a link to it, so anything you write in it later stays
+      yours.</p>
+
+    <label class="fld">
+      <span>Send to</span>
+      <input type="text" id="sendTo" maxlength="20" autocomplete="off"
+             spellcheck="false" placeholder="their username">
+    </label>
+
+    <p class="gate-err" id="sendErr" hidden></p>
+    <div id="sendFound" class="filehint past" hidden></div>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="sendNoteMsg"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="sendClose">Close</button>
+      <button type="button" class="btn primary" id="sendGo">Send a copy</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ SHARED WITH ME ============ -->
+<dialog id="inboxDialog">
+  <div class="dlgbody">
+    <h3>Shared with you</h3>
+    <p class="dlgnote">Notes other people sent you. <b>Keep</b> copies one into your
+      own notebook, where it is yours and works offline like anything else. Until
+      you do, it lives on the server and the sender can take it back.</p>
+    <div id="inboxList"></div>
+
+    <h3 style="margin-top:22px">Sent by you</h3>
+    <div id="outboxList"></div>
+
+    <div class="dlg-actions">
+      <span class="dlgnote" id="inboxMsg"></span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn ghost" id="inboxClose">Close</button>
     </div>
   </div>
 </dialog>

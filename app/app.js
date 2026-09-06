@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.24.0';
+  var APP_VERSION = '0.25.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5599,6 +5599,263 @@
   }
 
   /* ============================================================
+     12o · sending a note, and reading what you were sent
+     ------------------------------------------------------------
+     WHAT CROSSES THE WIRE IS BUILT HERE, EXPLICITLY, FIELD BY FIELD.
+     `shareNote` takes a flat object rather than a note record, so the exact
+     set of things that leave this device is visible at the call site below
+     and cannot grow by accident when a new column is added to a note. What
+     goes: the title, the text, and the subject/dot-point NAMES. What does not:
+     ids, revisions, device ids, sync state, timestamps, confidence, or
+     anything about the shape of your notebook.
+
+     A SNAPSHOT, NOT A LINK. The recipient gets the text as it is at the moment
+     you press send. Write more in that note tomorrow and they do not see it.
+     This is the difference between sharing a note and giving someone standing
+     access to your notebook, and it is enforced in the database — migration
+     0017 has a trigger that refuses to let the content change after it is
+     sent, because an RLS policy grants UPDATE on the whole row and cannot say
+     "only the deleted column".
+
+     KEEPING ONE MAKES IT YOURS. "Keep" writes it into the notebook as a normal
+     note with a fresh id, which is the one deliberate crossing between this
+     file and the offline-first world everything else lives in. Before that it
+     is not stored locally at all — caching an inbox would mean holding
+     somebody's writing on this device after they revoked it.
+     ============================================================ */
+  function openSendDialog() {
+    var n = state.activeNote && noteById(state.activeNote);
+    if (!n) return;
+    requireUsername().then(function () {
+      $('sendTo').value = '';
+      $('sendErr').hidden = true;
+      $('sendFound').hidden = true;
+      $('sendNoteMsg').textContent = '';
+      $('sendGo').disabled = false;
+      sendTarget = null;
+      $('sendGo').textContent = 'Find them';
+      $('sendDialog').showModal();
+      $('sendTo').focus();
+    }, function () { /* requireUsername has already opened its own dialog */ });
+  }
+
+  /* Two steps on purpose: find the person, SEE who you found, then send. A
+     single "send to @name" button makes a typo into a note delivered to a
+     stranger with a similar handle, and there is no unsending it from their
+     eyes even though the row can be revoked. */
+  function sendLookup() {
+    var want = $('sendTo').value.toLowerCase().trim();
+    $('sendErr').hidden = true;
+    $('sendFound').hidden = true;
+    if (!want) return Promise.resolve(null);
+
+    return window.NexleySocial.findUser(want).then(function (person) {
+      if (!person) {
+        $('sendErr').textContent = 'No Nexley user called @' + want + '.';
+        $('sendErr').hidden = false;
+        return null;
+      }
+      $('sendFound').textContent = '';
+      var t = document.createElement('span');
+      t.className = 'fh-text';
+      t.textContent = person.name
+        ? 'Send to ' + person.name + ' (@' + person.username + ')?'
+        : 'Send to @' + person.username + '?';
+      $('sendFound').appendChild(t);
+      $('sendFound').hidden = false;
+      return person;
+    }, function (err) {
+      $('sendErr').textContent = err.message;
+      $('sendErr').hidden = false;
+      return null;
+    });
+  }
+
+  /* The person the confirmed button will send to. Null means the next press
+     is a lookup, not a send — that is the entire two-step. */
+  var sendTarget = null;
+
+  function armSend(person) {
+    sendTarget = person;
+    $('sendGo').textContent = person ? 'Send to @' + person.username : 'Find them';
+  }
+
+  /* Typing again disarms it. Without this, looking up @sam, changing your mind,
+     typing @priya and pressing the button would send to Sam — the button would
+     still say "Send to @sam", but nobody reads a button they have already
+     decided to press. */
+  function disarmSend() {
+    if (!sendTarget) return;
+    sendTarget = null;
+    $('sendFound').hidden = true;
+    $('sendGo').textContent = 'Find them';
+  }
+
+  function doSend() {
+    var n = state.activeNote && noteById(state.activeNote);
+    if (!n) return;
+
+    /* First press: resolve the handle and show whose note this becomes. No
+       send happens on this press, however valid the name is — a typo that
+       lands on a real handle must not be able to deliver a note to a stranger
+       before you have seen their name. */
+    if (!sendTarget) {
+      $('sendGo').disabled = true;
+      $('sendGo').textContent = 'Checking…';
+      sendLookup().then(function (person) {
+        $('sendGo').disabled = false;
+        armSend(person);
+      });
+      return;
+    }
+
+    var person = sendTarget;
+    $('sendGo').disabled = true;
+    $('sendGo').textContent = 'Sending…';
+
+    var node = n.syllabusId ? nodeById(n.syllabusId) : null;
+    var subject = n.subjectId ? subjectById(n.subjectId) : null;
+
+    window.NexleySocial.shareNote(person, {
+      id: uid(),
+      fromUsername: myUsername,
+      title: (n.title || '').trim() || null,
+      body: plain(n.body || '') || '(empty note)',
+      subjectName: subject ? subject.name : null,
+      syllabusCode: node ? (node.code || null) : null,
+      syllabusTitle: node ? (node.title || null) : null,
+      device: state.deviceId
+    }).then(function () {
+      sendTarget = null;
+      $('sendDialog').close();
+      toast('Sent to @' + person.username + '.');
+    }, function (err) {
+      $('sendErr').textContent = err.message;
+      $('sendErr').hidden = false;
+      $('sendGo').disabled = false;
+      armSend(person);
+    });
+  }
+
+  function openInbox() {
+    $('inboxList').textContent = 'Loading…';
+    $('outboxList').textContent = '';
+    $('inboxMsg').textContent = '';
+    $('inboxDialog').showModal();
+
+    window.NexleySocial.shares().then(function (s) {
+      renderShareList($('inboxList'), s.received, 'in');
+      renderShareList($('outboxList'), s.sent, 'out');
+    }, function (err) {
+      $('inboxList').textContent = err.message;
+    });
+  }
+
+  function renderShareList(box, rows, dir) {
+    box.textContent = '';
+    if (!rows.length) {
+      box.appendChild(note(dir === 'in'
+        ? 'Nothing yet. Someone has to send you their username’s worth of trust first.'
+        : 'You have not sent anyone a note.'));
+      return;
+    }
+    rows.forEach(function (r) { box.appendChild(shareRow(r, dir)); });
+  }
+
+  function shareRow(r, dir) {
+    var row = document.createElement('div');
+    row.className = 'share-row';
+
+    var head = document.createElement('div');
+    head.className = 'share-head';
+    head.textContent = r.title || '(untitled note)';
+    row.appendChild(head);
+
+    var meta = document.createElement('div');
+    meta.className = 'share-meta';
+    var who = dir === 'in' ? 'from @' + r.from_username : 'sent';
+    var where = [r.subject_name, r.syllabus_code].filter(Boolean).join(' · ');
+    meta.textContent = [who, where, when(new Date(r.created_at).getTime())]
+      .filter(Boolean).join('  ·  ');
+    row.appendChild(meta);
+
+    var body = document.createElement('div');
+    body.className = 'share-body';
+    body.textContent = r.body;
+    row.appendChild(body);
+
+    var acts = document.createElement('div');
+    acts.className = 'q-actions';
+
+    if (dir === 'in') {
+      var keep = document.createElement('button');
+      keep.type = 'button';
+      keep.className = 'q-annotate';
+      keep.textContent = 'Keep — copy into my notebook';
+      keep.addEventListener('click', function () { keepShared(r, keep); });
+      acts.appendChild(keep);
+    } else {
+      var rev = document.createElement('button');
+      rev.type = 'button';
+      rev.className = 'q-annotate';
+      rev.textContent = 'Take it back';
+      rev.title = 'Removes the copy they were sent';
+      rev.addEventListener('click', function () {
+        rev.disabled = true;
+        window.NexleySocial.revokeShare(r.id).then(function () {
+          row.remove();
+          toast('Taken back.');
+        }, function (err) { rev.disabled = false; toast(err.message); });
+      });
+      acts.appendChild(rev);
+    }
+
+    row.appendChild(acts);
+    return row;
+  }
+
+  /* A fresh id, this device, and no subject: a note arriving from someone else
+     has no business claiming a place in your syllabus tree, because their
+     "Module 5" is not necessarily yours. It lands unfiled with the origin in
+     its title, and filing it is a decision you make afterwards — the same way
+     a classwork capture works. */
+  function keepShared(r, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Copying…';
+    var head = [r.subject_name, r.syllabus_code, r.syllabus_title]
+      .filter(Boolean).join(' · ');
+    var body = (head ? head + '\n\n' : '') + r.body;
+
+    var rec = stamp({
+      id: uid(),
+      subjectId: state.activeSubject || null,
+      syllabusId: null,
+      kind: 'personal',
+      font: 'standard',
+      title: (r.title || 'From @' + r.from_username),
+      body: body.split('\n').map(function (line) {
+        return '<p>' + line.replace(/[&<>]/g, function (c) {
+          return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;';
+        }) + '</p>';
+      }).join(''),
+      created: Date.now(),
+      sharedFrom: r.from_username
+    });
+
+    put('notes', rec).then(refresh).then(function () {
+      btn.textContent = 'Kept — it is in your notebook';
+      renderSubjects();
+      renderBrowser();
+      toast('Copied in. It is yours now.');
+      if (window.NexleySync) window.NexleySync.run();
+    }, function (err) {
+      btn.disabled = false;
+      btn.textContent = 'Keep — copy into my notebook';
+      toast(err.message);
+    });
+  }
+
+  /* ============================================================
      13 · export / import / snapshots
      ============================================================ */
   function exportAll() {
@@ -5888,6 +6145,20 @@
     $('shareBtn').addEventListener('click', openShareDialog);
     $('shareCopy').addEventListener('click', copySummary);
     $('shareClose').addEventListener('click', function () { $('shareDialog').close(); });
+
+    $('sendNote').addEventListener('click', openSendDialog);
+    $('sendGo').addEventListener('click', doSend);
+    $('sendClose').addEventListener('click', function () { $('sendDialog').close(); });
+    /* Look up on blur, not on every keystroke: each lookup is a request that
+       resolves a real person, and firing one per character both wastes them and
+       turns the field into a way to probe handles quickly. */
+    $('sendTo').addEventListener('blur', function () {
+      if (this.value.trim() && !sendTarget) sendLookup().then(armSend);
+    });
+    $('sendTo').addEventListener('input', disarmSend);
+
+    $('inboxBtn').addEventListener('click', openInbox);
+    $('inboxClose').addEventListener('click', function () { $('inboxDialog').close(); });
 
     $('meBtn').addEventListener('click', openMeDialog);
     $('meSave').addEventListener('click', saveUsername);

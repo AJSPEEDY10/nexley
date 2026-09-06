@@ -1015,6 +1015,20 @@ a{color:var(--structure)}
 .q-actions{display:flex;flex-wrap:wrap;gap:var(--s-3);align-items:center}
 .q-spanlist{display:flex;flex-direction:column;gap:var(--s-2)}
 
+/* A note somebody else wrote. Deliberately looks like a quotation and not
+   like one of your own note cards: it sits on the recessed surface, and its
+   body keeps the reading serif so it reads as writing rather than as data. */
+.share-row{border:1px solid var(--rule);border-left:3px solid var(--structure);
+  border-radius:var(--r-md);background:var(--surface);
+  padding:var(--s-5);margin:0 0 var(--s-4);display:flex;flex-direction:column;gap:var(--s-3)}
+.share-head{font-family:var(--display);font-size:var(--t-md);color:var(--ink)}
+.share-meta{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+/* Capped and scrollable: an inbox is a list to triage, not a reading view, and
+   one long note must not push everything else off the screen. */
+.share-body{font-family:var(--text);font-size:var(--t-base);line-height:1.7;
+  color:var(--ink-2);white-space:pre-wrap;max-height:9.5em;overflow-y:auto}
+
 /* AI feedback. Read as a quotation of someone else's opinion, never as a
    result: no accent fill, no big number, and the score sits in the mono face
    the app uses everywhere for machine-generated figures. */
