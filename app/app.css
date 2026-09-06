@@ -40,20 +40,37 @@
      serif reading faces stay exactly as they were, because those are the
      notebook identity. What changes is everything that used to read as
      "school paper": the base surfaces are neutral now, not warm-green. */
-  --paper:#F5F5F3;      /* desk / working ground */
-  --surface:#ECECEA;    /* rail, recessed chrome — deliberately dimmer */
-  --card:#FFFFFF;       /* the page: cards + the writing surface, the brightest tone */
-  --ink:#1D1D1F;        /* neutral near-black, never pure #000 */
-  --ink-2:#48484A;
-  --muted:#86868B;      /* mono metadata, captions */
-  --rule:#D2D2D7;       /* hairlines — the ruled line */
-  --rule-soft:#E8E8ED;
+  /* 2026-09-06: WARMED BACK UP, deliberately, after Alec's "it still looks
+     plain and vibecoded". The September repalette moved these onto Apple's
+     neutral system grays, which is a defensible chrome palette and made the
+     app quieter — but a study notebook rendered in #F5F5F3 on #FFFFFF is a
+     settings screen, not a notebook. These values combine two of the archived
+     concepts rather than copying either: Foolscap's warm sheet and desk, and
+     Ledger's ink, lines and record-keeping accents. Eucalypt and the
+     highlighter are untouched, as they have been through every pass. */
+  --paper:#EFEBE1;      /* desk / working ground — Foolscap's desk */
+  --surface:#E7E2D6;    /* rail, recessed chrome — deliberately dimmer */
+  --card:#FFFDF7;       /* the page: cards + the writing surface. Sheet, not white. */
+  --ink:#1A1815;        /* warm near-black, never pure #000 */
+  --ink-2:#443F37;
+  --muted:#7E7669;      /* mono metadata, captions */
+  --rule:#D5CEC0;       /* hairlines — the ruled line */
+  --rule-soft:#E6E1D6;
   --structure:#21493B;  /* eucalypt: links, primary actions, active state. Reads as ink. */
   --structure-soft:#DEE7E0;
   --mark:#E7E24C;       /* the one accent. Selection, coverage fill, current-note spine. */
   --mark-ink:#23261A;
   --danger:#A03A22;
-  --shade:20 20 22;     /* rgb for shadows — neutral, not green-tinted */
+  /* The margin rule down the left of a page. Foolscap's red, desaturated —
+     at full strength it reads as an error state, which is the one thing a
+     margin line must never do. */
+  --margin-rule:#C98B86;
+  /* Brass, from Ledger. The SECOND accent, and it means one thing: a formal
+     record — a real mark, sat under real conditions. Eucalypt is the app
+     talking; brass is the record. Never used decoratively. */
+  --brass:#9A7B2E;
+  --brass-soft:#F1E9D6;
+  --shade:26 24 21;     /* rgb for shadows — warm, matching the ink */
 
   /* ============================================================
      SCALES — the system. Every measurement in this file resolves to one of
@@ -116,18 +133,20 @@
    unchanged. */
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --paper:#121212; --surface:#1C1C1E; --card:#242426;
-    --ink:#F5F5F7; --ink-2:#C7C7CC; --muted:#8E8E93;
-    --rule:#38383A; --rule-soft:#2C2C2E;
+    --paper:#121110; --surface:#191816; --card:#1E1D1A;
+    --ink:#F3EFE6; --ink-2:#C6BFB2; --muted:#8B8377;
+    --rule:#38352F; --rule-soft:#2A2823;
+    --margin-rule:#8E5A56; --brass:#C9A552; --brass-soft:#2A2417;
     --structure:#8ECBAB; --structure-soft:#243228;
     --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
   }
 }
 :root[data-theme="dark"]{
-  --paper:#121212; --surface:#1C1C1E; --card:#242426;
-  --ink:#F5F5F7; --ink-2:#C7C7CC; --muted:#8E8E93;
-  --rule:#38383A; --rule-soft:#2C2C2E;
+  --paper:#121110; --surface:#191816; --card:#1E1D1A;
+  --ink:#F3EFE6; --ink-2:#C6BFB2; --muted:#8B8377;
+  --rule:#38352F; --rule-soft:#2A2823;
+  --margin-rule:#8E5A56; --brass:#C9A552; --brass-soft:#2A2417;
   --structure:#8ECBAB; --structure-soft:#243228;
   --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
@@ -514,7 +533,25 @@ a{color:var(--structure)}
     transparent 0, transparent calc(var(--line) - 1px),
     var(--rule-soft) calc(var(--line) - 1px), var(--rule-soft) var(--line));
   background-position:0 calc(14px + .4em);
-  background-attachment:local}
+  background-attachment:local;
+  position:relative}
+
+/* The margin rule. One vertical line down the left of the writing column, the
+   single cheapest mark that turns ruled lines into a NOTEBOOK — ruling alone
+   reads as a table. Drawn as a pseudo-element rather than a second background
+   layer so it spans the full scroll height instead of tiling with the lines,
+   and so `:empty` can keep it while dropping the ruling.
+
+   Sits inside the gutter, not in the text: `--gutter` is a clamp that can get
+   small on a phone, so the line is placed at 60% of it and the text is never
+   crowded by it. Off entirely below the breakpoint where the gutter stops
+   being wide enough to hold it — see the narrow block near the bottom. */
+.ed-body::before{content:"";position:absolute;top:0;bottom:0;
+  left:calc(var(--gutter) * .6);width:1px;background:var(--margin-rule);
+  opacity:.5;pointer-events:none}
+/* A pseudo-element is not a child, so :empty still matches and the placeholder
+   still shows — the margin rule stays, which is the point: an empty page in a
+   notebook is still a page. */
 .ed-body:empty{background-image:none}
 .ed-body:empty::before{content:"Start writing";color:var(--muted);opacity:.5}
 /* a heading has to occupy a whole number of ruled lines or the paper stops lining up
@@ -562,7 +599,12 @@ a{color:var(--structure)}
   .ed-meta{grid-column:1;grid-row:3/6;
     flex-direction:column;align-items:stretch;text-align:right;gap:var(--s-6);
     padding:32px 22px 20px var(--gutter);max-width:none;overflow:hidden;
-    border-right:1px solid var(--rule)}   /* the margin rule */
+    /* The real margin rule, now that there is a margin. It takes the same
+       colour as the narrow-layout line below so the app has ONE margin rule
+       that moves, not two different-looking ones. */
+    border-right:1px solid var(--margin-rule)}
+  /* and the drawn-in line is not needed here — the margin itself is the rule */
+  .ed-body::before{display:none}
   .ed-meta>*{min-width:0;max-width:100%}
   .ed-meta .sel{flex-direction:column;align-items:stretch;gap:var(--s-2)}
   .ed-meta .sel select{width:100%;text-align:right;padding-right:0;
