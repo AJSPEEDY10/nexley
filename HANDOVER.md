@@ -660,6 +660,18 @@ before committing.** Use a fresh port every time - see the traps.
 
 - **Deploy is `git push origin main`.** GitHub Pages, live in ~30-60s. **PAT `nexley-deploy`
   expires 2026-09-29** - pushes fail after that until renewed.
+- **Releasing a version is four edits and a tag, and `test/test_version.js` enforces the first
+  four.** Bump `APP_VERSION` in `app/app.js`, `version` in `package.json`, `CACHE` in
+  `app/sw.js` (`nexley-vN` → `N+1`, so returning users get the new files), and add an entry at
+  the TOP of `CHANGELOG.md`. Then `git tag -a vX.Y.Z -m "..."` and `git push --tags`, which is
+  what makes "go back to the version before this broke" a real operation. The test also checks
+  every local `<script src>` in `app.html` appears in the service worker's SHELL — the two
+  lists are maintained by hand and `notifications.js`/`widget.js` had already gone missing from
+  one of them. **This exists because it failed:** two releases on 09-07 shipped with
+  `APP_VERSION` frozen at 0.33.0 and `package.json` fourteen versions behind at 0.19.1, which
+  means every crash report and snapshot from those days names code that was not running. The
+  version is stamped into snapshots, crash reports, feedback and exports — it is diagnostic
+  data, not a label.
 - Supabase: prod `qvijxnhigqfoinuitrue`, dev `yvlcpngoplecigblxnkb`. Local
   (`127.0.0.1`/`localhost`) automatically points at **dev** - see `config.js`.
   **Region: `ap-northeast-1` (Tokyo).** Both auto-pause after ~7 days idle on the free tier.

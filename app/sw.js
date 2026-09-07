@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v46';
+var CACHE = 'nexley-v47';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -40,6 +40,12 @@ var SHELL = [
   './social.js',
   './ink.js',
   './photo.js',
+  // native-surface scripts: app.html loads them unconditionally, so leaving them out
+  // meant a cold offline launch fetching two files that were never cached. They were
+  // added in the Phase 8 commit and this list was not updated with it — exactly the
+  // drift CHANGELOG.md and test_version.js now exist to catch.
+  './notifications.js',
+  './widget.js',
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
