@@ -23,6 +23,19 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.35.0 — 2026-09-08
+Press feedback and waiting states. Every interactive state in the app was a *hover* state, and
+hover does not exist on the iPad this is built for — so pressing anything gave no response at
+all until the action finished. Buttons now take weight on press (the surface a hover would give,
+plus a 1px drop on the things shaped like buttons), rows take the surface only, disabled
+controls stay still, and iOS's own blue tap-flash and 300ms double-tap delay are turned off.
+The three panes that genuinely wait on the network — the inbox, the comps list, a comp itself —
+show bars in the shape of what is coming instead of the word "Loading…", so the pane no longer
+jumps when content lands; `aria-busy` carries the same information to a screen reader, and the
+sweep animation is dropped for anyone who asked for reduced motion. `DEPLOY.md` also rewritten:
+it still described a site that had not been published yet and warned that notes do not sync,
+which stopped being true on 4 September.
+
 ## v0.34.0 — 2026-09-08
 The version the two previous commits should have carried. `3e5ef7d` (in-app delete account,
 Sign in with Apple, Android widget, local notifications, camera on Marks, the SEO/legal pass)

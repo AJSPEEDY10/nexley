@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.34.0';
+  var APP_VERSION = '0.35.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -3443,6 +3443,40 @@
     return p;
   }
 
+  /* A placeholder in the SHAPE of what is coming, for the three panes that have to
+     wait on the network (the inbox, the comps list, a comp itself). Everything else
+     in Nexley reads from IndexedDB and paints immediately — these are the only
+     places a person is ever left looking at nothing.
+
+     Why not the word "Loading…", which is what was here: a line of text is the same
+     size whether one note is coming or nine, so the pane jumps when the real content
+     lands. Bars sized like the rows they stand in for hold the space instead, and
+     the wait reads as this-is-nearly-here rather than is-this-broken.
+
+     Widths vary per row on purpose. Identical bars look like a rendering fault; an
+     uneven stack reads as text. aria-busy is what says "wait" to a screen reader —
+     the bars themselves are decoration and are hidden from it. */
+  function skeleton(box, rows) {
+    box.textContent = '';
+    box.setAttribute('aria-busy', 'true');
+    var widths = ['92%', '68%', '84%', '55%', '76%'];
+    for (var i = 0; i < rows; i++) {
+      var bar = document.createElement('div');
+      bar.className = 'skel';
+      bar.style.width = widths[i % widths.length];
+      bar.setAttribute('aria-hidden', 'true');
+      box.appendChild(bar);
+    }
+  }
+
+  /* Paired with skeleton(): every path that paints real content into one of those
+     panes must clear the flag, including the error paths — an aria-busy that is
+     never cleared tells a screen reader the pane is still loading forever. */
+  function ready(box) {
+    box.removeAttribute('aria-busy');
+    return box;
+  }
+
   /* ---------- empty states ----------
      A screen with nothing on it is the screen a new user meets first, and
      until now every one of them was a single grey sentence — which reads as
@@ -5880,7 +5914,7 @@
   }
 
   function openInbox() {
-    $('inboxList').textContent = 'Loading…';
+    skeleton($('inboxList'), 3);
     $('outboxList').textContent = '';
     $('inboxMsg').textContent = '';
     $('inboxDialog').showModal();
@@ -5889,12 +5923,12 @@
       renderShareList($('inboxList'), s.received, 'in');
       renderShareList($('outboxList'), s.sent, 'out');
     }, function (err) {
-      $('inboxList').textContent = err.message;
+      ready($('inboxList')).textContent = err.message;
     });
   }
 
   function renderShareList(box, rows, dir) {
-    box.textContent = '';
+    ready(box).textContent = '';
     if (!rows.length) {
       box.appendChild(note(dir === 'in'
         ? 'Nothing yet. Someone has to send you their username’s worth of trust first.'
@@ -6050,7 +6084,7 @@
       $('compCode').value = '';
       $('compErr').hidden = true;
       $('compMsg').textContent = '';
-      $('compList').textContent = 'Loading…';
+      skeleton($('compList'), 2);
       $('compDialog').showModal();
       loadComps();
     }, function () {});
@@ -6058,13 +6092,13 @@
 
   function loadComps() {
     return window.NexleySocial.myComps().then(function (rows) {
-      $('compList').textContent = '';
+      ready($('compList')).textContent = '';
       if (!rows.length) {
         $('compList').appendChild(note('None yet. Write a test, or join one with a code.'));
         return;
       }
       rows.forEach(function (c) { $('compList').appendChild(compRow(c)); });
-    }, function (err) { $('compList').textContent = err.message; });
+    }, function (err) { ready($('compList')).textContent = err.message; });
   }
 
   function compRow(c) {
@@ -6172,17 +6206,26 @@
     viewingComp = null;
     $('compViewTitle').textContent = 'Loading…';
     $('compViewMeta').textContent = '';
-    $('compViewQs').textContent = '';
-    $('compEntries').textContent = '';
+    /* The title stays a word rather than a bar: it is one line, it is the thing
+       being waited for, and a bar where a heading goes reads as a broken heading.
+       The two list areas below it are where the shape matters. */
+    skeleton($('compViewQs'), 2);
+    skeleton($('compEntries'), 3);
     $('compViewErr').hidden = true;
     $('compViewMsg').textContent = '';
     $('compViewDialog').showModal();
 
+    /* Both failure paths clear the skeletons as well as the title — a pane left
+       holding placeholder bars under an error message is the worst of both. */
+    var stop = function () {
+      ready($('compViewQs')).textContent = '';
+      ready($('compEntries')).textContent = '';
+    };
     window.NexleySocial.compDetail(compId).then(function (d) {
-      if (!d.comp) { $('compViewTitle').textContent = 'That comp is not there.'; return; }
+      if (!d.comp) { stop(); $('compViewTitle').textContent = 'That comp is not there.'; return; }
       viewingComp = d;
       renderComp(d);
-    }, function (err) { $('compViewTitle').textContent = err.message; });
+    }, function (err) { stop(); $('compViewTitle').textContent = err.message; });
   }
 
   function renderComp(d) {
@@ -6192,7 +6235,7 @@
       'code ' + c.join_code, 'by @' + c.owner_username].filter(Boolean).join('  ·  ');
 
     var qs = Array.isArray(c.questions) ? c.questions : [];
-    $('compViewQs').textContent = '';
+    ready($('compViewQs')).textContent = '';
     qs.forEach(function (q, i) {
       var row = document.createElement('div');
       row.className = 'comp-q';
@@ -6219,7 +6262,7 @@
     $('compSubmit').disabled = !me;
     $('compViewMsg').textContent = me ? '' : 'Join it first.';
 
-    $('compEntries').textContent = '';
+    ready($('compEntries')).textContent = '';
     d.entries.forEach(function (e) {
       var row = document.createElement('div');
       row.className = 'comp-entry' + (e.username === myUsername ? ' me' : '');

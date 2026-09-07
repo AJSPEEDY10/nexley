@@ -235,6 +235,57 @@ a{color:var(--structure)}
   cursor:pointer;text-align:left;transition:color .14s}
 .linkbtn:hover{color:var(--structure)}
 
+/* ---------- waiting ----------
+   Placeholder bars for the three panes that wait on the network. Sized like the
+   rows they stand in for, so nothing jumps when the real content lands.
+
+   The sweep is slow (1.4s) and low-contrast on purpose: a fast bright shimmer is
+   the single most "vibecoded" tell in the whole pattern, and this app's surfaces
+   are paper. It should read as a page being set, not as a loading spinner wearing
+   a costume. Motion is dropped entirely for anyone who asked for less of it — the
+   bars still hold the space, which is most of the value. */
+.skel{height:14px;border-radius:var(--r-sm);margin:0 0 10px;background:var(--surface);
+  background-image:linear-gradient(90deg,transparent 0%,var(--card) 50%,transparent 100%);
+  background-size:200% 100%;background-repeat:no-repeat;
+  animation:skel-sweep 1.4s ease-in-out infinite}
+.skel:last-child{margin-bottom:0}
+@keyframes skel-sweep{
+  from{background-position:150% 0}
+  to{background-position:-50% 0}
+}
+@media (prefers-reduced-motion: reduce){
+  .skel{animation:none}
+}
+
+/* ---------- pressed ----------
+   Every state above this line is a HOVER state, and hover does not exist on an
+   iPad — which is the device this app is aimed at. Before this block, pressing
+   any control gave no feedback at all until whatever it did finished: on a fast
+   action that reads as nothing happening, and on a slow one it reads as broken,
+   which is how people end up tapping twice.
+
+   Deliberately not a colour: this app's whole palette is load-bearing (a green
+   means an earned result), so press feedback is WEIGHT — the surface the hover
+   would have given, arriving instantly, plus a 1px drop on the things that look
+   like physical buttons. Rows and list items get the surface only; nudging a
+   full-width row makes the whole list feel loose.
+
+   touch-action stops the 300ms double-tap-zoom delay, and the transparent tap
+   highlight stops iOS painting its own blue box over the top of all of this. */
+button, .tab, [role="button"]{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+
+.btn:active, .q-annotate:active{background:var(--surface);border-color:var(--structure);
+  transform:translateY(1px)}
+.btn.primary:active{filter:brightness(.93);transform:translateY(1px)}
+.btn.danger:active{border-color:var(--danger);background:var(--surface)}
+.linkbtn:active{color:var(--structure)}
+.snav:active, .topic-head:active, .dp:active, .tab:active, .node-add:active{background:var(--card)}
+
+/* A disabled control must not move. Half of what a press animation communicates
+   is "that registered", and a disabled button that dips says the opposite of
+   what disabling it meant. */
+button:disabled:active{transform:none;filter:none}
+
 /* set by the head script for a visitor who has never seen the intro — keeps the
    sign-in card from flashing for the moment before boot decides */
 :root.pre-intro .gate{display:none}

@@ -1,69 +1,89 @@
-# Getting Nexley onto the iPad
+# Getting Nexley onto a device
 
-The app is already offline-capable. The only thing missing is a one-time HTTPS address for
-Safari to install it from.
+**It is already live.** The setup instructions this file used to carry — pick a host, get an
+HTTPS address, "tell me and I'll create the repo" — were all completed weeks ago, and the
+"notes do not sync" warning stopped being true on 4 September. This is the current version.
 
-**Why HTTPS and not the local server:** iOS refuses to register a service worker over plain
-`http://`, and without the service worker there is no offline mode. `localhost` is the only
-exception, and the iPad isn't localhost.
+| | |
+|---|---|
+| **Live site** | `https://ajspeedy10.github.io/nexley/` — the landing page |
+| **The app itself** | `https://ajspeedy10.github.io/nexley/app.html` |
+| **Deploy** | `git push origin main`. `.github/workflows/deploy.yml` publishes `app/` to GitHub Pages; live in ~30–60s |
+| **Local dev** | `Nexley.bat` (runs `serve.py`). `127.0.0.1`/`localhost` automatically points at the **dev** Supabase project — see `app/config.js` |
 
-**What gets published:** the app itself — HTML, CSS, JS, icons. **No notes.** There is no
-server and no database behind it; every note lives in IndexedDB on whichever device wrote it.
-Anyone with the URL would see an empty notebook.
-
----
-
-## Option A — Netlify Drop (fastest, ~2 minutes)
-
-Best if you just want it on the iPad today.
-
-1. Go to **app.netlify.com/drop**
-2. Drag the **`app`** folder onto the page
-3. It gives you an address like `https://something-random.netlify.app`
-4. Sign in (GitHub or email) so the site doesn't expire
-5. On the iPad: open that address in **Safari** → **Share** → **Add to Home Screen**
-
-Done. It now works with no network at all.
-
-**To update:** re-drag the `app` folder. Fine occasionally, tedious daily.
+⚠️ The deploy PAT `nexley-deploy` **expires 2026-09-29**. Pushes fail after that until it's
+renewed.
 
 ---
 
-## Option B — GitHub Pages (better for daily updates)
+## Install it on an iPad or phone (PWA)
 
-Best long-term, since after setup each update is one command.
+1. Open **`https://ajspeedy10.github.io/nexley/app.html`** in **Safari** (iOS) or Chrome
+   (Android).
+2. **Share → Add to Home Screen.**
+3. Sign in once. From then on it opens like an app, full screen, and works with no network.
 
-One-time:
+**Why Safari specifically on iOS:** the service worker is what makes offline work, and iOS only
+registers one over HTTPS. That's also why the local `Nexley.bat` server can't be the install
+source — `localhost` is the only plain-HTTP exception and the iPad isn't localhost.
 
-```powershell
-winget install --id GitHub.cli -e
-gh auth login          # opens a browser, sign in to GitHub
-```
+**The home-screen icon points at `app.html`** (`start_url` in `manifest.webmanifest`), so it
+opens the app, not the marketing page. An icon added before 3 September has the old
+`start_url` baked in — `app/index.html` bounces those into the app automatically, but removing
+and re-adding the icon is cleaner.
 
-Then tell me and I'll do the rest — create the repo, push `app/`, enable Pages, and hand you
-the URL. After that, updating is a single push whenever you want.
+---
 
-The repo will be **public** unless you say otherwise. That means the app's source is visible.
-There is nothing sensitive in it — no notes, no keys, no personal data — but it's your call,
-and a private repo with Pages is also possible.
+## Install it as a real Android app (APK)
+
+`.github/workflows/android-debug-build.yml` builds an **unsigned debug APK** on every push that
+touches `app/`, `android/`, `capacitor.config.json` or `package.json`. No Google account, no
+keystore, no fee.
+
+1. GitHub → **Actions** → *Android - debug build* → the newest run.
+2. Download **`nexley-android-debug`** from **Artifacts** (kept 30 days).
+3. On the phone: allow install from unknown sources, open the file.
+
+That is a genuine native wrap (Capacitor) with the widget, local notifications and camera —
+not a bookmark. **iOS/TestFlight is blocked** on an Apple Developer enrolment ($99/yr, Alec's
+own Apple ID) plus six one-time account steps; every step is written out in `PHASE8.md`.
+
+---
+
+## What gets published, and what doesn't
+
+**Published:** the contents of `app/` — HTML, CSS, JS, icons, fonts. That's the whole site;
+there is no build step.
+
+**Not published:** anything under `ideas/` (gitignored — that's where the research videos live),
+Supabase keys beyond the publishable anon key (which is designed to be public; row-level
+security is what protects data), and no notes of any kind. The repo is public and contains
+nothing sensitive.
 
 ---
 
 ## After it's installed
 
-- **It works with no network.** The service worker precaches everything on first load.
-- **Updates land whenever the iPad next has a connection**, automatically.
-- **Notes do not sync.** The iPad's notebook and the PC's notebook are separate. Until sync
-  exists, move them with **Export** on one device and **Import** on the other — the export
-  file goes to Files, and AirDrop moves it across.
-- **Check the sidebar.** It shows either *Storage protected* or *Export regularly*. If it says
-  the latter, the browser hasn't guaranteed your data — installing to the home screen usually
-  fixes it, and exporting is the backstop either way.
+- **It works with no network.** The service worker precaches the shell on first load. Network
+  first when you're online, so edits show up immediately rather than being stuck behind a cache.
+- **Updates land automatically** whenever the device next has a connection. Releasing bumps
+  `CACHE` in `app/sw.js`, which is what tells an installed copy to take the new files — see the
+  release ritual in `HANDOVER.md` and the history in `CHANGELOG.md`.
+- **Notes sync.** Every device signed into the same account converges: written to IndexedDB
+  locally first (so it works offline), pushed to Supabase when there's a connection. Export /
+  Import still exist, but they're for backups and moving between accounts now, not for getting
+  a note from the PC to the iPad.
+- **Check the sidebar.** It says either *Storage protected* or *Export regularly*. The latter
+  means the browser hasn't guaranteed local data — installing to the home screen usually fixes
+  it, and a snapshot plus sync is the backstop either way.
 
 ---
 
-## What stays local
+## If something looks wrong after a deploy
 
-The `Nexley.bat` local server still works exactly as before for building and testing on the
-PC. Nothing about publishing changes that, and the firewall / LAN setup is no longer needed
-unless you want the iPad talking to the PC directly.
+1. **Check the version.** Settings shows `Nexley vX.Y.Z`; `CHANGELOG.md` says what that version
+   was and which commit it is. `git checkout vX.Y.Z` gets you the exact code.
+2. **Check it's actually the new build.** A hard reload (or closing and reopening the installed
+   app) picks up a new service worker. If the version in Settings doesn't match `CHANGELOG.md`'s
+   top entry, the device is still running the old cache.
+3. **Check the deploy ran.** GitHub → Actions → *Deploy Nexley to GitHub Pages*.
