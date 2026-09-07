@@ -18,8 +18,17 @@
   var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   var isLocal = !isNative && /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 
+  /* Sign in with Apple: the CODE is complete (auth.js signInApple, the button in
+     app.html), but the provider is not registered yet — that needs Alec's Apple
+     Developer enrolment to create the Service ID / Team ID / Key, then enabling
+     Apple in Supabase Auth. Until then Supabase answers a tap with "Unsupported
+     provider", so the button stays hidden rather than shipping a prominent
+     control that fails. FLIP THIS TO true the same day Apple is enabled in the
+     Supabase dashboard — nothing else needs changing. */
+  window.NEXLEY_APPLE_SIGNIN = false;
+
   /* Product analytics is FIRST-PARTY and always on for signed-in users — it
-     writes to the `events` table in this same Supabase project (Sydney), so
+     writes to the `events` table in this same Supabase project (Tokyo), so
      there is no key to configure and no third party involved. See
      app/analytics.js for what is collected and the four layers that keep note
      content out of it. Nothing is recorded if the browser sends Do Not Track or

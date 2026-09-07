@@ -7056,6 +7056,13 @@
     $('googleBtn').addEventListener('click', function () {
       window.NexleyAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
     });
+    /* Hidden until Apple is actually enabled as a provider in Supabase Auth
+       (window.NEXLEY_APPLE_SIGNIN in config.js says whether it is). The button
+       sits ABOVE Google because Apple's guideline 4.8 requires that prominence
+       — which is exactly why it must not be here while a tap only produces
+       "Unsupported provider". The listener is wired either way so flipping the
+       flag is the whole change. */
+    $('appleBtn').hidden = !window.NEXLEY_APPLE_SIGNIN;
     $('appleBtn').addEventListener('click', function () {
       window.NexleyAuth.signInApple().catch(function (err) { gateError(err.message || 'Could not sign in with Apple.'); });
     });

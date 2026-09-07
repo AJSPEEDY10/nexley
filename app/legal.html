@@ -28,7 +28,7 @@
 <body>
 
 <h1>Nexley — Legal</h1>
-<p class="updated">Last updated 4 September 2026</p>
+<p class="updated">Last updated 7 September 2026</p>
 <nav>
   <a href="#privacy">Privacy Policy</a>
   <a href="#terms">Terms of Use</a>
@@ -49,7 +49,22 @@ any formal company registration. Contact: <a href="mailto:alecjordaan12@gmail.co
   <li>Your name and email address, when you create an account.</li>
   <li>Your password — this is hashed by our authentication provider (Supabase); we never see or store it in plain text.</li>
   <li>If you sign in with Google, we receive your name, email address and Google account ID from Google.</li>
-  <li>The study content you create: subjects, syllabus structure, and notes.</li>
+  <li>A username, if you choose one. Unlike your name and email, a username is
+    deliberately visible to other students — it is how someone addresses a note to you. You
+    do not need one unless you want to send or receive notes.</li>
+  <li>The study content you create: subjects, syllabus structure, notes, handwriting and
+    drawings made with the pen (stored as the strokes themselves, not as a picture), and
+    review cards.</li>
+  <li>Photographs you choose to take inside the app — a page of a textbook or your own work
+    attached to a note, and a photo of a marked paper attached to a result. These are stored
+    with the note or paper they belong to. Nothing is photographed unless you press the
+    button, and the app never opens the camera on its own.</li>
+  <li>Results you record: papers, the conditions you sat them under, marks per question, and
+    your own notes about what was lost. Also your plan — tasks, due dates, and how long you
+    estimated they would take.</li>
+  <li>Notes you send to another student, and notes another student sends you — see
+    <i>Sharing with other students</i> below.</li>
+  <li>Anything you write on the feedback board, and any reply we write back.</li>
   <li>Problem reports — see below.</li>
   <li>A small record of which parts of the app you use — see below.</li>
 </ul>
@@ -88,14 +103,34 @@ quoted phrase long enough to be your own writing are replaced with a placeholder
 are stored write-only: nobody can read them back through the app, and they are used only
 to fix faults.</p>
 
+<h3>Sharing with other students</h3>
+<p>Two parts of Nexley deliberately show something of yours to somebody else, and both only
+ever happen because you chose them:</p>
+<ul>
+  <li><b>Sending a note.</b> You type another student's username and send one note. What
+    crosses is a <i>copy</i> of that note's text as it reads at that moment — not a live link
+    to your notebook, which the recipient can never see. Your later edits do not reach them,
+    and you can take the copy back, which deletes it. The copy carries the note's title, your
+    username, and the subject and syllabus point it was filed under.</li>
+  <li><b>Comps.</b> If you join a comp with its code, the other people in that comp can see
+    your username and your score in it — that is the entire point of a comp. Nothing else of
+    yours is visible to them.</li>
+</ul>
+<p>There is no public feed, no browsing of other students' notes, and no way to discover who
+uses Nexley. Nothing you write is shared with anybody unless you send it or enter it
+yourself.</p>
+
 <h3>How it's stored and protected</h3>
 <!-- Region verified 2026-09-04 against Supabase Project Settings: ap-northeast-1,
      Northeast Asia (Tokyo). This sentence is correct. The 2026-08-11 decision log's
      claim of "Sydney" was the wrong one. -->
 <p>Your data is stored in a managed Postgres database (Supabase, hosted in Tokyo, Japan) protected
-by row-level security — a database-enforced rule that only your own account can ever read or write
-your own rows, on every table, with no exception. A local copy is also kept on your device so the
-app keeps working offline; the two are kept in sync whenever you have a connection.</p>
+by row-level security — a database-enforced rule, on every table, that your account can only ever
+reach rows that belong to you. The only rows anybody else can read are the ones you deliberately
+put in front of them: a note you sent to a named person, and your username and score inside a comp
+you joined (see <i>Sharing with other students</i> above). Your notebook itself is reachable by no
+account but yours. A local copy is also kept on your device so the app keeps working offline; the
+two are kept in sync whenever you have a connection.</p>
 
 <h3>What we don't do</h3>
 <ul>
@@ -103,7 +138,11 @@ app keeps working offline; the two are kept in sync whenever you have a connecti
   <li>We do not run third-party advertising or ad-tracking on this app.</li>
   <li>We do not send your data to any analytics company. The usage statistics
     described above stay in Nexley's own database.</li>
-  <li>We do not use your notes to train any AI model.</li>
+  <li>We do not use your notes to train any AI model, and we do not use an AI provider that
+    trains on what is sent to it.</li>
+  <li>We do not send your work to an AI at all unless you ask for it. Nexley's AI marking runs
+    only when you press the button, on the one answer you are marking — see <i>AI Use</i>
+    below for exactly what is sent and where it goes.</li>
 </ul>
 
 <h3>Children's privacy</h3>
@@ -114,8 +153,17 @@ then, if you are a parent and believe your under-13 child has created an account
 involvement, contact us and we will assist with account deletion.</p>
 
 <h3>Your choices</h3>
-<p>You can export all of your data at any time from within the app. To delete your account and
-all associated data, contact <a href="mailto:alecjordaan12@gmail.com">alecjordaan12@gmail.com</a>.</p>
+<p>You can export all of your data at any time from within the app.</p>
+<p><b>You can delete your account yourself, inside the app</b> — <i>Settings → Account → Delete
+my account</i>. It asks you to type DELETE first, and then it is immediate and permanent: your
+account, your notes, your marks, your plan, your review cards, anything you had sent or received,
+and your usage records all go with it. The one thing that stays is past problem reports — the
+link to you is removed, and what remains is the technical fault description that never contained
+your notes in the first place. There is no recovery afterwards, so export first if you want a
+copy. You do not have to email anybody to get this done.</p>
+<p>If you would rather ask than do it yourself, or you want to know what is held about you,
+write to <a href="mailto:alecjordaan12@gmail.com">alecjordaan12@gmail.com</a> and we will answer
+within 30 days, which is the deadline Australian privacy law sets.</p>
 
 <h3>Changes</h3>
 <p>If this policy changes in a way that materially affects how your data is handled, we'll update
@@ -137,6 +185,18 @@ against your own history.</p>
 <p>Notes you write remain yours. Syllabus content within the app is either imported by you from
 your own school materials or curated by us for accuracy — it is provided for your personal study
 use and should not be redistributed.</p>
+<p>Photographing a page of a textbook for your own study is generally fine; sending that photo or
+a copied-out passage to other students is not what personal study use means, and it is your
+responsibility not to pass on material you do not have the right to pass on. The same goes for
+anything you send another student through Nexley: don't send what isn't yours to send, and don't
+send anything abusive, harassing, or aimed at cheating in an assessment your school treats as
+your own work.</p>
+<p>If something has been sent to you through Nexley that shouldn't have been — your copyrighted
+material, or content that breaks the line above — email
+<a href="mailto:alecjordaan12@gmail.com">alecjordaan12@gmail.com</a> with enough detail to find it.
+We will look at it, remove what needs removing, and can suspend an account that keeps doing it.
+Sent notes are one-to-one copies with no public feed, so removal means deleting that copy; the
+person who sent it can also take it back themselves at any time.</p>
 
 <h3>Account responsibilities</h3>
 <p>Keep your password confidential. You're responsible for activity that happens under your
@@ -151,11 +211,40 @@ service will be uninterrupted or error-free.</p>
 <p>These terms are governed by the laws of New South Wales, Australia.</p>
 
 <h2 id="ai">AI Use</h2>
-<p>Where Nexley uses AI (for example, a future AI study assistant), we will always
-label that content or feature clearly as AI-generated or AI-assisted — it will never be presented
-as though it came from a human teacher or tutor. Our AI features are built to say "I don't know"
-rather than invent an answer, and are designed to never knowingly lead you toward an incorrect
-answer.</p>
+<p><b>Nexley uses AI, in one place, and only when you ask it to.</b> If you write an answer and
+paste in the marking criteria it should be judged against, Nexley can send those two things to an
+AI model and show you what it says: feedback, and a mark against each criterion you pasted. That
+is the whole of it. Nothing else in the app is AI — your notes are not read, summarised, corrected
+or scored in the background, and no AI runs unless you press the button.</p>
+
+<h3>What is sent, and to whom</h3>
+<p>The request goes to a third-party AI provider (currently <b>Groq</b>, in the United States) and
+contains only what that one marking job needs: the answer you are marking and the criteria you
+pasted. Your notebook, your name, your email and your other marks are not sent. It goes through
+Nexley's own server so that the provider never learns who you are, and the text is not stored or
+logged anywhere on the way — not by us, and, per the provider's own terms, not kept or used for
+training by them. We only use providers whose terms say they do not train on submitted text, which
+is why some otherwise free AI services are deliberately not used here.</p>
+
+<h3>What an AI mark is, and is not</h3>
+<ul>
+  <li>It <b>says on the screen that an AI wrote it</b>, and is never presented as though it came
+    from a teacher or a marker. In the app the feature is named for what it does — <i>Feedback on
+    this answer</i> — and the panel it appears in states plainly that a model produced it and that
+    it can be wrong.</li>
+  <li>It is marked <b>against the criteria you pasted</b>, and every mark is shown against the
+    criterion it hangs on, so you can see the reasoning and disagree with it.</li>
+  <li>It is <b>never a band, a grade, an ATAR or a prediction</b> — Nexley does not do those, by
+    AI or otherwise.</li>
+  <li>It <b>never enters your real Marks</b>. A mark in Nexley's Marks feature is one you actually
+    earned in a real paper; an AI's opinion cannot be recorded as one.</li>
+  <li>It <b>can be wrong</b>. An AI can misread your answer, misapply a criterion, or be confidently
+    mistaken. Treat it as a second opinion on your own work, never as the authority — your teacher
+    and your school's marking are.</li>
+</ul>
+<p>There is a limit on how many AI markings each student can run per day, and a limit across the
+whole app, so the feature cannot be run up as a cost by anyone. If you hit one, the app says which
+of the two it was.</p>
 
 <h2 id="accessibility">Accessibility</h2>
 <p>We want Nexley to be usable by every student, including students using assistive

@@ -1195,10 +1195,14 @@ Module 2: Body systems and movement
 </dialog>
 
 <!-- ============ AI FEEDBACK ============
-     Deliberately NOT called "AI marking" anywhere the student can see. It reads
-     one answer against criteria the student pasted and says what it thinks; the
-     number it produces is never written to the paper, never averaged with a real
-     mark, and is gone when this dialog closes. -->
+     Deliberately not NAMED "AI marking" — the feature is called what it does,
+     "Feedback on this answer", because the student cares what it is for, not
+     what it is made of. But it does SAY that a model wrote it, in the footer
+     below: not saying so is the thing regulators call undisclosed AI, and it
+     also matters for trusting the result — you read a machine's opinion
+     differently to a teacher's, and you should.
+     The number it produces is never written to the paper, never averaged with a
+     real mark, and is gone when this dialog closes. -->
 <dialog id="aiDialog">
   <div class="dlgbody">
     <h3>Feedback on this answer</h3>
@@ -1222,7 +1226,10 @@ Module 2: Body systems and movement
 
     <p class="dlgnote" id="aiFoot"><b>This is not your mark.</b> It never goes into the
       paper, it is never averaged with a real mark, and it disappears when you close
-      this. A real mark is one a teacher gave you.</p>
+      this. A real mark is one a teacher gave you.<br>
+      Written by an AI model, not a person — it can misread you or misapply a criterion,
+      so read it as a second opinion and check it against the criteria yourself.
+      <a href="legal.html#ai" target="_blank" rel="noopener">What is sent, and where</a>.</p>
 
     <div class="dlg-actions">
       <span class="dlgnote" id="aiStatus"></span>
