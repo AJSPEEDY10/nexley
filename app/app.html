@@ -122,6 +122,10 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     <h1>Nexley</h1>
     <p class="gate-sub" id="gateSub">Create your account. Your notes sync to it and work offline in between.</p>
 
+    <!-- Apple sits above Google on purpose: Apple's own review guideline (4.8)
+         requires Sign in with Apple to be at least as prominent as any other
+         third-party login, not merely present, once one exists. -->
+    <button type="button" class="btn" id="appleBtn" style="width:100%;margin-bottom:14px">Continue with Apple</button>
     <button type="button" class="btn" id="googleBtn" style="width:100%;margin-bottom:14px">Continue with Google</button>
     <p class="gate-or">or</p>
 
@@ -787,6 +791,17 @@ Module 2: Body systems and movement
         placeholder="Ran out of time on the last two extended responses…"></textarea>
     </label>
 
+    <!-- Reuses app/photo.js's own capture+clean-up pipeline directly rather
+         than the note-insert dialog it was built for — one photo, attached
+         to this paper, not inserted into a caret position. See
+         supabase/migrations/0023_papers_photo.sql for why this exists. -->
+    <div class="fld">
+      <span>A photo of the marked script</span>
+      <div id="pprPhotoStage"></div>
+      <input type="file" id="pprPhotoFile" accept="image/*" capture="environment" hidden>
+      <p class="dlgerr" id="pprPhotoErr" hidden></p>
+    </div>
+
     <p class="dlgerr" id="pprError" hidden></p>
 
     <div class="dlg-actions">
@@ -1062,6 +1077,19 @@ Module 2: Body systems and movement
         your subjects, which you choose per subject.</p>
     </section>
 
+    <!-- Hidden on the web build entirely (see the wiring in app.js) rather
+         than shown-and-disabled: a toggle that cannot do anything outside a
+         native wrap is not a preference, it is a false promise. -->
+    <section class="setgroup" id="remindersGroup" hidden>
+      <h4>Reminders</h4>
+      <div class="setrow">
+        <span class="setlabel">Remind me the evening before something is due</span>
+        <input type="checkbox" id="remindersToggle">
+      </div>
+      <p class="dlgnote">A local notification on this device only — nothing is sent
+        anywhere else to make it happen.</p>
+    </section>
+
     <section class="setgroup">
       <h4>Your work</h4>
       <div class="setlinks">
@@ -1086,10 +1114,51 @@ Module 2: Body systems and movement
         what keeps your notes out of a crash log.</p>
     </section>
 
+    <!-- Its own section, deliberately last and visually distinct: every other
+         delete in this app is a tombstone a snapshot can undo. This one is
+         not — the account row is really gone and every table cascades from
+         it — so it does not share a section with actions that have a way back. -->
+    <section class="setgroup">
+      <h4>Account</h4>
+      <div class="setlinks">
+        <button type="button" class="linkbtn" id="deleteAccountBtn" style="color:var(--danger)">Delete my account</button>
+      </div>
+      <p class="dlgnote">Removes your account and everything in it — notes, marks, papers,
+        shares and comps. There is no snapshot for this one; it cannot be undone.</p>
+    </section>
+
     <div class="dlg-actions">
       <span class="dlgnote" id="setVersion"></span>
       <span style="flex:1"></span>
       <button type="button" class="btn ghost" id="settingsClose">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ DELETE ACCOUNT ============
+     Type-to-confirm rather than the plain confirm() every other delete in the
+     app uses: those are all tombstones a snapshot can undo, this one is not —
+     the account row is really gone and every table cascades from it (see
+     supabase/functions/delete-account for exactly which migration guarantees
+     which table). The server checks for the same literal word independently;
+     this dialog is not the only thing standing between a click and the
+     deletion, it is the honest version of the same guard. -->
+<dialog id="deleteAccountDialog">
+  <div class="dlgbody">
+    <h3>Delete your account?</h3>
+    <p class="dlgnote">This permanently removes your account and everything in
+      it — every subject, note, mark, paper, share and comp entry. It cannot
+      be undone: there is no snapshot to restore from, because the account
+      itself is gone, not just marked as removed.</p>
+    <label class="field">
+      <span>Type DELETE to confirm</span>
+      <input type="text" id="delAccInput" autocomplete="off" spellcheck="false" placeholder="DELETE">
+    </label>
+    <p class="dlgnote" id="delAccErr" style="color:var(--danger)" hidden></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="delAccCancel">Cancel</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="delAccConfirm" style="background:var(--danger);color:#fff" disabled>Permanently delete</button>
     </div>
   </div>
 </dialog>
@@ -1219,6 +1288,9 @@ Module 2: Body systems and movement
 <script src="ink.js"></script>
 <!-- a photograph of a page, cleaned up until it is worth keeping -->
 <script src="photo.js"></script>
+<!-- native-only; a no-op everywhere else, see its own header -->
+<script src="notifications.js"></script>
+<script src="widget.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

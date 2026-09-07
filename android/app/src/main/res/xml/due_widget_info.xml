@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Metadata for DueWidgetProvider — minResizeWidth/Height and resizeMode
+     let a user shrink it to a 1x1 or 2x1 slot; updatePeriodMillis is
+     deliberately generous (Android ignores anything under ~30 min anyway,
+     and this widget's own data is refreshed the moment the app itself
+     writes new data via widget.js, not on this timer). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="70dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="70dp"
+    android:updatePeriodMillis="3600000"
+    android:initialLayout="@layout/widget_due"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:previewLayout="@layout/widget_due" />

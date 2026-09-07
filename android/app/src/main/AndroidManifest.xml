@@ -33,6 +33,23 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- "What's due" home-screen widget. Unverified on a real device —
+             see DueWidgetProvider.kt's own header before relying on it.
+             exported="true" is required here, unlike every other component in
+             this manifest: the launcher (a separate app) has to be able to
+             find this provider to offer it in the widget-add picker, which
+             is exactly the case android:exported gates. -->
+        <receiver
+            android:name=".DueWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/due_widget_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

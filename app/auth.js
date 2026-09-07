@@ -37,6 +37,51 @@
     });
   }
 
+  /* Not optional once Google exists: Apple requires that any app offering a
+   * third-party login also offer Sign in with Apple, as a privacy-respecting
+   * alternative. Same shape as signInGoogle — supabase-js does not
+   * distinguish providers beyond the string. */
+  function signInApple() {
+    return client.auth.signInWithOAuth({
+      provider: 'apple',
+      options: { redirectTo: window.location.origin + window.location.pathname }
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      return r.data;
+    });
+  }
+
+  /* The one action in the app with no undo. Confirmed twice: once by whatever
+   * the caller's UI does before calling this, and again server-side (see
+   * supabase/functions/delete-account) — this function passes the literal
+   * word through rather than deciding locally that "the user clicked a
+   * button" was confirmation enough.
+   *
+   * Signs out and clears the local session on success, because the account
+   * this session belonged to no longer exists — leaving a stale "signed in"
+   * client state around would be its own small bug. */
+  function deleteAccount() {
+    return getSession().then(function (sess) {
+      if (!sess || !sess.access_token) throw { status: 401, body: null };
+      return fetch(window.NEXLEY_SUPABASE_URL + '/functions/v1/delete-account', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + sess.access_token,
+          'apikey': window.NEXLEY_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ confirm: 'DELETE' })
+      });
+    }).then(function (r) {
+      return r.json().then(function (body) {
+        if (!r.ok) throw { status: r.status, body: body };
+        return body;
+      });
+    }).then(function (body) {
+      return signOut().then(function () { return body; });
+    });
+  }
+
   function signOut() {
     return client.auth.signOut().then(function (r) {
       if (r.error) throw r.error;
@@ -59,6 +104,8 @@
     signUpEmail: signUpEmail,
     signInEmail: signInEmail,
     signInGoogle: signInGoogle,
+    signInApple: signInApple,
+    deleteAccount: deleteAccount,
     signOut: signOut,
     getSession: getSession,
     onAuthStateChange: onAuthStateChange

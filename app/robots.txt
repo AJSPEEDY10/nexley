@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /
+
+# Deliberately allowing AI crawlers rather than blocking them — Nexley's
+# audience finds a study app by asking an assistant for one, not by
+# searching, so being readable here is the point (see GROWTH_AND_LAUNCH.md
+# section on GEO). Listed explicitly rather than relying on the default
+# Allow: / above, since these are exactly the ones a copy-pasted "block all
+# bots" template would name to disallow.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://ajspeedy10.github.io/nexley/sitemap.xml

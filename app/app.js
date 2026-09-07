@@ -3795,6 +3795,15 @@
     if (!body) return;
     body.textContent = '';
 
+    // Native-only, opt-in, and a no-op if neither applies — see notifications.js.
+    // Called from the one place every commitment save/delete/refresh already
+    // routes through, rather than from each of those individually.
+    if (window.NexleyNotifications) window.NexleyNotifications.rescheduleAll(state.commitments);
+    // Same reasoning, same call site, no opt-in gate: the widget shows the
+    // same "what's due" a person could see by opening the app, not something
+    // new — see widget.js's own header for exactly what crosses the bridge.
+    if (window.NexleyWidget) window.NexleyWidget.update(state.commitments);
+
     var live2 = state.commitments.filter(function (c) { return !c.done; });
     if (!live2.length) {
       body.appendChild(note('Nothing saved yet. Unpack a notification above and save it, or '
@@ -4806,10 +4815,61 @@
     renderPprConditions();
     $('pprDelete').hidden = !p;
     renderQuestions();
+    pprPhotoUrl = (p && p.photoUrl) || null;
+    renderPprPhoto();
     $('pprError').hidden = true;
     $('pprDialog').showModal();
     autosizeResponses();                 // heights only measure once it is open
     setTimeout(function () { $('pprTitle').focus(); }, 60);
+  }
+
+  /* Deliberately separate from photo.js's note-insert flow (the photoDialog
+     wired near the top of this file) rather than sharing it: that dialog
+     always ends by inserting into a note at the caret, and bolting "or attach
+     to this paper instead" onto it would make one dialog do two unrelated
+     things depending on which screen opened it. This is the same pipeline,
+     a simpler caller. */
+  var pprPhotoUrl = null;
+
+  function renderPprPhoto() {
+    var stage = $('pprPhotoStage');
+    stage.textContent = '';
+    $('pprPhotoErr').hidden = true;
+    if (pprPhotoUrl) {
+      var img = new Image();
+      img.src = pprPhotoUrl;
+      img.style.cssText = 'max-width:100%;border-radius:8px;display:block;margin-bottom:8px';
+      stage.appendChild(img);
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'btn ghost';
+      remove.textContent = 'Remove photo';
+      remove.addEventListener('click', function () { pprPhotoUrl = null; renderPprPhoto(); });
+      stage.appendChild(remove);
+    } else {
+      var take = document.createElement('button');
+      take.type = 'button';
+      take.className = 'btn ghost';
+      take.textContent = 'Take or choose a photo';
+      take.addEventListener('click', function () { $('pprPhotoFile').click(); });
+      stage.appendChild(take);
+    }
+  }
+
+  function pprPhotoChosen(file) {
+    if (!file) return;
+    var stage = $('pprPhotoStage');
+    stage.textContent = 'Working…';
+    // cleanUp:true — a marked script is exactly the uneven-lighting case
+    // photo.js's clean-up pass exists for, same as a photographed note page.
+    window.NexleyPhoto.process(file, { cleanUp: true }).then(function (res) {
+      pprPhotoUrl = res.url;
+      renderPprPhoto();
+    }, function (err) {
+      renderPprPhoto();
+      $('pprPhotoErr').textContent = err.message;
+      $('pprPhotoErr').hidden = false;
+    });
   }
 
   // <input type="date"> wants yyyy-mm-dd in LOCAL time. toISOString() converts to
@@ -5342,6 +5402,7 @@
     rec.weight = weight;
     rec.reflection = $('pprReflection').value.trim() || null;
     rec.questions = qs;
+    rec.photoUrl = pprPhotoUrl;
 
     put('papers', stamp(rec))
       .then(function () { $('pprDialog').close(); return refresh(); })
@@ -6995,6 +7056,9 @@
     $('googleBtn').addEventListener('click', function () {
       window.NexleyAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
     });
+    $('appleBtn').addEventListener('click', function () {
+      window.NexleyAuth.signInApple().catch(function (err) { gateError(err.message || 'Could not sign in with Apple.'); });
+    });
 
     $('newNote').addEventListener('click', function () { newNote(state.activeNode); });
     $('deleteNote').addEventListener('click', deleteNote);
@@ -7200,6 +7264,10 @@
     $('pprOutOf').addEventListener('input', renderQuestionTally);
     $('pprSave').addEventListener('click', savePaper);
     $('pprDelete').addEventListener('click', deletePaper);
+    $('pprPhotoFile').addEventListener('change', function () {
+      pprPhotoChosen(this.files[0]);
+      this.value = ''; // so choosing the same file twice still fires 'change'
+    });
 
     $('fbBtn').addEventListener('click', openFeedbackDialog);
     $('fbClose').addEventListener('click', function () { $('fbDialog').close(); });
@@ -7208,6 +7276,39 @@
     $('lockBtn').addEventListener('click', function () {
       if (state.dirty) saveNow();
       window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
+    });
+
+    $('deleteAccountBtn').addEventListener('click', function () {
+      $('delAccInput').value = '';
+      $('delAccErr').hidden = true;
+      $('delAccConfirm').disabled = true;
+      $('settingsDialog').close();
+      $('deleteAccountDialog').showModal();
+      $('delAccInput').focus();
+    });
+    $('delAccInput').addEventListener('input', function () {
+      $('delAccConfirm').disabled = this.value !== 'DELETE';
+    });
+    $('delAccCancel').addEventListener('click', function () { $('deleteAccountDialog').close(); });
+    $('delAccConfirm').addEventListener('click', function () {
+      var btn = this;
+      btn.disabled = true;
+      $('delAccErr').hidden = true;
+      window.NexleyAuth.deleteAccount().then(function () {
+        // The account is gone; there is nothing left to show a settings panel
+        // for. showGate('create') rather than 'unlock' — signing back in with
+        // the same email now finds no account, and 'create' is the honest
+        // next step, not a dead end that implies the deletion failed.
+        $('deleteAccountDialog').close();
+        showGate('create');
+        toast('Your account has been deleted.');
+      }).catch(function (err) {
+        $('delAccErr').textContent = (err && err.body && err.body.error === 'not_confirmed')
+          ? 'Type DELETE exactly, in capitals.'
+          : 'That did not go through. Your account has not been deleted.';
+        $('delAccErr').hidden = false;
+        btn.disabled = false;
+      });
     });
 
     /* Appearance now has two axes and both live in Settings. The old
@@ -7264,7 +7365,23 @@
     });
     $('settingsBtn').addEventListener('click', function () {
       $('setVersion').textContent = 'Nexley v' + APP_VERSION;
+      // Checked on every open, not just once at boot: a PWA tab can stay
+      // open for days, and "native" cannot change under it, but this keeps
+      // the toggle's own on/off state honest with whatever the OS actually
+      // granted since the last time this dialog was open.
+      var supported = window.NexleyNotifications && window.NexleyNotifications.supported();
+      $('remindersGroup').hidden = !supported;
+      if (supported) $('remindersToggle').checked = window.NexleyNotifications.enabled();
       $('settingsDialog').showModal();
+    });
+    $('remindersToggle').addEventListener('change', function () {
+      var box = this;
+      if (!box.checked) { window.NexleyNotifications.disable(); return; }
+      window.NexleyNotifications.requestPermission().then(function (granted) {
+        box.checked = granted;
+        if (granted) window.NexleyNotifications.rescheduleAll(state.commitments);
+        else toast('Nexley was not given permission to send notifications.');
+      });
     });
     $('settingsClose').addEventListener('click', function () { $('settingsDialog').close(); });
 

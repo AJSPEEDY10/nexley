@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- app.html deliberately not listed: it is a sign-in gate with no content of
+     its own to index until a student is signed in, and a sitemap entry for a
+     page that shows nothing to a crawler is worse than no entry. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://ajspeedy10.github.io/nexley/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://ajspeedy10.github.io/nexley/legal.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>

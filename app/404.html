@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Page not found — Nexley</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://ajspeedy10.github.io/nexley/">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<style>
+  /* Same shell as index.html and legal.html, trimmed to what a 404 needs —
+     see index.html's own <style> block for why html/body get overridden here. */
+  html,body{height:auto;overflow:auto;background:var(--paper,#fff)}
+  .page{max-width:640px;margin:0 auto;padding:0 24px 40px}
+  .top{display:flex;align-items:center;gap:10px;padding:28px 0}
+  .top b{font-size:1.05rem}
+  .top .spacer{flex:1}
+  .glyph{width:22px;height:22px;stroke:var(--structure,#1E4D3E);stroke-width:1.4;fill:none}
+  .signin,.btn{font-family:inherit;text-decoration:none;font-size:.85rem}
+  .btn{background:var(--structure,#1E4D3E);color:#fff;padding:8px 16px;border-radius:8px}
+  .signin{color:var(--muted,#666);margin-right:16px}
+  .nf-hero{padding:60px 0 40px}
+  .nf-hero .eyebrow{font-family:var(--code,monospace);font-size:.7rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted,#888)}
+  .nf-hero h1{font-size:1.8rem;line-height:1.25;margin:.5em 0}
+  .nf-hero p{color:var(--muted,#555);max-width:46ch}
+  .nf-cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:24px}
+  .foot{display:flex;gap:16px;padding-top:34px;margin-top:34px;border-top:1px solid var(--rule-soft,#e5e5e5);
+    font-family:var(--code,monospace);font-size:.625rem;letter-spacing:.06em;color:var(--muted,#888)}
+  .foot a{color:var(--muted,#888);text-decoration:none}
+  .foot a:hover{color:var(--structure,#1E4D3E);text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+      <circle cx="13" cy="13" r="11"></circle>
+    </svg>
+    <b>Nexley</b>
+    <span class="spacer"></span>
+    <a class="signin" href="app.html">Sign in</a>
+    <a class="btn" href="app.html">Open Nexley</a>
+  </header>
+
+  <section class="nf-hero">
+    <span class="eyebrow">404</span>
+    <h1>That page doesn't exist.</h1>
+    <p>The link might be old, or mistyped. Nothing was lost on Nexley's end — your
+      notes live in your own account, not at a URL that can go missing.</p>
+    <div class="nf-cta">
+      <a class="btn" href="./">Back to Nexley</a>
+      <a class="signin" href="app.html">Open the app</a>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <a href="./">Home</a>
+    <a href="app.html">Open Nexley</a>
+    <a href="legal.html">Privacy &amp; Terms</a>
+    <span class="spacer"></span>
+  </footer>
+
+</div>
+</body>
+</html>

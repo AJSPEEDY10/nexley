@@ -1,0 +1,32 @@
+# Nexley
+
+> A syllabus-aligned study notebook for NSW HSC Year 11-12 students. Notes and
+> classwork file against the actual syllabus, marks are recorded with the
+> conditions they were sat under (exam marks and open-notes marks are never
+> averaged together), and term planning shows which weeks are over-committed
+> before they arrive.
+
+Nexley is a free, offline-capable web app (installable as a PWA). It is not a
+question bank and does not predict exam topics or provide model answers — it
+organises a student's own notes, marks and time against their own syllabus.
+
+## What it does
+- Files notes and classwork against the syllabus dot points they cover.
+- Records real exam/test marks, grouped by the conditions sat under, and shows
+  which dot points marks were actually lost on.
+- Spaced review turns a lost mark into a flashcard automatically.
+- Term planning shows what is due each of the next eight weeks and flags
+  over-commitment as arithmetic, not a guess.
+- Works fully offline; sync is opt-in once signed in.
+
+## What it deliberately does not do
+- No predicted band or grade, anywhere in the app.
+- No shared question bank or model-answer library (a licensing constraint, not
+  an oversight).
+- No public leaderboard — a comparison ("comp") is joined by code between
+  people who chose each other, never browsable or ranked against a cohort.
+
+## Pages
+- [Home](https://ajspeedy10.github.io/nexley/) — what Nexley is and who it's for.
+- [Legal](https://ajspeedy10.github.io/nexley/legal.html) — privacy policy, terms,
+  and exactly what data is collected.
