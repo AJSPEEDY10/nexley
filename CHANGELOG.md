@@ -23,6 +23,41 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.39.0 — 2026-09-08
+Empty screens now hand you the thing to press, and people have faces.
+Three creators independently reported the same finding, one with numbers: a blank first
+screen with no guidance got **3 of 100** users started; adding a single button took it to
+**100 of 100**. Nexley had a good `emptyState()` component with an action slot and used it in
+two places, both inside Marks. The screen a brand-new account actually lands on — no subjects,
+no notes — got one grey sentence, *"Add a subject first, then start writing"*, naming a button
+somewhere else on the page. Telling someone what to do is not the same as giving them the
+thing to do it with. That screen, the no-notes screen, the empty Review deck and the empty
+inbox now all end in a real button, and each one was clicked in a harness to prove it goes
+somewhere: subject dialog, note editor, and for the inbox — which cannot fill itself, because
+the next step is telling a person your handle — a button that copies your username. A search
+that matches nothing deliberately keeps its plain sentence: a no-results state is working
+correctly, and offering "add a subject" mid-search is a non-sequitur.
+**Avatars.** Usernames appeared as bare text in comps and the inbox, so a leaderboard was a
+column of identical `@` prefixes. Each person now has an initial in a tone derived from a hash
+of their username — same person, same mark, everywhere, with nothing stored, nothing to sync
+and no upload. There is deliberately still no photo upload: a picture of a school-age user is
+data this app has no reason to hold.
+Three decisions inside that are not obvious. **Four tones, not a rainbow** — this app reserves
+colour for verdicts so that green means an earned result, and decorating names with the palette
+is how green stops meaning anything two panes over in Marks. **Their own tokens, not reuses** —
+`--structure` is user-configurable through the accent setting, and an identity mark that changes
+hue when you re-accent the app is not an identity mark. **Measured, not eyeballed** — the first
+cut tinted `--margin-rule` and `--muted` with `color-mix` and measured **2.37:1** and 3.66:1 in
+a real browser, below even the 3.0 floor for incidental UI. The tones are now explicit light and
+dark pairs and the worst of the eight is **6.1:1**.
+`test/test_avatar.js` extracts the real hash out of `app.js`, runs it, and parses the real
+colours out of `app.css`, so neither can drift from what ships. It caught two bugs while being
+written. The hash used `*` instead of `Math.imul`, and since the FNV prime overflows 2^53
+immediately, the low bits carrying all the entropy were silently dropped — 600 sequential
+usernames landed **465 / 14 / 100 / 21** across four tones, most of a class in one colour.
+`test_type.js` then caught a hardcoded `font-size:9px` on the inbox avatar, which would have
+quietly opted that element out of the reader text-size scaling shipped one version earlier.
+
 ## v0.38.0 — 2026-09-08
 The auth library is Nexley's own file now, not a CDN's. `app.html` had exactly one off-origin
 script — `cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js` — and it was

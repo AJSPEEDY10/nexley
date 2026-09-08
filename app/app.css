@@ -1317,7 +1317,11 @@ button:disabled:active{transform:none;filter:none}
 /* Brass, not eucalypt: this is a record of what happened, which is the one
    thing that colour means anywhere in the app. */
 .comp-entry.me{background:var(--brass-soft)}
-.comp-who{font-size:var(--t-base);color:var(--ink)}
+/* The row stays baseline-aligned so the name and the score sit on one line;
+   only the circle centres itself against them. .comp-who takes the slack so
+   space-between still pushes the score to the right edge. */
+.comp-entry .avatar{align-self:center}
+.comp-who{flex:1;min-width:0;font-size:var(--t-base);color:var(--ink)}
 .comp-score{font-family:var(--code);font-size:var(--t-sm);color:var(--ink-2);
   font-variant-numeric:tabular-nums}
 .comp-score.pending{color:var(--muted);font-style:italic}
@@ -1330,7 +1334,11 @@ button:disabled:active{transform:none;filter:none}
   padding:var(--s-5);margin:0 0 var(--s-4);display:flex;flex-direction:column;gap:var(--s-3)}
 .share-head{font-family:var(--display);font-size:var(--t-md);color:var(--ink)}
 .share-meta{font-family:var(--code);font-size:var(--t-2xs);letter-spacing:.06em;
-  text-transform:uppercase;color:var(--muted)}
+  text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:var(--s-2)}
+/* The sender's face sits inline with the metadata line rather than above it —
+   an inbox row is scanned, and a second stacked element slows that down. */
+.share-meta .avatar{width:18px;height:18px;font-size:var(--t-2xs);letter-spacing:0}
 /* Capped and scrollable: an inbox is a list to triage, not a reading view, and
    one long note must not push everything else off the screen. */
 .share-body{font-family:var(--text);font-size:var(--t-base);line-height:1.7;
@@ -1612,6 +1620,48 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
   background:var(--structure-soft);color:var(--structure);
   display:flex;align-items:center;justify-content:center;
   font-family:var(--ui);font-size:var(--t-sm);font-style:normal;text-transform:uppercase}
+
+/* Four tones, assigned from a hash of the username so a person looks the same
+   everywhere — see avatarFor() in app.js for why it is four and not a rainbow.
+   None of them is a verdict colour: good/warn/bad stay reserved for a result
+   that was actually earned.
+
+   These are their own token pairs rather than reuses of existing ones, for two
+   measured reasons. First, --structure is user-configurable through data-accent,
+   so an avatar built on it would change hue when someone re-accents the app —
+   an identity mark that moves is not an identity mark. Second, --margin-rule and
+   --muted have no light/dark pair the way --structure and --brass do, and tinting
+   them with color-mix produced 2.37:1 and 3.66:1 against their own backgrounds —
+   below even the 3.0 floor, let alone 4.5. Every pair below was measured: the
+   worst of the eight is 6.1:1. Re-measure if you touch them. */
+:root{
+  --av0:#21493B; --av0-bg:#DEE7E0;   /* eucalypt */
+  --av1:#6B5219; --av1-bg:#F1E9D6;   /* brass */
+  --av2:#7A3B36; --av2-bg:#F0E0DE;   /* the margin rose, deepened to carry text */
+  --av3:#3F4A52; --av3-bg:#E1E6E9;   /* slate */
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --av0:#8ECBAB; --av0-bg:#243228;
+    --av1:#C9A552; --av1-bg:#2A2417;
+    --av2:#DFA0A0; --av2-bg:#2E1A1A;
+    --av3:#A8B6C0; --av3-bg:#232A2F;
+  }
+}
+:root[data-theme="dark"]{
+  --av0:#8ECBAB; --av0-bg:#243228;
+  --av1:#C9A552; --av1-bg:#2A2417;
+  --av2:#DFA0A0; --av2-bg:#2E1A1A;
+  --av3:#A8B6C0; --av3-bg:#232A2F;
+}
+.avatar.av-0{background:var(--av0-bg);color:var(--av0)}
+.avatar.av-1{background:var(--av1-bg);color:var(--av1)}
+.avatar.av-2{background:var(--av2-bg);color:var(--av2)}
+.avatar.av-3{background:var(--av3-bg);color:var(--av3)}
+.avatar.av-none{background:var(--rule-soft);color:var(--ink-2)}
+
+/* Smaller, for list rows where the name is doing the work */
+.avatar.sm{width:21px;height:21px;font-size:var(--t-xs)}
 .acct-name{flex:1;min-width:0;font-size:var(--t-base);color:var(--ink-2);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rail-tools{display:flex;gap:2px}

@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.38.0';
+  var APP_VERSION = '0.39.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -346,6 +346,22 @@
     t.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.hidden = true; }, 3000);
+  }
+
+  /* Copy a bare string. copySummary() handles the textarea case, where the
+     fallback can select the text on screen; there is nothing to select here,
+     so a refused clipboard shows the value in the toast instead. Reading six
+     characters off a toast is worse than a copy and far better than a dead
+     button that says "copied" when nothing was. The clipboard is genuinely
+     unavailable on an insecure origin and when the permission is refused. */
+  function copyText(text, okMsg) {
+    var val = String(text);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(val).then(
+        function () { toast(okMsg || 'Copied'); },
+        function () { toast(val); }
+      );
+    } else toast(val);
   }
 
   /* Subject colours. These are mid-tone on purpose: a subject shows up as a 7px dot,
@@ -1003,12 +1019,29 @@
     holder.className = 'notes';
 
     if (!list.length) {
-      var e = document.createElement('p');
-      e.className = 'listempty';
-      e.textContent = q ? 'Nothing matches that search.'
-        : (state.subjects.length ? 'No notes yet. Hit "New note" to start one.'
-                                 : 'Add a subject first, then start writing.');
-      holder.appendChild(e);
+      /* A no-RESULTS state and an EMPTY state are different things and must not
+         look the same. A search that matches nothing is working correctly and
+         needs no button — offering "add a subject" to someone mid-search is a
+         non-sequitur. An account with nothing in it yet is the first screen a
+         new user ever meets, and until now it was one grey sentence naming a
+         button somewhere else on the page. That is the gap: telling someone
+         what to do is not the same as giving them the thing to press. */
+      if (q) {
+        var e = document.createElement('p');
+        e.className = 'listempty';
+        e.textContent = 'Nothing matches that search.';
+        holder.appendChild(e);
+      } else if (!state.subjects.length) {
+        holder.appendChild(emptyState('book', 'Start with a subject',
+          'Notes live under the subject they belong to, so a subject comes first. ' +
+          'One is enough to start — you can add the rest whenever.',
+          'Add your first subject', function () { openSubjectDialog(null); }));
+      } else {
+        holder.appendChild(emptyState('book', 'No notes yet',
+          'A note files itself against the part of the syllabus it answers, so a ' +
+          'year of them stays findable. This is the one to write first.',
+          'Write your first note', function () { newNote(); }));
+      }
       body.appendChild(holder);
       return;
     }
@@ -2412,6 +2445,19 @@
     panel.textContent = '';
 
     if (!state.cards.length) {
+      /* With notes on file, the suggestions below ARE the next step and they are
+         specific — naming the passage to turn into a card beats any button this
+         could offer. With no notes at all both lists come back empty and the
+         paragraph is left standing on its own, which is the state that needs a
+         way out rather than an explanation of a feature you cannot reach yet. */
+      if (!state.notes.length) {
+        panel.appendChild(emptyState('review', 'Cards come from your notes',
+          'Nobody sits down and writes flashcards, which is why spaced repetition '
+          + 'usually dies in week two. Here a card is made from a line you already '
+          + 'wrote — so there has to be a note first.',
+          'Write your first note', function () { newNote(); }));
+        return;
+      }
       var note = document.createElement('p');
       note.className = 'rv-note';
       note.textContent = 'Cards are made from notes you have already written — nobody sits '
@@ -5706,13 +5752,65 @@
     });
   }
 
+  /* ---------- avatars ----------
+     An initial, not a photograph. There is no avatar upload and there should not
+     be one: a picture of a school-age user is a category of data this app has no
+     reason to hold, and moderating it is a job nobody here can staff.
+
+     A single letter is not enough on its own though — a comp full of "S" tells
+     you nothing. So the tone is derived from the username itself, which means a
+     person looks the same to everyone, everywhere, forever, with nothing stored
+     and nothing to sync. Recognition is the entire job of an avatar and this does
+     it for free, offline included.
+
+     WHY ONLY FOUR TONES, AND WHY THESE. The obvious version assigns every user a
+     bright hue out of a rainbow. That would directly break the rule this app now
+     holds itself to — colour is reserved for verdicts, so green means an earned
+     result and not decoration. Spending the palette on decorating names is how
+     green stops meaning anything on the Marks screen two panes over. These four
+     are the non-verdict hues already in the palette (eucalypt, brass, the margin
+     rose, warm grey); good/warn/bad are deliberately excluded. Four tones against
+     26 initials is plenty to tell a class apart, and it costs the palette nothing. */
+  var AVATAR_TONES = 4;
+
+  function avatarTone(username) {
+    var s = String(username || '');
+    /* FNV-1a, with two details that are not optional.
+
+       Math.imul, not `*`: the FNV prime overflows 2^53 almost immediately, and a
+       plain multiply silently drops the low bits that carry all the entropy.
+       Written with `*` this clustered 600 sequential names as 465/14/100/21 across
+       four tones — most of a class in one colour, which defeats the entire point.
+
+       And the fold: `h % 4` reads only the bottom two bits. Mixing the high half
+       down first spreads that over the whole word, which is what makes the split
+       even for the near-identical usernames a school actually produces. */
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    h = (h ^ (h >>> 16)) >>> 0;
+    return h % AVATAR_TONES;
+  }
+
+  function avatarFor(username, extraClass) {
+    var el = document.createElement('i');
+    var known = !!username;
+    el.className = 'avatar av-' + (known ? avatarTone(username) : 'none')
+      + (extraClass ? ' ' + extraClass : '');
+    el.textContent = known ? username.charAt(0) : '?';
+    /* The letter is decoration once the name is already written next to it —
+       announcing "S" before "@sam" is noise in a screen reader. */
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+
   function renderMe() {
     var name = $('meName'), av = $('meAvatar');
     if (!name || !av) return;
     name.textContent = myUsername ? '@' + myUsername : 'Choose a username';
-    /* An initial, not a photograph. There is no avatar upload and there should
-       not be one: a picture of a school-age user is a category of data this
-       app has no reason to hold. */
+    av.className = 'avatar av-' + (myUsername ? avatarTone(myUsername) : 'none');
     av.textContent = myUsername ? myUsername.charAt(0) : '?';
     $('meBtn').title = myUsername
       ? 'Your username — how other people address you'
@@ -5930,9 +6028,23 @@
   function renderShareList(box, rows, dir) {
     ready(box).textContent = '';
     if (!rows.length) {
-      box.appendChild(note(dir === 'in'
-        ? 'Nothing yet. Someone has to send you their username’s worth of trust first.'
-        : 'You have not sent anyone a note.'));
+      /* An inbox cannot fill itself — the next step is not in this app, it is
+         telling someone your handle. So the button hands over the thing you
+         would otherwise have to go and find, and says so plainly. Without a
+         username there is nothing to copy, so it sends you to pick one. */
+      if (dir === 'in') {
+        box.appendChild(emptyState('inbox', 'Nothing shared with you yet',
+          myUsername
+            ? 'Someone sends you a note by looking up your username. Give them @'
+              + myUsername + ' and it lands here.'
+            : 'People find each other by username, and you have not picked one yet.',
+          myUsername ? 'Copy my username' : 'Choose a username',
+          myUsername
+            ? function () { copyText('@' + myUsername, 'Username copied'); }
+            : function () { openMeDialog(); }));
+      } else {
+        box.appendChild(note('You have not sent anyone a note.'));
+      }
       return;
     }
     rows.forEach(function (r) { box.appendChild(shareRow(r, dir)); });
@@ -5949,10 +6061,15 @@
 
     var meta = document.createElement('div');
     meta.className = 'share-meta';
+    /* Only an incoming note has a someone attached to it. "Sent" is a state,
+       not a person, so the outbox gets no face. */
+    if (dir === 'in' && r.from_username) meta.appendChild(avatarFor(r.from_username, 'sm'));
     var who = dir === 'in' ? 'from @' + r.from_username : 'sent';
     var where = [r.subject_name, r.syllabus_code].filter(Boolean).join(' · ');
-    meta.textContent = [who, where, when(new Date(r.created_at).getTime())]
+    var metaText = document.createElement('span');
+    metaText.textContent = [who, where, when(new Date(r.created_at).getTime())]
       .filter(Boolean).join('  ·  ');
+    meta.appendChild(metaText);
     row.appendChild(meta);
 
     var body = document.createElement('div');
@@ -6266,6 +6383,10 @@
     d.entries.forEach(function (e) {
       var row = document.createElement('div');
       row.className = 'comp-entry' + (e.username === myUsername ? ' me' : '');
+
+      /* A leaderboard is the one screen where telling people apart at a glance
+         is the whole point, and a column of identical "@" prefixes does not. */
+      row.appendChild(avatarFor(e.username, 'sm'));
 
       var who = document.createElement('span');
       who.className = 'comp-who';
