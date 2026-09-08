@@ -1760,3 +1760,9 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 .estate p{margin:0;font-size:var(--t-base);line-height:1.7;color:var(--ink-2);
   text-wrap:pretty}
 .estate .btn{margin-top:var(--s-3)}
+
+/* Month + year side by side. Two selects rather than a date input on purpose: a
+   native date picker invites a full date of birth, and only the month and year
+   are wanted here — see the "age" section in app.js. */
+.dob-row{display:flex;gap:var(--s-3)}
+.dob-row select{flex:1;min-width:0}

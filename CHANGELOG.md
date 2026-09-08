@@ -23,6 +23,36 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.43.0 — 2026-09-08
+There is a minimum age now, and it is enforced at every door.
+Nexley being "for Year 11 students" was an intention with no control behind it — the app asked
+nothing, so a twelve-year-old could sign up. The Children's Online Privacy Code (registered by
+10 December 2026, and it covers educational tools) asks for reasonable steps to ascertain age,
+and under-15s need **verified** parental consent, which Nexley cannot obtain and is not going to
+build. So the honest answer is not to accept them: **the minimum age is 15.**
+**Month and year, not a full date of birth.** The only question is "15 or older". A full DOB is
+a strong identifier, and holding one to answer a yes/no question is collection past the purpose
+— which is the exact standard this Code tightens. The month is used to decide and then thrown
+away; **only the year is stored.** Asking for a day and then discarding it would also just be
+dishonest about what is wanted.
+**The check does not live on the sign-up form.** It lives in `enterApp()`, the single point that
+both the email and the Google paths funnel through. Putting it on the form would have looked
+complete while leaving OAuth wide open, and would have said nothing to accounts that already
+existed. Both now get asked once, before the app will open; declining or pressing Escape signs
+you out rather than leaving a half-signed-in session with no app behind it.
+**The boundary errs young on purpose.** Age is computed from the *last* day of the birth month,
+so someone whose fifteenth birthday falls later this month reads as fourteen and waits a few
+weeks. Erring young delays a legitimate student; erring old admits a child permanently.
+`test/test_age.js` pins that boundary from both sides against a fixed clock — a test that
+depends on today's date passes until the morning it doesn't.
+**Said honestly in `legal.html`, including the limits.** It is a declared age, the weakest form
+of assurance, and it can be lied to. The policy says so, and says why there is no ID check:
+verifying identity would mean collecting far more sensitive data from young people than a study
+notebook could justify, which fails the same best-interests test from the other side. The old
+"Children's privacy" section — which said the app may have under-13 users and that
+age verification was a future step — was true when written and became false the moment this
+shipped; it has been rewritten rather than left to rot.
+
 ## v0.42.0 — 2026-09-08
 Muted text was failing WCAG AA across the entire light theme, and nobody could see it.
 `--muted` was #7E7669: **4.41:1** on `--card`, **3.77** on `--paper`, **3.47** on `--surface`.
