@@ -80,6 +80,18 @@ ok('every local script app.html loads is in the service worker SHELL',
   missing.length === 0,
   missing.join(', ') + ' would 404 on a cold offline launch');
 
+/* Same failure, different list. sw.js's own comment says the real pages have to be
+   precached "without these the navigate fallback silently serves index.html instead
+   of the page that was asked for" — a wrong page rather than an error, which is the
+   kind of bug you find months later. Adding a page and forgetting the SHELL is the
+   easiest version of that mistake to make, so it is checked rather than remembered. */
+const pages = fs.readdirSync(path.join(root, 'app'))
+  .filter(f => f.endsWith('.html'));
+const missingPages = pages.filter(p => !swJs.includes("'./" + p + "'"));
+ok('every page in app/ is in the service worker SHELL',
+  missingPages.length === 0,
+  missingPages.join(', ') + ' not precached — offline it would silently serve a different page');
+
 console.log('\n==============================================');
 console.log('  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);

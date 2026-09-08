@@ -33,6 +33,68 @@
 }
 </script>
 
+<!-- FAQPage, mirroring the FAQ section at the bottom of this page. Keep the two in
+     step: an answer here that is not on the page is exactly what search engines
+     treat as cloaking, and it is also just a lie. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Nexley?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Nexley is a study notebook that files every note against the syllabus dot point it answers, so a year of work stays findable and the parts you have never written up stop being invisible. It also records real marks with the conditions you sat them under, shows where marks were lost question by question, and lays out the term so you can see which weeks were over-committed the day they were set." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Nexley free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Nexley is free to use, there are no ads, and nothing about you is sold or shared. It is built by one person and is early." }
+    },
+    {
+      "@type": "Question",
+      "name": "Who can read my notes in Nexley?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Only you. Notes are stored on your own device first and synced to your own account, protected by database rules that make your rows unreachable by any other account. There is no public feed and no way to browse another student's notebook. The only exceptions are deliberate: sending one note to one person you name, or entering a comp, where others see your username and score and nothing else." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Nexley work offline?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, fully. Everything saves to your device first and syncs when a connection comes back, so a lesson with no school Wi-Fi is not a lost lesson. Added to a home screen it opens like an app, with nothing to install." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Nexley predict your ATAR or HSC band?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No, deliberately. An open-notes mark and an exam mark are not the same mark, and Nexley will never average them into a number claiming to know your result. Every number it shows reflects something that actually happened." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does an AI mark your work in Nexley?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Only when you ask, on one answer at a time, against marking criteria you paste in yourself. Every mark is shown against the criterion it hangs on, it is labelled as written by a model, it can be wrong, and an AI's opinion can never be recorded as one of your real marks. Notes are never used to train any AI model." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Nexley only for the NSW HSC?",
+      "acceptedAnswer": { "@type": "Answer", "text": "It was built against NSW syllabus structure, so outcome codes and dot points are what it expects, but nothing is hard-coded to one curriculum. You paste in whatever syllabus you were given and it files your notes against that." }
+    },
+    {
+      "@type": "Question",
+      "name": "How is Nexley different from Notion, OneNote or Google Docs for school notes?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Those are blank pages, and a blank page cannot tell you what you have not written. Nexley knows the shape of your course, so it shows coverage, surfaces dot points you have never touched, pulls weak topics into review, and ties a lost mark back to the part of the syllabus it came from." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can you export or delete your data from Nexley?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes to both, from inside the app. A full export of everything you have written is available at any time, and you can delete your account and all of its data yourself from Settings, immediately, without emailing anyone." }
+    },
+    {
+      "@type": "Question",
+      "name": "Who makes Nexley?",
+      "acceptedAnswer": { "@type": "Answer", "text": "One Year 11 student in Sydney, building it for his own study and shipping most days. The feedback button in the app goes straight to the person writing the code." }
+    }
+  ]
+}
+</script>
+
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -105,6 +167,34 @@ try{
     text-transform:uppercase;color:var(--muted)}
 
   .rule{height:1px;background:var(--rule);margin:0}
+
+  /* FAQ — <details> rather than JavaScript, so it works with the page half-loaded,
+     prints open, and is searchable by the browser's own find. */
+  .faq{padding:44px 0;border-top:1px solid var(--rule-soft)}
+  .faq h2{font-family:var(--display);font-weight:400;
+    font-size:clamp(1.35rem,1.1rem + 1vw,1.9rem);letter-spacing:-.01em;margin-bottom:8px}
+  .faq details{border-bottom:1px solid var(--rule-soft)}
+  .faq summary{cursor:pointer;padding:16px 28px 16px 0;position:relative;
+    font-size:1rem;color:var(--ink);list-style:none}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:'+';position:absolute;right:4px;top:14px;
+    font-family:var(--code);color:var(--muted);font-size:1.1rem;transition:transform .15s}
+  .faq details[open] summary::after{content:'−'}
+  .faq summary:hover{color:var(--structure)}
+  .faq summary:active{color:var(--structure)}
+  .faq details p{font-family:var(--text);color:var(--ink-2);line-height:1.65;
+    padding:0 0 18px;max-width:64ch}
+
+  /* Sticky CTA — phones only. Height is reserved with padding on .page rather than
+     letting it float over the last line of the footer. */
+  .sticky-cta{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    display:flex;align-items:center;gap:14px;justify-content:space-between;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--paper);border-top:1px solid var(--rule);
+    box-shadow:0 -6px 18px rgba(var(--shade), .06)}
+  .sticky-cta span{font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted)}
+  @media (min-width:700px){ .sticky-cta{display:none} }
 
   .block{display:grid;grid-template-columns:1fr;gap:18px;padding:44px 0}
   .block+.block{border-top:1px solid var(--rule-soft)}
@@ -352,11 +442,135 @@ try{
       changing.</p>
   </div>
 
+  <!-- FAQ. Two jobs, and the second one is the reason it is written this way.
+       (1) The questions a student or a parent actually asks before trusting an app
+       with a year of schoolwork. (2) These are the answers an AI assistant quotes
+       when someone asks it to recommend a study app — students will ask ChatGPT
+       before they Google, so each answer is written to stand alone, out of context,
+       without the question. Mirrored as FAQPage structured data in the head. -->
+  <section class="faq">
+    <h2>Questions people ask.</h2>
+
+    <details>
+      <summary>What is Nexley?</summary>
+      <p>Nexley is a study notebook that files every note against the syllabus dot point it
+        answers, so a year of work stays findable and the parts you have never written up
+        stop being invisible. It also records real marks with the conditions you sat them
+        under, shows where marks were lost question by question, and lays out the term so
+        you can see which weeks were over-committed the day they were set.</p>
+    </details>
+
+    <details>
+      <summary>Is it free?</summary>
+      <p>Yes. Nexley is free to use right now, there are no ads, and nothing about you is
+        sold or shared. It is built by one person and is early — if that ever has to change
+        it will be said plainly here first, not discovered at a paywall.</p>
+    </details>
+
+    <details>
+      <summary>Who can read my notes?</summary>
+      <p>Only you. Notes are stored on your own device first and synced to your own account,
+        protected by database rules that make your rows unreachable by any other account.
+        Nothing you write is public, there is no feed, and there is no way to browse another
+        student's notebook. The only exceptions are things you do on purpose: sending one
+        note to one person you name, or entering a comp, where the others see your username
+        and your score and nothing else.</p>
+    </details>
+
+    <details>
+      <summary>Does it work offline?</summary>
+      <p>Yes, fully. Everything saves to your device first, so a lesson with no school Wi-Fi
+        is not a lost lesson, and it syncs whenever a connection comes back. Add it to your
+        home screen and it opens like an app with nothing to install.</p>
+    </details>
+
+    <details>
+      <summary>Will it predict my ATAR or my band?</summary>
+      <p>No, and that is deliberate rather than unfinished. An open-notes mark and an exam
+        mark are not the same mark, and Nexley will never quietly average them into a number
+        that claims to know what you are going to get. Every number it shows you reflects
+        something that actually happened.</p>
+    </details>
+
+    <details>
+      <summary>Does an AI mark my work?</summary>
+      <p>Only when you ask it to, on one answer at a time. You paste in the marking criteria
+        you were given, and it gives feedback against those exact words — with every mark
+        shown against the criterion it hangs on, so you can see the reasoning and disagree
+        with it. It is clearly labelled as written by a model, it can be wrong, and an AI's
+        opinion can never be recorded as one of your real marks. Your notes are never used
+        to train any AI model, and the provider used does not train on what is sent to it.</p>
+    </details>
+
+    <details>
+      <summary>Is it only for the NSW HSC?</summary>
+      <p>It was built by a NSW Year 11 student against NSW syllabus structure, so outcome
+        codes and dot points are what it expects. But nothing is hard-coded to one
+        curriculum — you paste in whatever syllabus you were given, topics at the left
+        margin and dot points indented, and it files your notes against that.</p>
+    </details>
+
+    <details>
+      <summary>How is this different from Notion, OneNote or Google Docs?</summary>
+      <p>Those are excellent blank pages, and a blank page cannot tell you what you have
+        not written. Nexley knows the shape of your course, so it can show coverage, surface
+        the dot points you have never touched, pull weak topics into review, and tie a lost
+        mark back to the part of the syllabus it came from. <a href="compare.html">The
+        longer answer is here.</a></p>
+    </details>
+
+    <details>
+      <summary>Can I get my notes out?</summary>
+      <p>Yes, at any time, from inside the app — a full export of everything you have
+        written. You can also delete your account and everything in it yourself from
+        Settings, immediately, without emailing anyone.</p>
+    </details>
+
+    <details>
+      <summary>Who makes it?</summary>
+      <p>One Year 11 student in Sydney, building it for his own study and shipping most
+        days. That is the whole team. It is why the feedback button in the app goes straight
+        to the person writing the code, and why you can see what happened to what you sent.</p>
+    </details>
+  </section>
+
   <footer class="foot">
     <a href="app.html">Open Nexley</a>
+    <a href="compare.html">Compared to other apps</a>
     <a href="legal.html">Privacy &amp; Terms</a>
     <span class="spacer"></span>
   </footer>
+
+  <!-- Sticky CTA, narrow screens only. It appears once the hero's own button has
+       scrolled away and hides again at the footer, so there is never a floating bar
+       covering the thing it duplicates. Phones are where a landing page loses people
+       to "I'll find it later". -->
+  <div class="sticky-cta" id="stickyCta" hidden>
+    <span>Free · works offline</span>
+    <a class="btn primary" href="app.html">Open Nexley</a>
+  </div>
+  <script>
+  /* Show it only while BOTH the hero CTA and the footer are off screen — a duplicate
+     button floating over the original is worse than no button at all. IntersectionObserver
+     rather than a scroll handler so this costs nothing while reading. If the browser
+     lacks it, the bar simply never appears, which is the safe direction. */
+  (function () {
+    var bar = document.getElementById('stickyCta');
+    var hero = document.querySelector('.hero .cta');
+    var foot = document.querySelector('.foot');
+    if (!bar || !hero || !foot || !('IntersectionObserver' in window)) return;
+    var seen = { hero: true, foot: false };
+    var apply = function () { bar.hidden = seen.hero || seen.foot; };
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        seen[e.target === hero ? 'hero' : 'foot'] = e.isIntersecting;
+      });
+      apply();
+    }, { rootMargin: '0px 0px -10% 0px' });
+    io.observe(hero);
+    io.observe(foot);
+  })();
+  </script>
 
 </div>
 </body>

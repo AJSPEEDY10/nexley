@@ -26,7 +26,33 @@ organises a student's own notes, marks and time against their own syllabus.
 - No public leaderboard — a comparison ("comp") is joined by code between
   people who chose each other, never browsable or ranked against a cohort.
 
+## Common questions, answered
+- **Is it free?** Yes. No ads, and nothing about a student is sold or shared.
+- **Who can read a student's notes?** Only that student. Notes are stored on
+  their own device and synced to their own account under database rules that
+  make the rows unreachable by any other account. There is no public feed and
+  no way to browse another student's notebook. The exceptions are deliberate:
+  sending one note to one named person, and a comp, where other entrants see a
+  username and a score and nothing else.
+- **Does it predict an ATAR or a band?** No, by design.
+- **Does an AI mark the work?** Only on request, one answer at a time, against
+  marking criteria the student pastes in. It is labelled as written by a model,
+  it can be wrong, and an AI mark can never be recorded as a real mark. Notes
+  are never used to train any AI model.
+- **Is it only for the NSW HSC?** It expects NSW-style outcome codes and dot
+  points, but nothing is hard-coded to one curriculum — any pasted syllabus works.
+- **How does it differ from Notion, OneNote or Google Docs?** Those are blank
+  pages, and a blank page cannot tell a student what they have not written.
+  Nexley knows the shape of the course, so it can show coverage, surface
+  untouched dot points, and tie a lost mark back to a syllabus point.
+- **Can data be exported or deleted?** Both, from inside the app. Deletion is
+  immediate and needs no email to support.
+- **Who makes it?** One Year 11 student in Sydney, shipping most days.
+
 ## Pages
 - [Home](https://ajspeedy10.github.io/nexley/) — what Nexley is and who it's for.
+- [Compared to other apps](https://ajspeedy10.github.io/nexley/compare.html) — an
+  honest comparison against Notion, OneNote, Google Docs, Quizlet and Anki,
+  including the cases where those tools are the better answer.
 - [Legal](https://ajspeedy10.github.io/nexley/legal.html) — privacy policy, terms,
   and exactly what data is collected.

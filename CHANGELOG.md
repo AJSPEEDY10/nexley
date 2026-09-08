@@ -23,6 +23,21 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.36.0 — 2026-09-08
+The questions people actually ask, answered on the page. A ten-question FAQ on the landing
+page — free?, who can read my notes?, does it predict a band?, does an AI mark my work?, can I
+get my data out?, who makes it? — mirrored exactly as `FAQPage` structured data, which §11 of
+the growth plan had listed as blocked on there being an FAQ to mark up. A new
+`compare.html` answers the question a student actually types: how this differs from Notion,
+OneNote, Google Docs, Quizlet and Anki, including the four cases where those are the better
+answer and the four things Nexley deliberately does not do. Both are written to be quotable
+out of context, because a student asks an assistant for a study app before they open Google.
+Plus a sticky call-to-action on phones that appears only once the hero's own button has
+scrolled away and hides again at the footer. `sitemap.xml`, `llms.txt` and the service
+worker's precache list all know about the new page, and `test_version.js` now fails if a page
+is ever added without being precached — offline, a missing page is silently served as a
+*different* page, which is worse than an error.
+
 ## v0.35.0 — 2026-09-08
 Press feedback and waiting states. Every interactive state in the app was a *hover* state, and
 hover does not exist on the iPad this is built for — so pressing anything gave no response at
