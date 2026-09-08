@@ -53,6 +53,15 @@ ok('package.json matches app.js',
   pkg.version === appVersion,
   'package.json ' + pkg.version + ' vs app.js ' + appVersion);
 
+/* The lockfile carries the version twice and npm ci reads it. It had drifted to
+   0.19.1 while package.json said 0.36.0 — harmless with today's npm, which
+   tolerates a root-version mismatch, and precisely the sort of thing that stops
+   being harmless in a CI image you did not choose. */
+const lock = JSON.parse(read('package-lock.json'));
+ok('package-lock.json matches package.json',
+  lock.version === pkg.version && lock.packages[''].version === pkg.version,
+  'lock says ' + lock.version + '/' + lock.packages[''].version + ', package.json says ' + pkg.version);
+
 ok('CHANGELOG.md has an entry for the current version',
   new RegExp('^## v' + String(appVersion).replace(/\./g, '\\.') + ' ', 'm').test(changelog),
   'no "## v' + appVersion + '" heading — write down what shipped');

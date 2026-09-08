@@ -18,12 +18,20 @@ on:
 jobs:
   build_and_upload:
     runs-on: macos-latest
+    # Until Alec's Apple Developer enrolment exists there are no secrets to build
+    # with, and this job can only ever fail. It ran and went red on every version
+    # tag, and a workflow that is always red is a workflow nobody reads — which is
+    # exactly how the Android build failing on EVERY run went unnoticed for a week
+    # while the docs said Android was ready to side-load. Skipped-until-configured
+    # keeps a red cross meaning something. Delete this line the day the secrets
+    # land (PHASE8.md lists all fourteen).
+    if: ${{ secrets.APPLE_KEY_ID != '' }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - name: Install JS dependencies

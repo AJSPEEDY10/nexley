@@ -22,9 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Capacitor 8's CLI hard-requires Node >= 22 and exits fatally below it. This
+      # was pinned to 20, so `cap sync` failed on EVERY run this workflow has ever
+      # had and no APK has ever been produced — while PHASE8.md and the handover
+      # both said Android was ready to download and side-load. Nothing checked,
+      # because a red cross on a workflow nobody is watching is the same as silence.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - name: Install JS dependencies
