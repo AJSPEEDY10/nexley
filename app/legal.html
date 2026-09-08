@@ -89,6 +89,13 @@ write-only — nobody can read them back through the app.</p>
 or any other third party. <b>If your browser sends a Do Not Track or Global Privacy Control
 signal, nothing is recorded at all</b>, and nothing is ever recorded while you are signed
 out.</p>
+<p><b>You can also just turn it off.</b> Settings &rsaquo; Privacy has a switch, and turning
+it off stops the current session immediately — anything already waiting to be sent is thrown
+away rather than sent on the way out. Nothing about how Nexley works changes when it is off.
+We are telling you where the switch is rather than burying it, because this is the one thing
+Nexley collects that it does not strictly need in order to work: it exists so we can tell
+which parts of the app are worth building on. That is a fair thing to ask for and an easy
+thing to decline.</p>
 
 <h3>Problem reports</h3>
 <p>When the app hits an error, it sends us a report so the fault can be found and fixed.
@@ -136,6 +143,10 @@ two are kept in sync whenever you have a connection.</p>
 <ul>
   <li>We do not sell your data.</li>
   <li>We do not run third-party advertising or ad-tracking on this app.</li>
+  <li>We do not load anything from anyone else's server. Every script, style and font Nexley
+    uses is served from Nexley's own address, so opening the app does not tell any other
+    company that you did. The last exception — a shared code library loaded from a public
+    CDN — was removed on 8 September 2026.</li>
   <li>We do not send your data to any analytics company. The usage statistics
     described above stay in Nexley's own database.</li>
   <li>We do not use your notes to train any AI model, and we do not use an AI provider that

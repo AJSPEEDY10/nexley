@@ -94,8 +94,32 @@
   var MAX_QUEUE = 60;          // a session that never flushes cannot grow forever
   var FLUSH_EVERY = 45 * 1000;
 
+  /* The key is deliberately plain and stable: someone clearing one thing out of
+     site data should be able to find it, and it must survive a version bump. */
+  var OPT_OUT_KEY = 'nexley.analytics.off';
+
+  /* DNT and GPC are honoured, and were the only opt-out for a while. That was not
+     enough on its own. Both are browser-level settings most students have never
+     heard of, so in practice "you can turn it off" was true and unusable — and
+     Nexley's users are minors, where the standard is moving from "reasonably
+     necessary" to "strictly necessary, in the best interests of the child" when
+     the OAIC's Children's Online Privacy Code is registered (due 10 Dec 2026).
+     Usage analytics is necessary to IMPROVE this app, not to PROVIDE it, which is
+     the distinction that test turns on. A switch the user can actually find does
+     not settle that argument, but it converts it from a claim about necessity
+     into a matter of choice, which is the direction the best-interests test
+     pushes. See PRIVACY_IMPACT_ASSESSMENT.md §3.
+
+     Read once at load, like the DNT check: a mid-session flip takes effect on the
+     next load, and setOptOut() also clears whatever is queued so the current
+     session stops immediately rather than flushing on its way out. */
+  function storedOptOut() {
+    try { return localStorage.getItem(OPT_OUT_KEY) === '1'; } catch (e) { return false; }
+  }
+
   function optedOut() {
     try {
+      if (storedOptOut()) return true;
       if (navigator.globalPrivacyControl) return true;
       var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
       return dnt === '1' || dnt === 'yes';
@@ -184,12 +208,37 @@
     if (document.visibilityState === 'hidden') flush();
   });
 
+  /* Turning it off must stop the CURRENT session too, not just the next one.
+     Anything already queued is dropped rather than flushed — a switch that lets
+     one last batch out of the door on its way to being off is not an off switch,
+     and that batch is exactly the moment the user changed their mind. */
+  function setOptOut(wantOff) {
+    try {
+      if (wantOff) localStorage.setItem(OPT_OUT_KEY, '1');
+      else localStorage.removeItem(OPT_OUT_KEY);
+    } catch (e) { /* private mode: the in-memory flag below still holds for this session */ }
+    off = optedOut();
+    if (off) queue.length = 0;
+    return off;
+  }
+
   window.NexleyAnalytics = {
     track: track,
     events: ALLOWED,
     sanitize: clean,
     flush: flush,
     pending: function () { return queue.length; },
-    optedOut: function () { return off; }
+    optedOut: function () { return off; },
+    setOptOut: setOptOut,
+    /* The browser-level signals cannot be overridden from inside the page, so the
+       Settings toggle has to be able to say "this is already off, and not by me"
+       rather than showing a switch that does nothing when flipped. */
+    forcedOff: function () {
+      try {
+        if (navigator.globalPrivacyControl) return 'gpc';
+        var dnt = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+        return (dnt === '1' || dnt === 'yes') ? 'dnt' : null;
+      } catch (e) { return null; }
+    }
   };
 })();

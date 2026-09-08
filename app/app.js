@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.39.0';
+  var APP_VERSION = '0.40.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5561,6 +5561,12 @@
     if (e === 'not_configured') return 'Feedback is not switched on yet.';
     if (e === 'provider_unavailable') return 'The service behind this is down right now. '
       + 'Your answer was not sent anywhere else.';
+    /* Distinct from the one above on purpose: "down" and "did not answer in
+       time" call for different next moves, and this one is worth retrying.
+       It also costs a request, which the student should be told rather than
+       left to work out from a counter that moved. */
+    if (e === 'provider_timeout') return 'The model did not answer in time. That one '
+      + 'still counted, but it is worth trying again — it usually goes through.';
     if (status === 401 || status === 403) return 'You need to be signed in for this.';
     return 'That did not go through (' + (status || 'no reply') + '). Nothing was saved.';
   }
@@ -7543,7 +7549,46 @@
       var supported = window.NexleyNotifications && window.NexleyNotifications.supported();
       $('remindersGroup').hidden = !supported;
       if (supported) $('remindersToggle').checked = window.NexleyNotifications.enabled();
+
+      /* Read on every open for the same reason as the reminders toggle: a browser
+         setting can change under a long-lived tab. Do Not Track and Global Privacy
+         Control cannot be overridden from inside the page, so when one of them is
+         on, the switch is shown off and DISABLED with a line saying who turned it
+         off — a live-looking control that silently does nothing is worse than no
+         control, because it invites the user to believe they changed something. */
+      var an = window.NexleyAnalytics;
+      if (an) {
+        var forced = an.forcedOff ? an.forcedOff() : null;
+        var box = $('analyticsToggle');
+        /* `forced` has to beat optedOut() here, not just sit alongside it.
+           optedOut() reports a flag read once at load; forcedOff() reads the
+           browser now. If a DNT/GPC setting changed under a long-lived tab — the
+           exact case this block claims to handle — the cached flag still says
+           "on" and the box would render CHECKED and disabled, which tells the
+           user analytics is running and they may not stop it. That is the one
+           reading worse than having no switch. */
+        box.checked = !an.optedOut() && !forced;
+        box.disabled = !!forced;
+        var note = $('analyticsForced');
+        note.hidden = !forced;
+        if (forced) {
+          note.textContent = forced === 'gpc'
+            ? 'Already off: your browser sends a Global Privacy Control signal and Nexley '
+              + 'honours it. Change it in your browser settings.'
+            : 'Already off: your browser sends a Do Not Track signal and Nexley honours it. '
+              + 'Change it in your browser settings.';
+        }
+      }
       $('settingsDialog').showModal();
+    });
+    $('analyticsToggle').addEventListener('change', function () {
+      var wantOff = !this.checked;
+      var nowOff = window.NexleyAnalytics.setOptOut(wantOff);
+      // Reflect what actually happened rather than what was clicked — private mode
+      // can refuse the write, and the honest thing is to show the real state.
+      this.checked = !nowOff;
+      toast(nowOff ? 'Usage data is off. Anything queued was discarded.'
+                   : 'Thanks — usage data helps decide what to build next.');
     });
     $('remindersToggle').addEventListener('change', function () {
       var box = this;

@@ -73,10 +73,18 @@ const CF_MODEL = Deno.env.get('CF_MODEL') ?? '@cf/meta/llama-3.1-8b-instruct';
    fetch" with nothing in the console. supabase-js sends `apikey` and
    `x-client-info` alongside the Authorization header, and the first version of
    this file listed neither — which is exactly how it failed. */
+/* The fallback is Nexley's own origin, NOT '*'. A missing secret should fail
+   closed and loudly (a CORS error in one place, immediately diagnosable) rather
+   than open and silently — '*' lets any page on the internet spend this
+   account's model quota using a visitor's own session. Set ALLOWED_ORIGIN in
+   Edge Function secrets for any other deployment; dev needs its own value and
+   will say so clearly if it is missing. */
+const DEFAULT_ORIGIN = 'https://ajspeedy10.github.io';
 const CORS = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? DEFAULT_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Vary': 'Origin'
 };
 
 function json(body: unknown, status = 200) {
@@ -93,11 +101,23 @@ function json(body: unknown, status = 200) {
 /* Both are OpenAI-shaped enough that one interface covers them. Kept switchable
    by env rather than hardcoded: whichever free tier changes its terms first, the
    other is one environment variable away, and neither is baked into the client. */
+/* A marking call that has not answered in half a minute is not going to. Without
+   this the fetch has NO timeout at all: a stalled provider connection holds the
+   function open until the platform's own wall clock kills it, and the student
+   watches a spinner the whole time having already been charged a request. The
+   quota comment below says the ordering is safe because "a provider timeout
+   cannot be retried into an unbounded bill" — that reasoning assumed a timeout
+   that did not exist until now. AbortSignal.timeout is native in Deno; an
+   expired signal surfaces as a TimeoutError, mapped to provider_timeout so the
+   app can say "the model did not answer" rather than a generic failure. */
+const PROVIDER_TIMEOUT_MS = Number(Deno.env.get('AI_TIMEOUT_MS') ?? '30000');
+
 async function callModel(system: string, user: string): Promise<string> {
   if (PROVIDER === 'groq') {
     if (!GROQ_KEY) throw new Error('not_configured');
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${GROQ_KEY}`,
         'Content-Type': 'application/json'
@@ -122,6 +142,7 @@ async function callModel(system: string, user: string): Promise<string> {
       `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}/ai/run/${CF_MODEL}`,
       {
         method: 'POST',
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${CF_TOKEN}`,
           'Content-Type': 'application/json'
@@ -219,6 +240,12 @@ Deno.serve(async (req) => {
     const msg = e instanceof Error ? e.message : 'unknown';
     console.error('model call failed', msg, 'chars=' + (system.length + user.length));
     if (msg === 'not_configured') return json({ error: 'not_configured' }, 503);
+    /* An aborted fetch arrives as TimeoutError, not as provider_NNN — without
+       this it would fall through and be reported as a 502 with a null status,
+       which reads as "the provider answered badly" when it never answered. */
+    if (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+      return json({ error: 'provider_timeout', timeout_ms: PROVIDER_TIMEOUT_MS }, 504);
+    }
     /* Return the provider's status code, not just "unavailable". It says which
        thing is wrong — 401 is the key, 404 is the model id, 429 is the rate
        limit — and diagnosing that from the caller cost a round trip through the

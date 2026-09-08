@@ -23,6 +23,49 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.40.0 — 2026-09-08
+A switch for the usage data, names on every form control, and a timeout the code already
+claimed to have.
+**The law changed under this app.** The OAIC's Children's Online Privacy Code must be
+registered by **10 December 2026**, and the OAIC says plainly it reaches educational tools,
+not just social media. Nexley is a study app for Year 11 students, so it is in scope, and the
+collection standard tightens from *reasonably necessary* to **strictly necessary**, judged
+against the best interests of the child. Assessed properly in
+`PRIVACY_IMPACT_ASSESSMENT.md` — the right of destruction is already met (in-app delete,
+built for Apple in September, satisfies the harder rule by accident) and AI marking came out
+proportionate and well-controlled. Analytics is the item that fails *strictly necessary* most
+clearly, because it is necessary to **improve** the app rather than to **provide** it.
+So: **Settings › Privacy now has a switch.** Turning it off stops the current session
+immediately — anything queued is discarded rather than flushed on the way out, because a
+switch that lets one last batch through is not a switch. Do Not Track and Global Privacy
+Control are still honoured and now say so: when one is on, the control renders **off and
+disabled** with a line naming which browser signal did it, rather than a live-looking toggle
+that does nothing. `legal.html` says where the switch is instead of burying it, and now also
+states that Nexley loads nothing from anyone else's server — true since v0.38.0.
+The remaining gap is **age assurance**, and it is genuinely Alec's call rather than an
+engineering one: the Code wants reasonable steps to ascertain age and verified parental
+consent under 15, Nexley's audience is 16–17, and intent is not a control. Three options are
+costed in the PIA.
+**Accessibility.** An audit of the real DOM found **13 of 54 form controls with no accessible
+name**. Most looked labelled because they had a placeholder — which is not a label: it is not
+reliably exposed as an accessible name and it vanishes the moment you type, so a screen reader
+announces "edit text, blank" and a sighted user who tabs away loses the only description of
+the field. Three file inputs and both settings toggles had nothing at all. All 54 are named
+now, and the two settings toggles became real `<label for>` elements, which also makes the
+whole row a tap target instead of a 16px box. `test/test_a11y.js` parses the shipped DOM —
+including all 21 dialogs, which a click-through pass only reaches one at a time — and also
+pins the things that were already right: no positive tabindex, no nameless buttons, no
+undecided decorative SVGs.
+**AI proxy.** Neither provider fetch had a timeout, so a stalled connection held the function
+open until the platform killed it, with the student's quota already spent and a spinner on
+screen. The quota comment reasoned about exactly this case — "a provider timeout cannot be
+retried into an unbounded bill" — while no timeout existed. Now 30s, surfaced as its own
+`provider_timeout` / 504 rather than collapsing into a generic 502, with a message that says
+it counted and is worth retrying. CORS also stopped defaulting to `*` when `ALLOWED_ORIGIN`
+is unset: a missing secret should fail closed and loudly, not leave any page on the internet
+able to spend this account's model quota through a visitor's session.
+⚠️ **The edge function change is committed but NOT deployed** — that needs `supabase login`.
+
 ## v0.39.0 — 2026-09-08
 Empty screens now hand you the thing to press, and people have faces.
 Three creators independently reported the same finding, one with numbers: a blank first

@@ -189,7 +189,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </div>
 
     <div class="rail-search">
-      <input type="search" id="search" placeholder="Search notes…" autocomplete="off">
+      <input type="search" id="search" aria-label="Search notes" placeholder="Search notes…" autocomplete="off">
     </div>
 
     <nav class="rail-nav" id="subjectList" aria-label="Subjects"></nav>
@@ -229,7 +229,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
         <button class="toolbtn" id="settingsBtn" type="button" title="Settings, backups and feedback">
           <i class="mi mi-more"></i><i class="fbdot" id="fbDot" hidden></i></button>
       </div>
-      <input type="file" id="importFile" accept="application/json" hidden>
+      <input type="file" id="importFile" aria-label="Choose a Nexley backup file to import" accept="application/json" hidden>
     </div>
   </aside>
 
@@ -279,7 +279,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
          class, up to 140 characters. In a single-line input at display size
          that scrolls sideways and shows you the middle of your own title.
          Enter does not insert a newline — it moves to the body. -->
-    <textarea class="ed-title" id="noteTitle" placeholder="Untitled note"
+    <textarea class="ed-title" id="noteTitle" aria-label="Note title" placeholder="Untitled note"
               maxlength="140" rows="1" spellcheck="false"></textarea>
 
     <!-- the apparatus. On a wide page this becomes a real left margin beside the
@@ -323,7 +323,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
       <button type="button" id="photoBtn" title="Photograph the board, a page, or your marked paper">Photo</button>
       <span class="tsep"></span>
       <!-- Paper. Per note, behind both the typing and the ink. -->
-      <select id="paperSel" class="paper-sel" title="Paper">
+      <select id="paperSel" class="paper-sel" title="Paper" aria-label="Which paper this note belongs to">
         <option value="lines">Lines</option>
         <option value="lines-wide">Wide lines</option>
         <option value="grid">Grid</option>
@@ -436,7 +436,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </header>
 
     <div class="cw-compose">
-      <textarea id="cwInput" rows="3" spellcheck="true"
+      <textarea id="cwInput" aria-label="Paste or type classwork to file" rows="3" spellcheck="true"
                 placeholder="What just happened in class…"></textarea>
       <div class="cw-bar">
         <span class="hint" id="cwHint">Ctrl+Enter to capture</span>
@@ -465,7 +465,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     </header>
 
     <div class="cw-compose">
-      <textarea id="tkInput" rows="4" spellcheck="false"
+      <textarea id="tkInput" aria-label="Paste a task or notification to unpack" rows="4" spellcheck="false"
                 placeholder="Paste the assessment notification — due date, weighting, format, outcomes…"></textarea>
       <div class="cw-bar">
         <span class="hint">Nothing is sent anywhere. This runs on your device.</span>
@@ -626,7 +626,7 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
     <h3>Syllabus — <span id="sylSubject"></span></h3>
     <p class="dlgnote">Paste the structure. <b>Topics at the left margin, dot points
       indented</b> beneath them. A leading code is picked up automatically.</p>
-    <textarea id="sylPaste" class="paste" spellcheck="false" placeholder="Module 1: Health for individuals and communities
+    <textarea id="sylPaste" aria-label="Paste the syllabus for this subject" class="paste" spellcheck="false" placeholder="Module 1: Health for individuals and communities
   HM-11-01 Meanings of health
   HM-11-02 Determinants of health
 Module 2: Body systems and movement
@@ -798,7 +798,7 @@ Module 2: Body systems and movement
     <div class="fld">
       <span>A photo of the marked script</span>
       <div id="pprPhotoStage"></div>
-      <input type="file" id="pprPhotoFile" accept="image/*" capture="environment" hidden>
+      <input type="file" id="pprPhotoFile" aria-label="Take or choose a photo of the marked paper" accept="image/*" capture="environment" hidden>
       <p class="dlgerr" id="pprPhotoErr" hidden></p>
     </div>
 
@@ -822,7 +822,7 @@ Module 2: Body systems and movement
       You will see what happened to it in the list below.</p>
 
     <div class="chips" id="fbKinds"></div>
-    <textarea id="fbText" class="paste" style="min-height:110px"
+    <textarea id="fbText" aria-label="Your feedback" class="paste" style="min-height:110px"
       placeholder="I want to see everything due in the next fortnight on one screen…"></textarea>
 
     <p class="dlgnote"><b>Your notes are not attached</b> — only what you type here,
@@ -852,7 +852,7 @@ Module 2: Body systems and movement
       there is nothing left online afterwards.</p>
 
     <!-- shown in full, and editable: nothing goes anywhere the student has not read -->
-    <textarea id="shareText" class="paste" style="min-height:210px" spellcheck="false"></textarea>
+    <textarea id="shareText" aria-label="Your progress summary, ready to copy" class="paste" style="min-height:210px" spellcheck="false"></textarea>
 
     <p class="dlgnote"><b>No marks and nothing you have written are included</b> — only
       how much of each syllabus you have covered, what is due, and what is waiting to
@@ -1021,7 +1021,7 @@ Module 2: Body systems and movement
     <!-- capture=environment asks a phone or iPad for the back camera directly
          instead of the photo library; a laptop ignores it and shows a file
          picker, which is the right thing there. -->
-    <input type="file" id="photoFile" accept="image/*" capture="environment" hidden>
+    <input type="file" id="photoFile" aria-label="Take or choose a photo to attach to this note" accept="image/*" capture="environment" hidden>
 
     <div class="photo-stage" id="photoStage">
       <button type="button" class="btn" id="photoPick">Take or choose a photo</button>
@@ -1083,11 +1083,26 @@ Module 2: Body systems and movement
     <section class="setgroup" id="remindersGroup" hidden>
       <h4>Reminders</h4>
       <div class="setrow">
-        <span class="setlabel">Remind me the evening before something is due</span>
+        <label class="setlabel" for="remindersToggle">Remind me the evening before something is due</label>
         <input type="checkbox" id="remindersToggle">
       </div>
       <p class="dlgnote">A local notification on this device only — nothing is sent
         anywhere else to make it happen.</p>
+    </section>
+
+    <section class="setgroup">
+      <h4>Privacy</h4>
+      <div class="setrow">
+        <label class="setlabel" for="analyticsToggle">Share anonymous usage data to help improve Nexley</label>
+        <input type="checkbox" id="analyticsToggle" checked>
+      </div>
+      <p class="dlgnote">Which screens get opened and how often — counts and fixed labels
+        only. It goes to Nexley's own database and nowhere else, there is no advertising
+        or tracking company involved, and it is built so it cannot carry a note, a title
+        or anything you have written. Turning this off changes nothing about how the app
+        works. <a href="legal.html#privacy" target="_blank" rel="noopener">What is
+        collected</a>.</p>
+      <p class="dlgnote" id="analyticsForced" hidden></p>
     </section>
 
     <section class="setgroup">
@@ -1245,7 +1260,7 @@ Module 2: Body systems and movement
     <h3>Report a problem</h3>
     <p class="dlgnote">What went wrong? Rough is fine — what you were doing and what
       happened is more useful than being precise.</p>
-    <textarea id="bugText" class="paste" style="min-height:130px"
+    <textarea id="bugText" aria-label="Describe what went wrong" class="paste" style="min-height:130px"
       placeholder="I tapped a note in the list and the page went blank…"></textarea>
 
     <!-- shown, not hidden: people should be able to see exactly what they're sending -->
