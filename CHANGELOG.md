@@ -23,6 +23,34 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.41.0 — 2026-09-08
+A share card that shows the product instead of the logo.
+The Open Graph tag pointed at `icon-512.png` — a 512×512 square, which every platform
+letterboxes or centre-crops into its 1200×630 card. A shared Nexley link previewed as a small
+logo floating in grey, saying nothing. `app/og.png` replaces it and *shows the idea rather
+than describing it*: three syllabus dot points, two written up and one not, beside the line
+the site leads with. The pip being hollow on the third row is the entire product in one
+detail.
+Built by `tools/make_og_image.py`, which is checked in on purpose — a PNG dropped in `app/`
+with no provenance is something nobody can change later without redoing it, and it goes stale
+silently when the palette moves. It uses the **real Newsreader face**, decompressed from the
+same woff2 the site serves, rather than a substituted lookalike, and every colour in it is
+copied from `app.css`. The row panel measures its own longest label instead of assuming a
+width — at a guessed 396px the first row ran underneath its own pip, which is exactly the
+detail that makes a card look thrown together.
+Cards upgraded from `summary` to `summary_large_image`, with explicit width, height and alt
+text so a scraper that never fetches the file still lays the card out correctly. Precached in
+the service worker like every other asset.
+Also closed four audit items by measuring rather than assuming, and one by declining to act:
+**no console errors** on either live page and **zero requests to any third-party origin**;
+**no source maps** (there is no build step, so there was never anything to strip); the whole
+offline app is **787 KB decoded**, roughly 200 KB over the wire. And **SkillSpector** — real,
+NVIDIA's, Apache-2.0, 16.5k stars — is **not being installed**, because this machine has no
+custom skills and exactly one marketplace, `anthropics/claude-plugins-official`, with every
+plugin pinned to a commit SHA. Scanning Anthropic's own official plugins would be theatre.
+The command is recorded for the day a skill arrives from anywhere else, which is the threat
+model it is actually for.
+
 ## v0.40.0 — 2026-09-08
 A switch for the usage data, names on every form control, and a timeout the code already
 claimed to have.

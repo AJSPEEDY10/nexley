@@ -1,7 +1,7 @@
 {
   "name": "nexley",
   "private": true,
-  "version": "0.40.0",
+  "version": "0.41.0",
   "description": "Nexley native wrap (Capacitor). The web app itself has no build step; this only packages app/ for the App Store / Play Store.",
   "scripts": {
     "sync": "cap sync"

@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v53';
+var CACHE = 'nexley-v54';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -55,6 +55,7 @@ var SHELL = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
+  './og.png',
   // the display face — precached so headings don't fall back to a system serif
   // on the first offline launch
   './fonts/newsreader-latin.woff2',
