@@ -660,6 +660,14 @@ before committing.** Use a fresh port every time - see the traps.
 
 - **Deploy is `git push origin main`.** GitHub Pages, live in ~30-60s. **PAT `nexley-deploy`
   expires 2026-09-29** - pushes fail after that until renewed.
+- **This repo is PUBLIC only because GitHub Pages on a free account cannot serve a private
+  one** (that needs GitHub Pro). It is not a decision about openness. `GROWTH_AND_LAUNCH.md`
+  and `ideas/` are gitignored for that reason, and they have their own history in a **separate
+  bare repo inside OneDrive** — drive it with `plan.ps1` (`save` / `log` / `diff` / `restore`),
+  which is itself gitignored. Its work tree is this folder, so there is only ever one copy of
+  each file. A `NexleyPlanSave` scheduled task commits any change nightly at 21:00. Going
+  private without paying means moving hosting to Cloudflare Pages, which deploys private repos
+  free — that is a decision waiting on Alec, not a technical blocker.
 - **Releasing a version is four edits and a tag, and `test/test_version.js` enforces the first
   four.** Bump `APP_VERSION` in `app/app.js`, `version` in `package.json`, `CACHE` in
   `app/sw.js` (`nexley-vN` → `N+1`, so returning users get the new files), and add an entry at

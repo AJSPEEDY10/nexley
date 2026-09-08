@@ -16,3 +16,6 @@ vendor/bundle/
 *.ipa
 *.apk
 
+
+# planning-repo helper - see plan.ps1 header (the plan lives in a separate private repo)
+plan.ps1
