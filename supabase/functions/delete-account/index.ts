@@ -27,10 +27,18 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+/* Fails closed to Nexley's own origin rather than '*'. This function permanently
+   destroys an account, so it is the last endpoint that should answer a page it
+   has never heard of — the JWT check below is the real gate, but there is no
+   reason to let an arbitrary origin even reach it. Set ALLOWED_ORIGIN in Edge
+   Function secrets for any other deployment; a wrong value fails loudly in one
+   place instead of silently allowing everything. */
+const DEFAULT_ORIGIN = 'https://ajspeedy10.github.io';
 const CORS = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? DEFAULT_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Vary': 'Origin'
 };
 
 function json(body: unknown, status = 200) {

@@ -23,6 +23,37 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.42.0 — 2026-09-08
+Muted text was failing WCAG AA across the entire light theme, and nobody could see it.
+`--muted` was #7E7669: **4.41:1** on `--card`, **3.77** on `--paper`, **3.47** on `--surface`.
+It carries every caption, eyebrow, timestamp and piece of metadata in the app, most of it set
+at 9–13px, so the smallest text was the least legible. The dark theme was already clean, which
+is exactly how this survived — anyone who checked was almost certainly looking at dark mode,
+and a contrast failure is invisible to someone with good eyes on a good screen. The student
+reading it is on a bus, on a cracked iPad, in the sun.
+It is now #6A6255 — deliberately the *lightest* value that clears 4.5:1 against all three light
+grounds (worst case 4.65 on `--surface`), so muted text stays recessive instead of being
+over-darkened into a second body colour. `--warn` was also 4.42 on its own soft ground, under
+by a hair, which is the worst kind of miss because it looks fine; now 4.75. **One token change
+fixed five separate visible symptoms.**
+`test/test_contrast.js` checks the palette itself rather than the live DOM, because a browser
+sweep only sees the panes that happen to be open — the audit that found this reached 19
+elements in an app with 21 dialogs. Checking token pairs covers every screen at once, including
+ones nobody has opened yet, and it is what actually failed. Re-verified in a real browser
+afterwards: zero failures in both themes.
+⚠️ **A methodology warning is written into that test**, because this cost four rounds to
+disprove. `.snav` and friends carry `transition:background .12s`, so reading `getComputedStyle`
+straight after flipping the theme returns the colour *mid-animation* — which produced a very
+convincing 1.05:1 "invisible text" reading that was pure artifact. Kill transitions first or
+you will chase a bug that is not there.
+Also: `delete-account`'s CORS now fails closed to Nexley's own origin like the AI function did
+in v0.40.0 — an arbitrary origin had no business reaching the *account deletion* endpoint. And
+three audit items closed by checking rather than assuming: **no stock or third-party images
+anywhere** (icons are Alec's own, `og.png` is generated from this repo, Newsreader ships with
+its OFL licence); **no invented testimonials** — there are none at all; and the landing page's
+one forward-looking claim now reads "App Store **or Google Play**", since Android builds today
+while iOS waits on enrolment.
+
 ## v0.41.0 — 2026-09-08
 A share card that shows the product instead of the logo.
 The Open Graph tag pointed at `icon-512.png` — a 512×512 square, which every platform

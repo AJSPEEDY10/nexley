@@ -53,7 +53,15 @@
   --card:#FFFDF7;       /* the page: cards + the writing surface. Sheet, not white. */
   --ink:#1A1815;        /* warm near-black, never pure #000 */
   --ink-2:#443F37;
-  --muted:#7E7669;      /* mono metadata, captions */
+  /* Darkened from #7E7669 on 2026-09-08. Measured, not taste: the old value gave
+     4.41:1 on --card, 3.77 on --paper and 3.47 on --surface, so every caption,
+     eyebrow and bit of metadata in the app failed WCAG AA in the LIGHT theme —
+     and most of them are set at 9-13px, where it matters most. Dark theme was
+     already clean. #6A6255 is the LIGHTEST value that clears 4.5:1 against all
+     three light grounds (worst case 4.65 on --surface), chosen deliberately over
+     something darker so the quiet, recessive character of muted text survives.
+     test/test_contrast.js re-derives this; do not nudge it by eye. */
+  --muted:#6A6255;      /* mono metadata, captions */
   --rule:#D5CEC0;       /* hairlines — the ruled line */
   --rule-soft:#E6E1D6;
   --structure:#21493B;  /* eucalypt: links, primary actions, active state. Reads as ink. */
@@ -111,7 +119,10 @@
   /* semantic status — separate from --structure, which is the brand accent and
      never means "good". These three mean state and nothing else. */
   --good:#2C6B4F; --good-soft:#DCE9E1;
-  --warn:#8A6512; --warn-soft:#F1EAD5;
+  /* #8A6512 measured 4.42:1 on its own soft ground — under AA by a hair, which is
+     the worst kind of miss because it looks fine. #856011 is the smallest step
+     that clears it (4.75). */
+  --warn:#856011; --warn-soft:#F1EAD5;
   --bad:#A03A22;  --bad-soft:#F3E0D9;
 
   /* display = the app's voice (titles, headings). text = the writing surface, left on
