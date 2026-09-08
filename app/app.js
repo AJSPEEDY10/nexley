@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.44.0';
+  var APP_VERSION = '0.45.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -606,7 +606,8 @@
     if (!meta.school_year) return askYear(user);
 
     enteredUser = user.id;
-    state.account = { id: user.id, name: meta.name || '', email: user.email };
+    state.account = { id: user.id, name: meta.name || '', email: user.email,
+                      schoolYear: meta.school_year || '' };
     $('gate').hidden = true; $('app').hidden = false;
     return refresh()
       /* The mode VARIABLE defaults to home, but the panes are driven by
@@ -1701,11 +1702,32 @@
     return out;
   }
 
+  /* NSW syllabus codes carry the year in them — HM-11-01 is a Year 11 code, HM-12-01
+     a Year 12 one. So the year someone told us at sign-up can do real work here
+     rather than sitting unused in their profile: the heading says which year's
+     syllabus this is, and the example in the empty box uses that year's codes
+     instead of always showing Year 11's. A Year 12 student pasting their syllabus
+     should not be looking at a Year 11 example.
+
+     This is the whole reason the app asks. If this stops being true, the question
+     has to go — `legal.html` promises the year is what makes the right syllabus
+     come up, and a policy that describes a feature the app does not have is the
+     exact failure this project has had before. */
+  function syllabusYear() {
+    var y = state.account && state.account.schoolYear;
+    return (y && y !== 'skipped' && y !== 'finished') ? y : null;
+  }
+
   function openSyllabusDialog() {
     var subj = subjectById(state.activeSubject);
     if (!subj) return;
-    $('sylSubject').textContent = subj.name;
+    var yr = syllabusYear();
+    $('sylSubject').textContent = subj.name + (yr ? ' · Year ' + yr : '');
     $('sylPaste').value = '';
+    // rewrite the worked example into the student's own year
+    var ph = $('sylPaste').getAttribute('data-placeholder') || $('sylPaste').placeholder;
+    if (!$('sylPaste').getAttribute('data-placeholder')) $('sylPaste').setAttribute('data-placeholder', ph);
+    $('sylPaste').placeholder = yr ? ph.replace(/-11-/g, '-' + yr + '-') : ph;
     $('sylPreview').textContent = '';
     $('sylDialog').showModal();
     setTimeout(function () { $('sylPaste').focus(); }, 50);
@@ -7659,6 +7681,9 @@
          on, the switch is shown off and DISABLED with a line saying who turned it
          off — a live-looking control that silently does nothing is worse than no
          control, because it invites the user to believe they changed something. */
+      // read fresh each open: it changes once a year, and from this control
+      $('setSchoolYear').value = (state.account && state.account.schoolYear) || '';
+
       var an = window.NexleyAnalytics;
       if (an) {
         var forced = an.forcedOff ? an.forcedOff() : null;
@@ -7684,6 +7709,22 @@
       }
       $('settingsDialog').showModal();
     });
+    $('setSchoolYear').addEventListener('change', function () {
+      var v = this.value;
+      var box = this;
+      var previous = (state.account && state.account.schoolYear) || '';
+      window.NexleyAuth.setSchoolYear(v || 'skipped').then(function () {
+        if (state.account) state.account.schoolYear = v;
+        toast(v ? 'Set to ' + schoolYearLabel(v) + '.' : 'Cleared.');
+      }).catch(function () {
+        /* Put the control back rather than leaving it showing a year that was
+           never saved — a setting that lies about itself is worse than one that
+           failed loudly. */
+        box.value = previous;
+        toast('Could not save that. Check your connection.');
+      });
+    });
+
     $('analyticsToggle').addEventListener('change', function () {
       var wantOff = !this.checked;
       var nowOff = window.NexleyAnalytics.setOptOut(wantOff);

@@ -23,6 +23,29 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.45.0 — 2026-09-08
+The school year now does something, and you can change it.
+v0.44.0 started asking what year you are in, and told you — in the dialog and in `legal.html` —
+that it was used to read your syllabus against the right course. **It wasn't used for anything
+at all.** Collected, stored, consumed nowhere; `schoolYearLabel()` was defined and never called.
+That made both statements false, which is the exact failure this project has had before:
+`legal.html` once described AI as "a future feature" two days after AI marking shipped.
+So it does the job now. NSW syllabus codes carry the year in them — `HM-11-01` is a Year 11 code,
+`HM-12-01` a Year 12 one — so the syllabus dialog heads itself **"Biology · Year 12"** and rewrites
+its worked example into that student's own year. A Year 12 student pasting a syllabus is no longer
+looking at a Year 11 example. The example is rebuilt from a stored original each time rather than
+edited in place, so switching 11 → 12 → 9 doesn't compound into nonsense; that round trip is
+tested.
+**And it is changeable, which it very much was not.** It was asked once at sign-up and then frozen
+for the life of the account — for a school app, where every student moves up a year annually, that
+is a bug rather than an omission. Settings › School now shows it and saves on change. A failed
+write puts the old value back rather than displaying a year that was never saved.
+Copy tightened to match reality in both places: it said "the right syllabus comes up", which
+implies Nexley fetches one. It doesn't — you paste it. It now says your year is used to show the
+right codes and label the course, which is what the code actually does.
+`test/test_schoolyear.js` grew a section whose whole job is to fail if the year stops being used,
+because at that point the honest move is to delete the question rather than keep asking it.
+
 ## v0.44.0 — 2026-09-08
 The minimum age is gone. It asks what year you are in instead.
 v0.43.0 shipped a hard floor of 15 — birth month and year at sign-up, a dialog nobody could

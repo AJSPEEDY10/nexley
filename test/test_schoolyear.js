@@ -112,5 +112,45 @@ const listed = js.match(/var SCHOOL_YEARS\s*=\s*\[([^\]]*)\]/);
 ok('app.js and the markup agree on the set of years', !!listed &&
   years.every(y => listed[1].includes("'" + y + "'")) && listed[1].includes("'finished'"));
 
+// ---------------------------------------------------------------------------
+// 5 · The answer has to DO something, or the question should not be asked
+// ---------------------------------------------------------------------------
+/* This is the integrity check on the whole feature. legal.html and the dialog both
+   tell the student their year is used to read the syllabus against the right
+   course. For a while it was not used for anything at all — collected, stored, and
+   consumed nowhere — which made both of those statements false. A policy that
+   describes a feature the app does not have is the exact failure this project has
+   had before: legal.html called AI "a future feature" two days after AI marking
+   shipped. If the year stops being used, the question has to go. */
+ok('the year reaches state.account, where the rest of the app can see it',
+  /schoolYear: meta\.school_year/.test(js));
+
+ok('the syllabus dialog reads it', /function syllabusYear\(\)/.test(js) &&
+  (js.match(/syllabusYear\(\)/g) || []).length >= 2);
+
+ok('the syllabus heading names the year',
+  /sylSubject'\)\.textContent = subj\.name \+ \(yr \?/.test(js));
+
+/* The worked example is rewritten from the ORIGINAL each time, kept in
+   data-placeholder. Substituting in place would compound: 11 -> 12 -> 9 would
+   leave a Year 9 student looking at whatever the last two edits produced. */
+ok('the placeholder is rewritten from a stored original, not edited in place',
+  /data-placeholder/.test(js) && /ph\.replace\(\/-11-\/g/.test(js));
+
+ok('"finished" and "skipped" do not rewrite the example',
+  /y !== 'skipped' && y !== 'finished'/.test(js));
+
+// ---------------------------------------------------------------------------
+// 6 · Changeable, because students move up a year
+// ---------------------------------------------------------------------------
+ok('Settings has a school-year control', /id="setSchoolYear"/.test(html));
+ok('it is a real label, not a placeholder',
+  /<label class="setlabel" for="setSchoolYear">/.test(html));
+ok('changing it saves', /\$\('setSchoolYear'\)\.addEventListener\('change'/.test(js));
+/* A control showing a value that was never saved is worse than one that fails
+   loudly, so a failed write puts the previous value back. */
+ok('a failed save reverts the control instead of lying', /box\.value = previous/.test(js));
+
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
