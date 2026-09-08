@@ -16,7 +16,7 @@
  * takes over on the next load rather than waiting for every tab to close.
  */
 
-var CACHE = 'nexley-v50';
+var CACHE = 'nexley-v51';
 var NET_TIMEOUT = 3000;
 
 /* The shell is precached at install so the very first offline launch works, even if the
@@ -59,7 +59,7 @@ var SHELL = [
   // on the first offline launch
   './fonts/newsreader-latin.woff2',
   './fonts/newsreader-latin-ext.woff2',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+  './vendor/supabase-js-2.115.0.js'
 ];
 
 self.addEventListener('install', function (e) {

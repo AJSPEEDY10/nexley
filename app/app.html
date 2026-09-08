@@ -1277,7 +1277,9 @@ Module 2: Body systems and movement
   </div>
 </dialog>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Vendored, not from a CDN, and pinned to an exact version on purpose. See
+     app/vendor/README.md — this is the one script that holds the session token. -->
+<script src="vendor/supabase-js-2.115.0.js"></script>
 <script src="config.js"></script>
 <!-- inert unless a PostHog key is set in config.js — read the header of this file
      before enabling it, the privacy policy has to change in the same commit -->

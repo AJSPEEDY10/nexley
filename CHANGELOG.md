@@ -23,6 +23,35 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.38.0 — 2026-09-08
+The auth library is Nexley's own file now, not a CDN's. `app.html` had exactly one off-origin
+script — `cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js` — and it was
+the script that holds the session token in `localStorage` and reaches every note in IndexedDB.
+Three things made that worse than the usual CDN argument. `@2` is a range, not a version, so
+which build students ran was decided by a CDN cache expiry rather than by a commit: jsDelivr
+was serving 2.115.0 while npm's `latest` was already 2.116.0, and a release could have started
+executing in signed-in sessions with no diff and no test run. There was no `integrity` hash, so
+the browser would execute whatever bytes came back. And the requested file **is not in the npm
+package at all** — Supabase publishes `dist/umd/supabase.js`; jsDelivr minifies `.min.js` on
+demand, so the exact artifact being executed had no publisher-signed counterpart to check
+against. It was also precached by the service worker, which would have pinned a bad version
+into every user's cache until `CACHE` moved.
+Now vendored at `app/vendor/supabase-js-2.115.0.js`, served same-origin. 2.115.0 is exactly
+what was live in production at the moment of the change, taken from the npm tarball whose
+hash was verified against the registry's published integrity value before extracting — so this
+is a supply-chain fix and nothing else, with no library upgrade riding along. Same-origin also
+means it works offline and inside the Capacitor wrap, where fetching your auth library over the
+network is both a cold-start failure and something App Review asks about.
+`test/test_supplychain.js` fails the build if any off-origin `<script src>` or stylesheet
+reappears on any page, or if the three copies of the version — the filename, the tag in
+`app.html`, the service-worker precache entry — ever drift apart. Verified in a browser rather
+than assumed: the app renders, `createClient` works, and a real request through the vendored
+library reaches PostgREST and is correctly refused by RLS with `42501`.
+Found by auditing the §11 line that said *"third-party embeds — none currently"*. It had been
+wrong since it was written, which is exactly why nothing looked at it again; that line, and the
+two cookie-policy questions it sat next to, are now settled with the code checked rather than
+assumed. Nexley makes zero third-party requests and sets no cookies.
+
 ## v0.37.0 — 2026-09-08
 Text now scales with the reader, and Android builds for the first time. Three `font-size`
 declarations were locked to `px` — including `body`, which every element without a type token
