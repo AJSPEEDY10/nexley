@@ -23,6 +23,24 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.37.0 — 2026-09-08
+Text now scales with the reader, and Android builds for the first time. Three `font-size`
+declarations were locked to `px` — including `body`, which every element without a type token
+inherits from, so the rem scale honoured the reader's text-size setting while unclassed text
+quietly ignored it. About a third of phone users have changed that setting, some to 310%, and
+Apple asks for 200%. `body` is now `.875rem` (identical at default) and the touch-input rules
+are `max(1rem, 16px)` — keeping the 16px floor that stops iOS zooming a focused field, without
+capping the size for someone who scaled up. The ruled-paper pitch is derived from that same
+expression, so text and ruling cannot drift apart, which is a bug this app has already had
+once. `test/test_type.js` fails on any bare-px font size.
+Separately, and bigger: **the Android debug build had failed on every run it has ever had**,
+while PHASE8.md and the handover both said the APK was ready to side-load. Two stacked faults —
+the workflow pinned Node 20 and Capacitor 8 requires 22, and `android/gradlew` was committed
+from Windows without its executable bit, so gradle died with exit 126. Both fixed; the run for
+`77e8c17` is green and produced a real 4.1 MB `nexley-android-debug` artifact. The iOS
+workflow, which cannot pass until the Apple enrolment exists, is now skipped rather than
+failing on every tag — a permanently red Actions tab is what let the Android failure hide.
+
 ## v0.36.0 — 2026-09-08
 The questions people actually ask, answered on the page. A ten-question FAQ on the landing
 page — free?, who can read my notes?, does it predict a band?, does an AI mark my work?, can I

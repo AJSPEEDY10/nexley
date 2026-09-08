@@ -196,7 +196,13 @@
 html,body{height:100%}
 body{
   margin:0;background:var(--paper);color:var(--ink);
-  font-family:var(--ui);font-size:14px;line-height:1.5;
+  /* .875rem, not 14px. Identical on a default browser, and the difference is the
+     whole point: rem follows the reader's own text-size setting and px ignores it.
+     The --t-* scale was already rem, but anything without a token inherits THIS,
+     so a fixed value here quietly opted every unclassed line of text out of the
+     setting. Roughly a third of phone users have changed that setting, some to
+     310%, and Apple's own guidance is to survive 200%. */
+  font-family:var(--ui);font-size:.875rem;line-height:1.5;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
   overflow:hidden;overscroll-behavior:none;
   -webkit-tap-highlight-color:transparent;
@@ -1474,15 +1480,21 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
   .kindtoggle button{padding:9px 14px;min-height:42px}
   .sw{width:38px;height:38px}
   .rail-brand .phase{display:none}
-  .paste{font-size:16px}
-  /* iOS zooms the page when a focused field is under 16px */
+  .paste{font-size:max(1rem, 16px)}
+  /* iOS zooms the page when a focused field is under 16px — hence the 16px floor,
+     which max() keeps. What it no longer does is CAP the size there: a reader who
+     has turned their text up gets bigger fields, instead of every other surface
+     growing while the one they type into stays put. */
   /* .ed-title is NOT in this list: it is an input, but its clamp already puts it well
      above 16px, and forcing 16px here shrank the note title to nothing on the exact
      devices this app is for. */
-  .field input,.rail-search input,.sel select,.ed-body{font-size:16px}
+  .field input,.rail-search input,.sel select,.ed-body{font-size:max(1rem, 16px)}
   /* iPads are the real target, so this is the case that has to line up: move the
-     ruled pitch with the bigger touch text, don't just loosen line-height */
-  .ed-body{--line:calc(1.9 * 16px)}
+     ruled pitch with the bigger touch text, don't just loosen line-height.
+     The ruling is derived from the SAME max() as the text above it, so the two
+     cannot drift apart when a reader scales up — which is exactly the bug class
+     that already bit once here (line-height 1.9 against a 1.75 ruling). */
+  .ed-body{--line:calc(1.9 * max(1rem, 16px))}
   .ed-body.font-hand{--line:calc(1.9 * 1.15rem)}
 }
 
