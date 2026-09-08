@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.43.0';
+  var APP_VERSION = '0.44.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -439,136 +439,90 @@
     showGate('create');
   }
 
-  /* ---------- age ----------
-     WHY THIS EXISTS. The OAIC's Children's Online Privacy Code is registered by
-     10 December 2026 and covers educational tools, not just social media. It asks
-     services to take reasonable steps to ascertain a user's age, and under-15s
-     need verified parental consent — which Nexley has no way to obtain and no
-     intention of building, so the honest answer is not to accept them. Nexley's
-     audience is Year 11. That was previously an intention with no control behind
-     it: the app asked nothing, so a 12-year-old could sign up.
+  /* ---------- school year ----------
+     Asked because Nexley needs it, not to police anyone. This is a syllabus app:
+     Year 11 and Year 12 are different courses, and knowing which one someone is
+     in is the difference between a syllabus that fits and a list they have to
+     scroll past. It is product setup that happens to double as a rough age
+     signal, rather than an age check wearing a product costume.
 
-     WHY MONTH AND YEAR, AND NOT A FULL DATE OF BIRTH. The only question here is
-     "15 or older". A full DOB is a strong identifier, and holding one to answer a
-     yes/no question is collecting past the purpose — the exact thing the Code
-     tightens. Month and year decides it to within a month, is a real question
-     rather than a tickbox, and only the YEAR is kept. Asking for a day and then
-     discarding it would also just be dishonest about what is wanted.
+     THERE IS DELIBERATELY NO MINIMUM AGE. An earlier version of this asked for a
+     birth month and year and refused anyone under 15, on the strength of the
+     OAIC's Children's Online Privacy Code — which does require verified parental
+     consent for under-15s, and would require it again every twelve months. Two
+     things were wrong with acting on that now. The Code is an exposure draft,
+     unregistered until 10 December 2026 and being pushed back on, so it was a
+     gate built against a rule that does not exist yet. And a floor at 15 excludes
+     Years 7 to 10 — roughly half of school — which runs directly against what
+     Nexley is for. Revisit when the Code is actually registered; if a floor is
+     needed then, the reasoning is preserved in PRIVACY_IMPACT_ASSESSMENT.md.
 
-     WHY A DECLARED AGE IS ENOUGH HERE. It is the weakest form of age assurance
-     and it can obviously be lied to. The standard is *reasonable* steps "having
-     regard to the risk profile" — and Nexley has no ads, no feed, no strangers,
-     no messaging, no purchases, and nothing public. Hard verification (ID, a
-     credit card, a face scan) would mean collecting far more sensitive data from
-     minors than the risk justifies, which would fail the same test from the other
-     direction. */
-  var MIN_AGE = 15;
+     A year level is also far less personal than a date of birth. "What year are
+     you in" is setup; "when were you born" is a border check. */
+  var SCHOOL_YEARS = ['7', '8', '9', '10', '11', '12', 'finished'];
 
-  /* The oldest a school student plausibly is, and the youngest the form will
-     accept — a range rather than a free-text year, so a typo cannot produce a
-     nonsense age and there is nothing to validate afterwards. */
-  var DOB_YEAR_SPAN = 60;
-
-  function fillYears(sel) {
-    if (!sel || sel.options.length > 1) return;
-    var thisYear = new Date().getFullYear();
-    for (var y = thisYear; y >= thisYear - DOB_YEAR_SPAN; y--) {
-      var o = document.createElement('option');
-      o.value = String(y);
-      o.textContent = String(y);
-      sel.appendChild(o);
-    }
+  function schoolYearLabel(v) {
+    return v === 'finished' ? 'Finished school' : 'Year ' + v;
   }
 
-  /* Shown to accounts the sign-up form never saw. Resolves only once an age is
-     recorded; anything else signs out and never enters the app. */
-  function askAge(user) {
+  /* For the accounts the sign-up form never sees: Google sign-in, which skips it
+     entirely, and every account made before this was asked.
+
+     Unlike the age gate this replaced, NOBODY IS TURNED AWAY. It is one question
+     the app wants an answer to, and "Skip" is a real option that closes it and
+     opens the app. A setup question that holds your own notebook hostage is not
+     setup, it is a toll — and the honest cost of skipping is only that the
+     syllabus list is not narrowed for you. */
+  function askYear(user) {
     return new Promise(function (resolve) {
-      var dlg = $('ageDialog');
-      fillYears($('ageYear'));
-      $('ageErr').hidden = true;
-      $('ageMonth').value = ''; $('ageYear').value = '';
-      $('ageSave').disabled = false;
+      var dlg = $('yearDialog');
+      $('yearErr').hidden = true;
+      $('ySchoolYear').value = '';
+      $('yearSave').disabled = false;
 
-      function fail(msg) { $('ageErr').textContent = msg; $('ageErr').hidden = false; }
-
-      function bail() {
+      function finish(value) {
         cleanup();
         dlg.close();
-        window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
-        resolve();
+        var u = user;
+        u.user_metadata = u.user_metadata || {};
+        // 'skipped' is a real answer: it stops the question being asked forever,
+        // which a null would not.
+        u.user_metadata.school_year = value || 'skipped';
+        resolve(enterApp(u));
       }
 
       function save() {
-        var y = $('ageYear').value, m = $('ageMonth').value;
-        var ok = oldEnough(y, m);
-        if (ok === null) return fail('Choose the month and year you were born.');
-        if (!ok) {
-          /* Signed out rather than left sitting on a dialog. The account already
-             exists in this case — it was created before there was a question, or
-             through Google, which does not ask one — so the honest thing is to
-             say so and stop, not to pretend nothing happened. */
-          $('ageSave').disabled = true;
-          fail('Sorry — Nexley is for students aged ' + MIN_AGE + ' and over. You have been '
-            + 'signed out, and you can delete this account from the sign-in screen if you '
-            + 'would like it removed.');
-          setTimeout(bail, 4000);
-          return;
-        }
-        $('ageSave').disabled = true;
-        window.NexleyAuth.setBirthYear(Number(y)).then(function () {
-          cleanup();
-          dlg.close();
-          // re-enter with the answer now on the user, so enterApp's guard passes
-          var u = user;
-          u.user_metadata = u.user_metadata || {};
-          u.user_metadata.birth_year = Number(y);
-          resolve(enterApp(u));
-        }).catch(function (err) {
-          $('ageSave').disabled = false;
-          fail((err && err.message) || 'Could not save that. Check your connection.');
-        });
+        var v = $('ySchoolYear').value;
+        if (!v) { $('yearErr').textContent = 'Pick a year, or skip.'; $('yearErr').hidden = false; return; }
+        $('yearSave').disabled = true;
+        window.NexleyAuth.setSchoolYear(v).then(function () { finish(v); })
+          .catch(function () {
+            /* A failed write must not strand someone outside their own notes.
+               Enter the app anyway and ask again next time. */
+            cleanup(); dlg.close(); resolve(enterApp(user));
+          });
       }
 
-      function onCancel(e) { e.preventDefault(); bail(); }
+      function skip() {
+        window.NexleyAuth.setSchoolYear('skipped').then(function () { finish('skipped'); })
+          .catch(function () { cleanup(); dlg.close(); resolve(enterApp(user)); });
+      }
+
+      function onCancel(e) { e.preventDefault(); skip(); }
       function cleanup() {
-        $('ageSave').removeEventListener('click', save);
-        $('ageCancel').removeEventListener('click', bail);
+        $('yearSave').removeEventListener('click', save);
+        $('yearSkip').removeEventListener('click', skip);
         dlg.removeEventListener('cancel', onCancel);
       }
 
-      $('ageSave').addEventListener('click', save);
-      $('ageCancel').addEventListener('click', bail);
-      // Esc must not dismiss it into a half-signed-in state with no app behind it
-      dlg.addEventListener('cancel', onCancel);
+      $('yearSave').addEventListener('click', save);
+      $('yearSkip').addEventListener('click', skip);
+      dlg.addEventListener('cancel', onCancel);   // Esc skips, it does not trap
 
       $('gate').hidden = true;
       $('app').hidden = true;
       if (!dlg.open) dlg.showModal();
     });
-  }
-
-  /* Pure, so the boundary can be tested without a DOM or a clock. Returns the
-     LOWEST age the person could be given only a month and year — someone born at
-     the end of that month is the youngest they might be, and when the question is
-     whether to let a child in, the conservative direction is to assume younger. */
-  function minimumAge(birthYear, birthMonth, now) {
-    var y = Number(birthYear), m = Number(birthMonth);
-    if (!y || !m || m < 1 || m > 12) return null;
-    var today = now || new Date();
-    // last day of the birth month, i.e. the latest they could have been born
-    var latestBirth = new Date(y, m, 0);
-    var age = today.getFullYear() - latestBirth.getFullYear();
-    var beforeBirthday =
-      today.getMonth() < latestBirth.getMonth() ||
-      (today.getMonth() === latestBirth.getMonth() && today.getDate() < latestBirth.getDate());
-    if (beforeBirthday) age--;
-    return age;
-  }
-
-  function oldEnough(birthYear, birthMonth, now) {
-    var a = minimumAge(birthYear, birthMonth, now);
-    return a === null ? null : a >= MIN_AGE;
   }
 
   function showGate(mode) {
@@ -586,8 +540,8 @@
     var creating = mode === 'create';
     $('nameField').hidden = !creating;
     // only asked when an account is being made; signing in must not re-interrogate
-    $('dobField').hidden = !creating;
-    fillYears($('fDobYear'));
+    // only asked when an account is being made; signing in must not re-interrogate
+    $('yearField').hidden = !creating;
     $('gateSub').textContent = creating
       ? 'Create your account. Your notes sync to it and work offline in between.'
       : 'Welcome back.';
@@ -597,8 +551,7 @@
     $('fName').value = '';
     $('fEmail').value = '';
     $('fPass').value = '';
-    $('fDobMonth').value = '';
-    $('fDobYear').value = '';
+    $('fSchoolYear').value = '';
     setTimeout(function () { (creating ? $('fName') : $('fEmail')).focus(); }, 60);
     $('gateForm').dataset.mode = creating ? 'create' : 'unlock';
     showAuthUrlError();
@@ -650,7 +603,7 @@
        form — putting it only on the form would have left the OAuth door wide open
        and looked complete. */
     var meta = user.user_metadata || {};
-    if (!meta.birth_year) return askAge(user);
+    if (!meta.school_year) return askYear(user);
 
     enteredUser = user.id;
     state.account = { id: user.id, name: meta.name || '', email: user.email };
@@ -713,19 +666,10 @@
       var name = $('fName').value.trim();
       if (!name) { done(); return gateError('Enter a name.'); }
 
-      var bYear = $('fDobYear').value, bMonth = $('fDobMonth').value;
-      var ok = oldEnough(bYear, bMonth);
-      if (ok === null) { done(); return gateError('Choose the month and year you were born.'); }
-      if (!ok) {
-        done();
-        /* Said plainly and without a lecture. Someone this happens to has done
-           nothing wrong, and the reason is a real one rather than a policy the
-           app is hiding behind. No account is created. */
-        return gateError('Sorry — Nexley is for students aged ' + MIN_AGE + ' and over, so an '
-          + 'account cannot be created yet. Nothing has been saved.');
-      }
+      var schoolYear = $('fSchoolYear').value;
+      if (!schoolYear) { done(); return gateError('Pick the year you are in.'); }
 
-      window.NexleyAuth.signUpEmail(email, pass, name, Number(bYear)).then(function (data) {
+      window.NexleyAuth.signUpEmail(email, pass, name, schoolYear).then(function (data) {
         done();
         if (!data.session) {
           // showGate clears the error box, so it has to happen BEFORE the message —

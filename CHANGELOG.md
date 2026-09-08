@@ -23,6 +23,42 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.44.0 — 2026-09-08
+The minimum age is gone. It asks what year you are in instead.
+v0.43.0 shipped a hard floor of 15 — birth month and year at sign-up, a dialog nobody could
+dismiss. It lasted about an hour, because Alec asked the obvious question: *why on earth is there
+a minimum age, and can't we just ask what year?*
+Both halves of that were right. **The gate was built against a rule that does not exist yet** —
+the Children's Online Privacy Code is an exposure draft, unregistered until 10 December 2026, and
+the parts being relied on are exactly the parts being pushed back on. And **a floor at 15 excludes
+Years 7 to 10**, which is roughly half of school and runs straight into what Nexley is actually
+for. Compliance work that quietly deletes half the intended audience is not the cautious option;
+it is a large product decision taken by accident under cover of a legal one.
+**Asking the year is also just the better question.** Nexley is a syllabus app — Year 11 and
+Year 12 are different courses — so it is something the product wants regardless. It is setup, not
+screening. A year level barely identifies anyone next to a date of birth, and **no date of birth
+is asked for or stored anywhere now.** "What year are you in?" reads as setup; "when were you
+born?" reads as a border check.
+Nobody is turned away and nothing is held hostage. The question is skippable, Escape skips it,
+skipping is *recorded* so it never asks twice, and a failed save still lets you into your own
+notes. It is asked from `enterApp()` — the one property of the old gate worth keeping — so Google
+sign-in and accounts that predate it get asked once too, rather than the check sitting on a form
+that half the sign-ins never touch.
+`legal.html` now says there is no minimum age, and says plainly why: the obligation is real, it
+is not law yet, and the honest plan is to build a proper parental-consent step when the Code is
+registered rather than lock out Years 7–10 in the meantime. `test/test_schoolyear.js` replaces
+`test_age.js` and asserts the gate stays gone — no age constant, no birth date, and Skip still
+works. Full reasoning kept in `PRIVACY_IMPACT_ASSESSMENT.md`, including what the obligation
+actually says, so deferring it is not the same as forgetting it. **Diarised for December 2026.**
+
+## v0.43.1 — 2026-09-08
+The age dialog had no padding and no name on it.
+`dialog` is `padding:0` so its `<form>` can own the inset — and this one is built from a plain
+`div`, so its contents sat hard against the border. It also opens over nothing (no gate behind
+it, no app yet), which meant an unattributed box on an empty screen asking a teenager for their
+birthday. It now carries the Nexley mark and uses the same spacing as every other dialog, so it
+cannot tell you which markup it happens to be made of.
+
 ## v0.43.0 — 2026-09-08
 There is a minimum age now, and it is enforced at every door.
 Nexley being "for Year 11 students" was an intention with no control behind it — the app asked

@@ -1478,6 +1478,16 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 .sw{width:26px;height:26px;border-radius:var(--r-md);border:2px solid transparent;cursor:pointer}
 .sw.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
 .dlg-actions{display:flex;align-items:center;gap:var(--s-4);margin-top:4px}
+/* The non-<form> dialogs. `dialog` itself is padding:0 so its <form> can own the
+   inset; a dialog built from a plain div got no padding at all and its contents
+   sat hard against the border. Same numbers as `dialog form` on purpose — a
+   dialog should not be able to tell you which markup it happens to be made of. */
+.dlg{padding:26px;display:flex;flex-direction:column;gap:var(--s-6)}
+.dlg .field{gap:var(--s-4)}
+/* This one opens over nothing — no gate behind it, no app yet — so it carries the
+   mark itself rather than appearing as an unattributed box demanding a birthday. */
+.dlg-mark{display:flex;align-items:center;gap:var(--s-3);color:var(--structure)}
+.dlg-mark b{font-family:var(--display);font-weight:400;font-size:var(--t-xl);color:var(--ink)}
 
 /* ============================================================
    TOUCH & PEN — iPads and pen-capable PCs are the real target
@@ -1760,9 +1770,3 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 .estate p{margin:0;font-size:var(--t-base);line-height:1.7;color:var(--ink-2);
   text-wrap:pretty}
 .estate .btn{margin-top:var(--s-3)}
-
-/* Month + year side by side. Two selects rather than a date input on purpose: a
-   native date picker invites a full date of birth, and only the month and year
-   are wanted here — see the "age" section in app.js. */
-.dob-row{display:flex;gap:var(--s-3)}
-.dob-row select{flex:1;min-width:0}

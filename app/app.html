@@ -142,28 +142,19 @@ try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.
         <span id="passLabel">Password</span>
         <input type="password" id="fPass" maxlength="64" placeholder="at least 6 characters" autocomplete="new-password">
       </label>
-      <!-- Month and year, not a full date of birth: the only question is whether
-           someone is 15 or older, and a full DOB is more than that needs. Only the
-           year is kept. See the "age" section in app.js. -->
-      <div class="field" id="dobField">
-        <span id="dobLabel">When were you born?</span>
-        <div class="dob-row">
-          <select id="fDobMonth" aria-label="Birth month">
-            <option value="">Month</option>
-            <option value="1">January</option><option value="2">February</option>
-            <option value="3">March</option><option value="4">April</option>
-            <option value="5">May</option><option value="6">June</option>
-            <option value="7">July</option><option value="8">August</option>
-            <option value="9">September</option><option value="10">October</option>
-            <option value="11">November</option><option value="12">December</option>
-          </select>
-          <select id="fDobYear" aria-label="Birth year">
-            <option value="">Year</option>
-          </select>
-        </div>
-        <p class="dlgnote" id="dobNote">Nexley is built for senior school students, so there is a
-          minimum age. We keep the year only — never the full date.</p>
-      </div>
+      <!-- Asked because a syllabus app needs it: Year 11 and Year 12 are different
+           courses. Not an age check - there is no minimum age. See the "school year"
+           note in app.js. -->
+      <label class="field" id="yearField">
+        <span>What year are you in?</span>
+        <select id="fSchoolYear">
+          <option value="">Choose…</option>
+            <option value="7">Year 7</option><option value="8">Year 8</option>
+            <option value="9">Year 9</option><option value="10">Year 10</option>
+            <option value="11">Year 11</option><option value="12">Year 12</option>
+            <option value="finished">Finished school</option>
+        </select>
+      </label>
       <p class="gate-err" id="gateErr" hidden></p>
       <button type="submit" class="btn primary" id="gateBtn">Create account</button>
     </form>
@@ -1072,36 +1063,35 @@ Module 2: Body systems and movement
      Everything that used to be a link in the rail, grouped by what it is for.
      A settings screen is allowed to be a list; a sidebar is not. -->
 <!-- Asked once, to accounts the sign-up form never saw: anyone who came in through
-     Google (which skips that form entirely) and anyone who already had an account
-     before there was an age question. Not dismissible — closing it signs you out —
-     because "ask and let them ignore it" is not a control. -->
-<dialog id="ageDialog">
+     Google (which skips that form) and anyone whose account predates the question.
+     Skippable on purpose - it is setup, not a toll on your own notebook. -->
+<dialog id="yearDialog">
   <div class="dlg">
-    <h3>One question before you start</h3>
-    <p class="dlgnote">Nexley is built for senior school students and has a minimum age, so we
-      need to ask. We keep the year only — never the full date — and it is not shown to anyone
-      else.</p>
-    <div class="field">
-      <span id="ageDlgLabel">When were you born?</span>
-      <div class="dob-row">
-        <select id="ageMonth" aria-label="Birth month">
-          <option value="">Month</option>
-          <option value="1">January</option><option value="2">February</option>
-          <option value="3">March</option><option value="4">April</option>
-          <option value="5">May</option><option value="6">June</option>
-          <option value="7">July</option><option value="8">August</option>
-          <option value="9">September</option><option value="10">October</option>
-          <option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="ageYear" aria-label="Birth year">
-          <option value="">Year</option>
-        </select>
-      </div>
+    <div class="dlg-mark">
+      <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true" style="width:22px;height:22px">
+        <circle cx="13" cy="13" r="3"></circle><circle cx="13" cy="13" r="7"></circle>
+        <circle cx="13" cy="13" r="11"></circle>
+      </svg>
+      <b>Nexley</b>
     </div>
-    <p class="gate-err" id="ageErr" hidden></p>
+    <h3>What year are you in?</h3>
+    <p class="dlgnote">Nexley files your notes against your actual syllabus, and Year 11 and
+      Year 12 are different courses — so knowing this means the right syllabus comes up first.
+      You can skip it and set it later.</p>
+    <label class="field">
+      <span>Your year</span>
+      <select id="ySchoolYear">
+        <option value="">Choose…</option>
+            <option value="7">Year 7</option><option value="8">Year 8</option>
+            <option value="9">Year 9</option><option value="10">Year 10</option>
+            <option value="11">Year 11</option><option value="12">Year 12</option>
+            <option value="finished">Finished school</option>
+      </select>
+    </label>
+    <p class="gate-err" id="yearErr" hidden></p>
     <div class="dlg-actions">
-      <button type="button" class="btn" id="ageCancel">Sign out</button>
-      <button type="button" class="btn primary" id="ageSave">Continue</button>
+      <button type="button" class="btn" id="yearSkip">Skip</button>
+      <button type="button" class="btn primary" id="yearSave">Continue</button>
     </div>
   </div>
 </dialog>

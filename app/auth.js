@@ -9,16 +9,16 @@
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
 
-  /* birthYear, and deliberately NOT a full date of birth.
-     The question this has to answer is "is this person 15 or older" — nothing
-     more. A full DOB is a strong identifier and holding one would be collecting
-     past what the purpose needs, which is the exact standard the Children's
-     Online Privacy Code raises (strictly necessary, in the best interests of the
-     child). So the form asks month and year, uses both to decide, and keeps only
-     the year. See PRIVACY_IMPACT_ASSESSMENT.md. */
-  function signUpEmail(email, password, name, birthYear) {
+  /* schoolYear, not a date of birth.
+
+     Nexley is a syllabus app and Year 11 and Year 12 are different courses, so
+     this is something the product wants regardless — setup, not screening. It is
+     also far less personal than a birth date, which an earlier version of this
+     asked for and no longer does. There is no minimum age; see the "school year"
+     note in app.js for why that gate was removed. */
+  function signUpEmail(email, password, name, schoolYear) {
     var data = { name: name };
-    if (birthYear) data.birth_year = birthYear;
+    if (schoolYear) data.school_year = schoolYear;
     return client.auth.signUp({
       email: email,
       password: password,
@@ -30,9 +30,9 @@
   }
 
   /* For the accounts the sign-up form cannot reach: anyone who came in through
-     Google, and anyone who already had an account before this existed. */
-  function setBirthYear(year) {
-    return client.auth.updateUser({ data: { birth_year: year } }).then(function (r) {
+     Google, and anyone who already had an account before this was asked. */
+  function setSchoolYear(year) {
+    return client.auth.updateUser({ data: { school_year: year } }).then(function (r) {
       if (r.error) throw r.error;
       return r.data;
     });
@@ -120,7 +120,7 @@
   window.NexleyAuth = {
     client: client,
     signUpEmail: signUpEmail,
-    setBirthYear: setBirthYear,
+    setSchoolYear: setSchoolYear,
     signInEmail: signInEmail,
     signInGoogle: signInGoogle,
     signInApple: signInApple,
