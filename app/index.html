@@ -229,6 +229,15 @@ try{
   .log li.soon i{background:none;border:1px solid var(--muted)}
   /* Says what the list above does NOT contain. A "coming soon" column is the
      easiest place on a site to overclaim, so this one names its own limit. */
+  /* The product shot. Bordered and inset like a page on a desk, matching the app's
+     own card treatment, so it reads as a window into Nexley rather than a floating
+     rectangle. Width is capped below the image's natural 944 so it stays crisp. */
+  .shot{margin:0 auto;padding:0 var(--gutter);max-width:860px;text-align:center}
+  .shot picture{display:block}
+  .shot img{width:100%;height:auto;border:1px solid var(--rule);border-radius:10px;
+    box-shadow:0 30px 60px -40px rgb(var(--shade)/.45);background:var(--card)}
+  .shot-cap{margin:14px auto 0;max-width:52ch;font-size:.875rem;line-height:1.6;
+    color:var(--muted)}
   .soonnote{margin:14px 0 0;font-size:.82rem;line-height:1.6;color:var(--muted)}
   .log .caveat{font-family:var(--text);font-size:.9375rem;line-height:1.6;
     color:var(--muted);max-width:58ch;margin-top:22px}
@@ -273,6 +282,21 @@ try{
       <a class="signin" href="app.html">Already have an account? Sign in</a>
       <span class="note">Free · works offline · no app store</span>
     </div>
+  </section>
+
+  <!-- A real screenshot of the real app, not a mockup. "No product demo" reads to a
+       visitor as "there might be no product" — and every claim below this point is
+       easier to believe once you have seen the thing making it. Taken from a demo
+       account: the syllabus, the coverage figure and the filed notes are genuine
+       app output, not drawn. -->
+  <section class="shot">
+    <picture>
+      <source srcset="shot-notebook.webp" type="image/webp">
+      <img src="shot-notebook.png" width="928" height="889" loading="lazy" decoding="async"
+        alt="Nexley open on a Biology subject. A syllabus tree shows Module 1 with dot points BIO-11-01 to BIO-11-03, two of them filled in and holding notes titled Cell membrane transport and Enzymes and rate. A bar across the top reads 3 of 9 written, 33 per cent.">
+    </picture>
+    <p class="shot-cap">Biology, part way through Module 1. The filled dots are written up;
+      the hollow ones are not. That is the whole idea.</p>
   </section>
 
   <div class="rule"></div>

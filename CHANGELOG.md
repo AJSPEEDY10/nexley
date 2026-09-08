@@ -23,6 +23,31 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.46.0 — 2026-09-09
+A real screenshot of the real app, on the landing page.
+The audit list had "no real product demos" flagged as a genuine conversion problem — to a
+visitor it reads as *there might be no product*. Every claim on that page was being made with
+nothing to look at. There is now a screenshot directly under the hero, before the copy that
+describes it, because seeing the thing makes the rest easier to believe.
+It is genuinely the app, not a mockup: a demo account with Biology, a pasted three-module
+syllabus, and three notes filed against the dot points they answer. The coverage bar reading
+**3 / 9 written · 33%** is the app's own arithmetic, and the filled versus hollow pips are the
+whole product thesis in one frame. The only things touched were two harness artifacts that
+exist because the stub has no backend — a sync-failure warning and a storage read-out — neither
+of which a real user would see.
+**35 KB.** Served as WebP through `<picture>` with a quantised PNG fallback at 81 KB; the raw
+capture was 217 KB. UI screenshots are mostly flat colour, so a 128-colour palette costs nothing
+visible and roughly two-thirds of the bytes. Width and height are declared so the page does not
+reflow under the reader when it lands, and it is lazy-loaded, precached, and captioned.
+The app's own scrollbar came out in the capture as a black bar down the right edge, so it is
+cropped — found by scanning columns from the right for the first dark one rather than guessing
+at a number.
+`test/test_a11y.js` grew an images section, which had been sitting at "not applicable, there are
+no `<img>` elements" until today. It requires alt text, requires it to be **descriptive rather
+than a label** ("screenshot" tells a blind reader nothing), and requires width and height. And
+`test_version.js` earned its keep by catching the demo harness page left behind in `app/` before
+it could be committed.
+
 ## v0.45.0 — 2026-09-08
 The school year now does something, and you can change it.
 v0.44.0 started asking what year you are in, and told you — in the dialog and in `legal.html` —

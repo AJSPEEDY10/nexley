@@ -107,5 +107,32 @@ const bareSvg = svgs.filter(s =>
 ok('every inline SVG is either hidden from screen readers or named',
   bareSvg.length === 0, bareSvg.length + ' undecided');
 
+
+/* Images. This was "not applicable — there are no <img> elements" until the landing
+   page got a real product screenshot on 2026-09-09. An unlabelled image on a
+   marketing page is the single most-cited accessibility complaint there is, and a
+   decorative-looking alt ("screenshot", "app") is barely better than none: the point
+   is to convey what the picture SHOWS to someone who cannot see it. */
+const pages = fs.readdirSync(appDir).filter(f => f.endsWith('.html'));
+let imgCount = 0;
+for (const page of pages) {
+  const src = fs.readFileSync(path.join(appDir, page), 'utf8');
+  for (const m of src.matchAll(/<img\b[^>]*>/gi)) {
+    imgCount++;
+    const tag = m[0];
+    const alt = attr(tag, 'alt');
+    const file = (attr(tag, 'src') || '(no src)').split('/').pop();
+    ok(page + ': <img ' + file + '> has alt text', alt !== null);
+    ok(page + ': <img ' + file + '> alt is descriptive, not a label',
+      alt !== null && alt.trim().length > 25,
+      alt === null ? 'missing' : '"' + alt + '"');
+    /* Without width/height the page reflows when the image lands, shoving the
+       content someone is reading. */
+    ok(page + ': <img ' + file + '> reserves its space',
+      attr(tag, 'width') !== null && attr(tag, 'height') !== null);
+  }
+}
+console.log('  (' + imgCount + ' image' + (imgCount === 1 ? '' : 's') + ' checked)');
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed\n');
 process.exit(fail ? 1 : 0);
