@@ -224,7 +224,7 @@ try{
   .log ul{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:11px}
   .log li{font-family:var(--text);font-size:1rem;line-height:1.5;color:var(--ink-2);
     display:flex;gap:10px;align-items:baseline}
-  .log li i{flex:none;width:6px;height:6px;border-radius:999px;background:var(--good);
+  .log li i{flex:none;width:6px;height:6px;border-radius:var(--r-pill);background:var(--good);
     transform:translateY(-2px)}
   .log li.soon i{background:none;border:1px solid var(--muted)}
   /* Says what the list above does NOT contain. A "coming soon" column is the
@@ -234,7 +234,7 @@ try{
      rectangle. Width is capped below the image's natural 944 so it stays crisp. */
   .shot{margin:0 auto;padding:0 var(--gutter);max-width:860px;text-align:center}
   .shot picture{display:block}
-  .shot img{width:100%;height:auto;border:1px solid var(--rule);border-radius:10px;
+  .shot img{width:100%;height:auto;border:1px solid var(--rule);border-radius:var(--r-lg);
     box-shadow:0 30px 60px -40px rgb(var(--shade)/.45);background:var(--card)}
   .shot-cap{margin:14px auto 0;max-width:52ch;font-size:.875rem;line-height:1.6;
     color:var(--muted)}
@@ -243,7 +243,7 @@ try{
     color:var(--muted);max-width:58ch;margin-top:22px}
 
   /* honest status, set like a note in the margin of a textbook */
-  .status{border:1px solid var(--rule);border-radius:10px;padding:22px 24px;
+  .status{border:1px solid var(--rule);border-radius:var(--r-lg);padding:22px 24px;
     background:var(--card);margin-top:36px;display:flex;flex-direction:column;gap:10px}
   .status h3{font-family:var(--display);font-weight:400;font-size:1.2rem}
   .status p{font-size:.9375rem;line-height:1.65;color:var(--ink-2);max-width:60ch}

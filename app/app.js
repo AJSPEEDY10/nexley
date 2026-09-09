@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.48.0';
+  var APP_VERSION = '0.49.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -5754,6 +5754,48 @@
     $('aiAsk').disabled = true;
     $('aiAsk').textContent = 'Reading…';
     $('aiStatus').textContent = '';
+
+    /* ---------- the waiting pass ----------
+       This one screen had four of the six classic loading failures at once, and
+       it is the worst place in the app to have them: the student's daily quota is
+       spent the moment the request leaves, so a wait that ends in nothing costs
+       them one of ten.
+
+       (a) A BARE SPINNER SAYS NOTHING. The result panel now shows a skeleton in
+           the shape of a real marking response, so the wait previews the answer
+           instead of hiding it.
+       (b) THE SPACE MOVES. Because the skeleton occupies the panel, the buttons
+           below do not jump down when the answer lands.
+       (c) A WAIT WITH NO NUMBER IS NOT PROGRESS. There is no percentage to give —
+           the model returns in one piece — so it says the honest thing instead,
+           and only once the wait is long enough to worry about.
+       (d) EVERY SPINNER NEEDS AN ENDING. This is the important one. The Edge
+           Function gained a 30s provider timeout, but that does not help if the
+           request never reaches it or the reply never comes back; the page would
+           have waited forever. The client now gives up at 45s — deliberately
+           longer than the server's 30s, so when the server CAN answer, its more
+           specific message wins. */
+    skeleton($('aiResult'), 4);
+    $('aiResult').hidden = false;
+
+    var waited = 0;
+    var tick = setInterval(function () {
+      waited += 1;
+      if (waited === 8) $('aiStatus').textContent = 'Still reading — this usually takes about ten seconds.';
+      if (waited === 20) $('aiStatus').textContent = 'Taking longer than usual. Still waiting.';
+    }, 1000);
+
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timedOut = false;
+    var giveUp = setTimeout(function () {
+      timedOut = true;
+      if (ctl) ctl.abort();
+    }, 45000);
+
+    var stopWaiting = function () {
+      clearInterval(tick);
+      clearTimeout(giveUp);
+    };
     /* Clear the last answer BEFORE asking, not after the reply lands. Without
        this, a second attempt that fails — "that is your ten for today" — left
        the previous reading on screen underneath it, which reads as feedback on
@@ -5770,7 +5812,8 @@
           'apikey': window.NEXLEY_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ system: prompt.system, user: prompt.user })
+        body: JSON.stringify({ system: prompt.system, user: prompt.user }),
+        signal: ctl ? ctl.signal : undefined
       });
     }).then(function (r) {
       return r.json().then(function (body) {
@@ -5784,10 +5827,24 @@
          feature does not need a number to justify itself. */
       renderAiResult(parsed, criteria, body);
     }).catch(function (err) {
-      $('aiStatus').textContent = err && err.status
-        ? aiErrorText(err.status, err.body)
-        : 'That did not go through. Nothing was saved.';
+      /* The panel is holding a skeleton at this point. Clearing it matters as
+         much as the message: bars left on screen under an error read as "still
+         going", and `ready()` also drops the aria-busy that would otherwise tell
+         a screen reader this pane loads forever. */
+      ready($('aiResult'));
+      $('aiResult').textContent = '';
+      $('aiResult').hidden = true;
+      $('aiStatus').textContent = timedOut
+        /* Says the true thing rather than a shrug. It names the wait, admits the
+           request counted — the student will see the counter move and deserves to
+           know why — and points at the one action that usually works. */
+        ? 'No answer after 45 seconds, so I stopped waiting. That one still counted '
+          + 'against today\'s ten. Trying again usually works.'
+        : (err && err.status
+            ? aiErrorText(err.status, err.body)
+            : 'That did not go through. Nothing was saved.');
     }).then(function () {
+      stopWaiting();
       aiBusy = false;
       $('aiAsk').disabled = false;
       $('aiAsk').textContent = 'Read it again';
@@ -5795,7 +5852,12 @@
   }
 
   function renderAiResult(parsed, criteriaText, body) {
-    var box = $('aiResult');
+    /* ready(), not just textContent = '': this pane now shows a skeleton while the
+       model is thinking, and the aria-busy that goes with it has to come off here.
+       Clearing the bars visually while leaving the flag set tells a screen reader
+       the panel is still loading — forever, on the one screen where the whole
+       point is knowing when the wait has ended. */
+    var box = ready($('aiResult'));
     box.textContent = '';
     box.hidden = false;
 

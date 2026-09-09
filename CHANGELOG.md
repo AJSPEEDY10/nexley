@@ -23,6 +23,43 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.49.0 — 2026-09-09
+The design audit, and a spinner that can end.
+From `GROWTH_AND_LAUNCH.md` §12, written after Alec's own read: *"nexley looks like ai slop
+atm."* The diagnosis there was that Nexley is not missing a design system — `app.css` has a
+deliberate one — it is missing **studied reference and an auditor**. Two repalettes have already
+happened; a third is not the answer. So this is an audit.
+**AI marking had four of the six classic loading failures in one screen**, and it is the worst
+place in the app to have them: the student's daily quota is spent the moment the request leaves,
+so a wait that ends in nothing costs one of ten. It now shows a skeleton in the shape of a real
+marking response rather than a bare spinner, which also reserves the space so buttons do not
+jump when the answer lands; says something honest at 8s and 20s rather than drawing a progress
+bar it has no numbers for; and — the important one — **it can end.** The Edge Function gained a
+30s provider timeout, but that does nothing if the request never arrives or the reply never
+comes back, and the page would have waited forever. The client now gives up at 45s, deliberately
+longer than the server's 30s so the server's more specific message wins when it can answer. The
+timeout message names the wait, admits the request still counted — the student will watch the
+counter move and deserves to know why — and says that retrying usually works.
+A bug caught while building it: `renderAiResult()` cleared the panel's contents but not its
+`aria-busy`, which would have told a screen reader the results pane was loading forever, on the
+one screen whose entire point is knowing when the wait has ended.
+**Corner radii — the audit said one thing and the measurement said another.** §12 flagged
+Apple's concentricity rule (inner = outer − padding). Checked against every rounded element and
+its nearest rounded ancestor across the app and all 21 dialogs: **79 pairs differ from the
+concentric ideal and not one of them sits at a corner.** Concentricity only means something
+where the two curves actually meet, so it was not applied — a measurement, not a preference.
+What *was* real is the consistency half. "Fully round" was being written **three ways** —
+`99px`, `50%`, and a `--r-pill` token that existed and was going unused — and the public pages
+had eyeballed `10px`/`8px` values belonging to no scale at all. Three spellings of one idea is
+how a scale stops being a scale. Every radius is now a token or an explicit `0`, and
+`test/test_radius.js` fails on anything else.
+**`DESIGN.md` is new**, written by reading `app.css` rather than deciding anything. §12's point
+is that you cannot prompt a feeling: "make it more premium" is an adjective, a table with one
+job per colour is a rule. It carries the art-direction line that already existed, every token
+with its single role, the type scale, and the traps that have already cost real time — the
+`clamp()` whitespace bug that rendered note titles at 14px for a whole pass, the touch rules
+that must stay last in the file, and the `ready()` pairing that this release nearly got wrong.
+
 ## v0.48.0 — 2026-09-09
 "Recoverable from Snapshots" was not true, and now it is.
 Deleting a note said *"the most recent snapshot can bring it back."* Deleting a subject —
