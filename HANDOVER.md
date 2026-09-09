@@ -1,12 +1,118 @@
 # Nexley - session handover
 
-**Session:** 2026-09-02 to 09-06 · **Ended at:** v0.33.0, SW cache `nexley-v46`
-— migrations 0016-0021 are applied to **prod and dev** and verified against
-the server. Nothing is waiting for Alec to apply.
+**Session:** 2026-09-08 to 09-09 · **Ended at:** v0.49.0, SW cache `nexley-v63`
+— working tree clean, 12 tags pushed, 24 test suites / 529 assertions green,
+live and verified in a browser at `ajspeedy10.github.io/nexley`.
 
 ---
 
-## Read this first — where things stand at the end of 09-06
+## Read this first — 09-09
+
+**Nothing here is half-finished. Do not start by fixing something.** Everything
+below shipped, is live, and was verified in a real browser rather than assumed.
+If you are picking this up cold, the useful next move is one of the items under
+*What to actually do next*, not a re-audit.
+
+### The pattern of the 09-08/09 session, because it should shape what you do next
+
+Twelve releases, and most of them were **the app claiming something that was not
+true**. Not crashes — claims. That is what a fresh pair of eyes should look for
+here, because this codebase is well-built enough that the remaining bugs are
+almost all of this kind:
+
+- `legal.html` said notes were never used to train an AI **while** the marking
+  feature had been live for two days (fixed 09-07, before this session).
+- The confirm dialog said a deleted note was *"recoverable from the most recent
+  snapshot"* — **and no snapshot was taken before deleting.** Automatic ones run
+  every 20 hours (v0.48.0).
+- The sign-up form asked what school year you were in and told you it picked the
+  right syllabus. It was stored and **used nowhere at all** (v0.45.0).
+- The `ai` Edge Function's own comment reasoned about "a provider timeout" that
+  **did not exist** (v0.40.0).
+- The §11 audit checklist recorded *"third-party embeds — none currently"* while
+  `app.html` loaded the auth library from a CDN (v0.38.0).
+
+**The method that found all of these was the same: run the thing and measure it,
+then read what the code/UI promises and check the promise holds.** Two of this
+session's own fixes were wrong on the first attempt and only a re-measurement
+caught them — a CSS rule that lost on source order and changed nothing, and a
+selector (`.rail-nav .mode`) that matched no element at all.
+
+⚠️ **And measure carefully.** Two convincing results this session were pure
+artifacts: resizing the body of a fixed app shell reported layout overflow that
+did not exist (use an iframe — it gets its own viewport), and reading
+`getComputedStyle` right after a theme flip returned mid-transition colours,
+producing a very believable 1.05:1 "invisible text" reading. Kill transitions
+first.
+
+### What shipped 09-08/09 (v0.38.0 → v0.49.0)
+| v | What |
+|---|---|
+| 0.38 | Auth library vendored — it loaded from a CDN on a floating `@2`, and the exact file being executed **was not in the npm package**; jsDelivr generated it |
+| 0.39 | Empty states that hand you a button; avatars (four tones, hashed from username) |
+| 0.40 | Analytics off-switch; 13 of 54 form controls had no accessible name; AI proxy timeout + CORS failing closed |
+| 0.41 | Open Graph share card that shows the product |
+| 0.42 | `--muted` failed WCAG AA across the **entire** light theme (3.47:1); dark was clean, which is how it survived |
+| 0.43 | A minimum age of 15 — **reversed the same day, see below** |
+| 0.44 | Minimum age removed; asks school year instead |
+| 0.45 | The school year actually does something, and is changeable |
+| 0.46 | Real product screenshot on the landing page |
+| 0.47 | Seven touch targets under Apple's 44px minimum |
+| 0.48 | "Recoverable from Snapshots" made true; `test_durability.js` |
+| 0.49 | Design audit: AI-marking waiting pass, radius consistency, `DESIGN.md` |
+
+### One decision that was made and then reversed — do not re-litigate
+v0.43.0 shipped a hard **minimum age of 15**, built on the OAIC Children's Online
+Privacy Code. Alec asked *"why on earth is there a minimum age"* and was right on
+both counts: it was a gate built against an **exposure draft that is not
+registered until 10 December 2026**, and a floor at 15 **excludes Years 7–10**,
+which is half of school and runs against the stated goal in
+`GROWTH_AND_LAUNCH.md` §0. Removed in v0.44.0.
+**The obligation is deferred, not dismissed** — the draft really does require
+verified parental consent for under-15s, renewed every 12 months. The December
+decision is consent-flow vs floor, and it belongs to Alec. Full reasoning in
+`PRIVACY_IMPACT_ASSESSMENT.md` §G1 (private, in the planning repo).
+
+### New documents, worth reading before touching design or data
+- **`DESIGN.md`** — the design system, written by reading `app.css` rather than
+  invented. One job per colour, the type scale, and the traps that have cost real
+  time. Read it before any visual change: two repalettes have already happened
+  and a third is explicitly not the answer.
+- **`PRIVACY_IMPACT_ASSESSMENT.md`** (gitignored, planning repo) — what Nexley
+  collects and why, assessed against the Children's Code.
+- **`test/`** is now 24 suites. The newer ones encode traps rather than features:
+  `test_durability.js` (a new store must reach **all four** of snapshot/restore/
+  export/import), `test_touch.js`, `test_contrast.js`, `test_radius.js`,
+  `test_a11y.js`, `test_supplychain.js`.
+
+---
+
+## What to actually do next
+
+**Everything unblocked is done.** The remaining Nexley work is account-gated, so
+a new session should either take one of Alec's items *with him present*, or pick
+from the short list of genuinely open engineering below.
+
+**Needs Alec (8 items, see `.claude/open_items.json` for detail):**
+`supabase login` → two committed security fixes are **undeployed** · migration
+0022 → prod · Apple Developer enrolment · Cloudflare (going private) · a second
+account to verify sharing/comps · Supabase's own backup policy · a real photo of
+him for the landing page · the December Children's Code decision.
+
+**Genuinely open and NOT blocked:**
+- **Side-load the Android APK.** It builds now (v0.37.0 fixed two stacked faults
+  that had made it fail on every run it ever had) and CI produces a real ~4.1 MB
+  unsigned debug APK on every push to main. It has **never been installed on a
+  device.** No account, no fee — download the artifact from the Actions tab.
+- The waiting pass was done for AI marking only. Sync and a cold-cache note open
+  deserve the same treatment.
+- A child-friendly privacy notice (PIA §G2) — a writing job, not engineering.
+- The landing page's large empty left column on desktop (`GROWTH_AND_LAUNCH.md`
+  §12).
+
+---
+
+## Where things stood at the end of 09-06 (kept for context)
 
 **The app is no longer just a notebook.** In one run on 09-06 it gained
 usernames, note sharing, comps, handwriting, photographs of pages, a Home, a
