@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.47.0';
+  var APP_VERSION = '0.48.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -251,7 +251,20 @@
       return all('backups');
     }).then(function (list) {
       list.sort(function (a, b) { return b.at - a.at; });
-      return Promise.all(list.slice(BACKUP_KEEP).map(function (b) { return hardDelete('backups', b.id); }));
+      /* Keep the newest daily snapshot no matter what, on top of the usual seven.
+
+         Snapshots are now taken before every delete, which is what makes the
+         "it can be brought back" promise true — but it also means a tidy-up
+         session deleting eight notes would rotate eight near-identical copies
+         through the whole budget and push out the only record of what the
+         notebook looked like yesterday. Protecting the newest 'auto' keeps a
+         real point in the past reachable, which is the one a student actually
+         wants when they realise something went wrong days later. */
+      var newestAuto = list.find(function (b) { return b.reason === 'auto'; });
+      var doomed = list.slice(BACKUP_KEEP).filter(function (b) {
+        return !newestAuto || b.id !== newestAuto.id;
+      });
+      return Promise.all(doomed.map(function (b) { return hardDelete('backups', b.id); }));
     });
   }
 
@@ -1441,8 +1454,20 @@
     var n = activeNoteObj();
     if (!n) return;
     if (!confirm('Delete "' + (n.title || 'Untitled note') + '"?\n\nIt is flagged as deleted, ' +
-                 'not destroyed — the most recent snapshot can bring it back.')) return;
-    softDelete('notes', n).then(function () {
+                 'not destroyed — a snapshot is taken first, so it can be brought back.')) return;
+    /* Snapshot BEFORE the delete, rather than relying on "the most recent
+       snapshot". Automatic snapshots run every 20 hours, so the newest one can
+       easily predate the note being deleted — which made the promise in that
+       confirm false for anything written today. Confirmed in a harness: a note
+       was written, its subject deleted, and the newest snapshot could not bring
+       it back because it was taken before the note existed.
+
+       The snapshot's own failure must not block the delete the user asked for,
+       hence the catch — a full disk should not trap someone with a note they
+       want gone. */
+    snapshot('before-delete').catch(function () {})
+      .then(function () { return softDelete('notes', n); })
+      .then(function () {
       track('note_deleted');
       state.notes = state.notes.filter(function (x) { return x.id !== n.id; });
       closeTab(n.id);
@@ -1565,10 +1590,14 @@
     var msg = 'Delete "' + s.name + '"' +
       (kids.length ? ' and its ' + kids.length + ' note' + (kids.length === 1 ? '' : 's') : '') +
       (nodes.length ? ' and its syllabus' : '') +
-      '?\n\nEverything is flagged as deleted, not destroyed — the most recent snapshot can bring it back.';
+      '?\n\nEverything is flagged as deleted, not destroyed — a snapshot is taken first, so it can be brought back.';
     if (!confirm(msg)) return;
 
-    Promise.all(kids.map(function (n) { return softDelete('notes', n); }))
+    /* The catastrophic delete: a subject takes every note under it and the whole
+       syllabus with it. Same reasoning as deleteNote — take the snapshot now
+       rather than trusting one that could be twenty hours old. */
+    snapshot('before-delete').catch(function () {})
+      .then(function () { return Promise.all(kids.map(function (n) { return softDelete('notes', n); })); })
       .then(function () { return Promise.all(nodes.map(function (x) { return softDelete('syllabus', x); })); })
       .then(function () { return softDelete('subjects', s); })
       .then(function () {
@@ -7262,9 +7291,27 @@
         var t = document.createElement('b');
         t.textContent = new Date(b.at).toLocaleString();
         var sub = document.createElement('span');
-        sub.textContent = live(b.notes || []).length + ' notes · ' +
-          live(b.subjects || []).length + ' subjects · ' +
-          live(b.syllabus || []).length + ' syllabus · ' + b.reason;
+        /* "1 notes · 1 subjects" is the kind of detail that quietly says nobody
+           looked at this screen. It is also the screen someone reads while
+           deciding whether they have lost work, which is the worst possible
+           moment to look unfinished. */
+        var count = function (arr, one, many) {
+          var k = live(arr || []).length;
+          return k + ' ' + (k === 1 ? one : many);
+        };
+        /* Reasons are stored as machine tags; a student reading this needs to know
+           WHY a copy exists, not what the code called it. */
+        var REASONS = {
+          auto: 'daily backup',
+          'before-delete': 'before a delete',
+          'before-restore': 'before a restore',
+          'before-import': 'before an import',
+          'before-syllabus-import': 'before a syllabus import'
+        };
+        sub.textContent = count(b.notes, 'note', 'notes') + ' · ' +
+          count(b.subjects, 'subject', 'subjects') + ' · ' +
+          count(b.syllabus, 'syllabus point', 'syllabus points') + ' · ' +
+          (REASONS[b.reason] || b.reason);
         meta.appendChild(t); meta.appendChild(sub);
 
         var btn = document.createElement('button');

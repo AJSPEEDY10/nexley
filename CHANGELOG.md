@@ -23,6 +23,39 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.48.0 — 2026-09-09
+"Recoverable from Snapshots" was not true, and now it is.
+Deleting a note said *"the most recent snapshot can bring it back."* Deleting a subject —
+which takes every note under it and the whole syllabus with it — said the same. **No snapshot
+was taken before either.** Automatic snapshots run every **20 hours**, so "the most recent
+snapshot" could easily predate the thing being deleted, and anything written today was simply
+gone.
+This was not reasoned about, it was reproduced. In a harness: create a subject, write a note,
+delete the subject, open Snapshots, restore the newest one — the note does not come back,
+because that snapshot was taken before it existed. A UI telling a student their work is
+recoverable and being wrong is worse than one that says nothing, and this is the screen someone
+reads at exactly the moment they think they have lost a term of notes.
+Both deletes now snapshot first. Re-ran the identical sequence afterwards: the note comes back.
+A failed snapshot does not block the delete — a full disk is not a reason to refuse to remove
+something someone asked to remove.
+**Snapshot rotation now protects the newest daily copy.** Snapshotting before every delete means
+a tidy-up session deleting eight notes would have rotated eight near-identical copies through
+the whole seven-slot budget and pushed out the only record of what the notebook looked like
+yesterday — which is the one you want when you notice days later.
+`test/test_durability.js` is new and covers the thing that actually kills a notes app. HANDOVER
+trap 10 records a new store being added and one of its *five* homes being missed, which silently
+wipes it on restore; that was live for twenty minutes on 09-04. The test now asserts every
+object store is handled by **all four** of snapshot, restore, export and the import merge, or is
+on an exclusion list **with a stated reason** — no third option, because "I'll add it later" is
+the state this prevents. It also pins the two non-obvious re-stamping rules: restore must
+re-stamp and drop `pushedRev` or the server's newer tombstone pulls the restored record straight
+back down and deletes it again, while import must drop `pushedRev` but *keep* `updated`, or an
+old export overwrites newer work. Proven by re-introducing the trap: a new store wired into
+snapshot but not restore fails with *"a restore would silently wipe it."*
+Also, on the screen someone reads while deciding whether they have lost work: it said "1 notes ·
+1 subjects" and labelled copies with machine tags like `before-syllabus-import`. Now it counts
+properly and says "before a syllabus import".
+
 ## v0.47.0 — 2026-09-09
 Seven touch targets were under Apple's minimum, including every way into the inbox, comps
 and settings.
