@@ -50,6 +50,48 @@
     return null;
   }
 
+  /* ---------- every call here has an ending ----------
+
+     `offline()` above catches the easy case. It does not catch the common one:
+     a network that is up and not passing traffic — school Wi-Fi parked behind a
+     sign-in page — where navigator.onLine answers true and the request then
+     never settles. Nothing in this file had a timeout, so all eleven calls could
+     hang for the life of the tab.
+
+     That is worse here than anywhere else in the app, because every one of these
+     sits behind a button that app.js DISABLES on click and re-enables in the
+     handler. A promise that never settles means the handler never runs, so the
+     student is left looking at a permanently dead button still reading "Sending…"
+     with no way back except a reload — and on `shareNote` no way to tell whether
+     the note went.
+
+     Same fault, same fix as sync (60s), boot (10s) and the model proxy (45s) in
+     v0.50.0/v0.53.0. This is the last surface in the app that still had it.
+
+     15s, not 45: these are single small queries against Postgres, not a language
+     model composing an answer. Anything past a few seconds here is a connection
+     that is not going to answer.
+
+     The message is deliberately the same shape as `fail()` — one sentence, safe
+     to put in front of a student, and it says the honest thing about a write:
+     we do not know whether it landed. */
+  var NET_TIMEOUT_MS = 15000;
+
+  function within(p, what) {
+    var timer;
+    return Promise.race([
+      Promise.resolve(p).then(function (v) { clearTimeout(timer); return v; },
+                              function (e) { clearTimeout(timer); throw e; }),
+      new Promise(function (_, reject) {
+        timer = setTimeout(function () {
+          reject(new Error(what + ' did not answer after ' + (NET_TIMEOUT_MS / 1000)
+            + ' seconds. The connection is up but not getting through — nothing in '
+            + 'your notebook is affected.'));
+        }, NET_TIMEOUT_MS);
+      })
+    ]);
+  }
+
   /* ---------- who you are ---------- */
 
   /* The row exists for everyone — 0001's signup trigger makes one — so a null
@@ -232,18 +274,32 @@
       .then(function (r) { return r.error ? fail(r.error) : true; });
   }
 
+  /* The timeout is applied HERE, at the export, rather than inside each of the
+     eleven functions. One place instead of eleven means a new call cannot be
+     added without one — the failure mode of the per-function version is that
+     somebody adds a twelfth and forgets, which is exactly how this file ended up
+     with zero of them. The label is what the student reads, so it names the
+     action rather than the function.
+
+     newCode is deliberately NOT wrapped: it is crypto.getRandomValues and a
+     lookup table, with no network in it. Wrapping a synchronous local call in a
+     15-second race would be noise. */
+  function netted(fn, label) {
+    return function () { return within(fn.apply(null, arguments), label); };
+  }
+
   window.NexleySocial = {
-    myProfile: myProfile,
-    claimUsername: claimUsername,
-    findUser: findUser,
-    shareNote: shareNote,
-    shares: shares,
-    revokeShare: revokeShare,
-    createComp: createComp,
-    joinComp: joinComp,
-    myComps: myComps,
-    compDetail: compDetail,
-    submitScore: submitScore,
+    myProfile:     netted(myProfile,     'Checking your username'),
+    claimUsername: netted(claimUsername, 'Claiming that username'),
+    findUser:      netted(findUser,      'Looking that person up'),
+    shareNote:     netted(shareNote,     'Sending the note'),
+    shares:        netted(shares,        'Loading your shared notes'),
+    revokeShare:   netted(revokeShare,   'Taking the note back'),
+    createComp:    netted(createComp,    'Making the comp'),
+    joinComp:      netted(joinComp,      'Joining the comp'),
+    myComps:       netted(myComps,       'Loading your comps'),
+    compDetail:    netted(compDetail,    'Opening the comp'),
+    submitScore:   netted(submitScore,   'Sending your score'),
     newCode: newCode
   };
 })();

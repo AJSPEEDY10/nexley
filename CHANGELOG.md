@@ -23,6 +23,34 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.55.0 — 2026-09-09
+The last eleven calls that could hang forever.
+`app/social.js` — everything in Nexley that talks to another person — had **eleven network
+functions and not one timeout**. Its `offline()` guard catches the easy case and misses the
+common one: a network that is up and not passing traffic, where `navigator.onLine` answers true
+and the request simply never settles. Same fault as sync, boot, "Lock this device" and the model
+proxy in v0.50.0 and v0.53.0; this was the last surface in the app that still had it.
+**It is worse here than anywhere else, because of what sits in front of it.** Every one of these
+calls is behind a button that `app.js` disables on click and re-enables in the handler. A promise
+that never settles means the handler never runs — so the student is left looking at a permanently
+dead button still reading "Sending…", with no way back except a reload, and on `shareNote` no way
+to tell whether the note went.
+The timeout is applied **at the export**, not inside each of the eleven functions. One place
+instead of eleven means a twelfth call cannot be added without one, which is precisely how this
+file came to have zero. 15 seconds rather than the marking call's 45: these are single small
+queries against Postgres, not a model composing an answer, and anything past a few seconds is a
+connection that is not going to answer. `newCode` is deliberately left unwrapped — it is
+`crypto.getRandomValues` and a lookup table, and racing a synchronous local call against a
+15-second timer would be noise.
+Each message names its own action ("Sending the note", "Joining the comp") so eleven calls do not
+share one anonymous failure. For writes it says the honest thing rather than the reassuring one:
+it does **not** claim the send failed, because it does not know — it says the connection did not
+answer and that nothing in the notebook is affected, which is the part that is certainly true.
+`test_social_timeout.js` runs the real module against a client whose every call hangs: all eleven
+hang against v0.54.0, all 31 assertions pass now. It also pins the things easy to lose later —
+that offline still fails *fast* with its own wording rather than waiting out the timeout, that a
+write never claims failure, and that nothing new can appear in the export unwrapped.
+
 ## v0.54.0 — 2026-09-09
 The landing page gets the product, the viewport, and some scale.
 Alec, looking at the landing pages in the reels next to this one: *"that's what we need to be
