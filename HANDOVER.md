@@ -1,12 +1,51 @@
 # Nexley - session handover
 
-**Session:** 2026-09-08 to 09-09 · **Ended at:** v0.49.0, SW cache `nexley-v63`
-— working tree clean, 12 tags pushed, 24 test suites / 529 assertions green,
-live and verified in a browser at `ajspeedy10.github.io/nexley`.
+**Session:** 2026-09-09 (second session of the day) · **Ended at:** v0.53.0, SW
+cache `nexley-v67` — working tree clean, 16 tags pushed, **30 test suites**
+green, live and verified in a real browser at `ajspeedy10.github.io/nexley`.
 
 ---
 
-## Read this first — 09-09
+## Read this first — 09-09, later
+
+Four more releases (v0.50.0–v0.53.0), all from working the reel checklists in
+`GROWTH_AND_LAUNCH.md` §11–§12 rather than from new feature work. The previous
+session's read still holds and got stronger: **the remaining bugs in this
+codebase are claims, not crashes** — the app saying something that is not true.
+Every fix below was reproduced before it was written, and each new test suite was
+run against the *previous* release to confirm it goes red there.
+
+| v | What was actually wrong |
+|---|---|
+| 0.50 | A hung sync latched `syncing` forever, killing every later trigger, while the rail read "Checking…". Boot could stop dead before the app existed. A returning student saw "Create your account" on every cold open. "Lock this device" did not always lock. Google/Apple sign-in could start two OAuth flows |
+| 0.51 | `legal.html` had no plain-English summary (Children's Code, PIA G2); the landing page and the app shared one `title`; `legal.html` had no description and no canonical; the landing page's left column was 200–300px of nothing |
+| 0.52 | **`Info.plist` had no usage strings**, so every camera tap in the iOS build was a hard crash, not a permission prompt |
+| 0.53 | **Sync silently stopped at 1000 rows and then moved the watermark past them.** Six native selects were painted in the OS's theme, not the app's |
+
+**The two that matter most, if you only read two lines:** sync was losing rows
+past the first thousand *permanently* (1000 of 1300 on the first run, 1000 again
+on the second — the second run is where they died), and the iOS build would have
+crashed on the first photo any student ever took.
+
+### What is genuinely still open after this session
+- **Side-load the Android APK.** Unchanged — it builds, it has never been on a
+  device, and it needs no account.
+- **The waiting pass is finished.** Sync and cold boot were the two surfaces
+  v0.49.0 left owed; both are done. Nothing else in the app waits on a network
+  call without an ending.
+- Alec's eight account-gated items, unchanged — see `.claude/open_items.json`.
+- Landing page: a case-study section, testimonials and a real founder photo are
+  all still missing, and all three need real content from Alec rather than
+  engineering. **Do not invent testimonials** — fake ones are on the very list of
+  "looks vibecoded" signals this work came from.
+- `GROWTH_AND_LAUNCH.md` §13 is now a written distribution plan (funnel stages,
+  two zero-budget formats, ten captions, cadence, what to measure). **Nothing in
+  it has been tried.** `brand/` has a verified QR for the sticker idea, flagged
+  not to print until the domain moves.
+
+---
+
+## Read this first — 09-09 (earlier session)
 
 **Nothing here is half-finished. Do not start by fixing something.** Everything
 below shipped, is live, and was verified in a real browser rather than assumed.
