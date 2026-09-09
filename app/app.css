@@ -162,7 +162,15 @@
   --i-comp:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Cpath%20d%3D%22M7%204h10v3a5%205%200%200%201-10%200z%22%2F%3E%3Cpath%20d%3D%22M11%2011h2v4h-2z%22%2F%3E%3Cpath%20d%3D%22M8%2019h8v2H8z%22%2F%3E%3Cpath%20d%3D%22M5%205h2v2a3%203%200%200%201-2-2zM17%205h2a3%203%200%200%201-2%202z%22%2F%3E%3C%2Fsvg%3E");
   --i-more:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%23000%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2212%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E");
 
-  color-scheme:light dark;
+  /* color-scheme decides what colours the BROWSER paints its own widgets in —
+     select menus, scrollbars, the caret, date pickers. "light dark" means "this
+     page handles both", so the browser follows the OS. That is wrong here,
+     because Nexley has its own theme switch: a reader on a dark-mode machine who
+     chooses the light theme got a light page with dark native controls on it.
+     Measured 2026-09-09: SIX selects painted #3B3B3B on the light theme,
+     including the one on the sign-up form. Follow the app's theme instead — the
+     three rules below mirror exactly how --paper and the rest are chosen. */
+  color-scheme:light;
 }
 /* --- night --- warm near-black. Desk dark, page a touch lit.
    Applied when the OS is dark AND the reader hasn't forced light, or when the
@@ -191,6 +199,17 @@
   --mark:#D9DB5C; --mark-ink:#17180F; --danger:#E48B65; --shade:0 0 0;
     --good:#6FB08C; --good-soft:#17251D; --warn:#D3A845; --warn-soft:#2A2413; --bad:#E48B65; --bad-soft:#2E1A13;
 }
+
+/* The same two conditions again, for the browser's own widgets. Deliberately
+   placed AFTER both palette blocks rather than beside the `color-scheme:light`
+   default up top: test/test_contrast.js finds the dark palette by matching the
+   FIRST `:root[data-theme="dark"]` rule, and a one-line rule sitting in front of
+   it made the whole palette invisible to the test. Keep the palette blocks the
+   first of their kind. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ color-scheme:dark; }
+}
+:root[data-theme="dark"]{ color-scheme:dark; }
 
 /* ---------- accents ----------
    Four, each with a light-theme and a dark-theme pair, because a colour that
@@ -377,10 +396,20 @@ button:disabled:active{transform:none;filter:none}
 .field>span{font-family:var(--code);font-size:var(--t-xs);letter-spacing:.12em;
   text-transform:uppercase;color:var(--muted)}
 .field>span em{font-style:normal;text-transform:none;letter-spacing:0}
-.field input{border:1px solid var(--rule);border-radius:var(--r-md);padding:11px 12px;
-  background:var(--paper);font-size:var(--t-md)}
-.field input:focus{outline:none;border-color:var(--structure);
+/* select is here with input, not left to the browser. `.field input` was styled
+   and `.field select` was not, so the year picker on the SIGN-UP FORM — the one
+   screen where a control that looks broken costs the most — fell back to a bare
+   native widget beside three styled boxes. Same rule for both, so the next field
+   added to a form cannot land half-styled depending on which tag it uses.
+   `appearance` is left alone deliberately: the native chevron is the one part of
+   a select worth keeping, and replacing it is surface with no gain. */
+.field input,.field select{border:1px solid var(--rule);border-radius:var(--r-md);padding:11px 12px;
+  background:var(--paper);color:var(--ink);font-size:var(--t-md)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--structure);
   box-shadow:0 0 0 3px var(--structure-soft)}
+.setrow select{border:1px solid var(--rule);border-radius:var(--r-md);padding:7px 9px;
+  background:var(--card);color:var(--ink);font-size:var(--t-base);font-family:inherit}
+.setrow select:focus{outline:none;border-color:var(--structure)}
 .gate-err{color:var(--danger);font-size:var(--t-base)}
 .gate-or{text-align:center;font-family:var(--code);font-size:var(--t-xs);letter-spacing:.14em;
   color:var(--muted);text-transform:uppercase}

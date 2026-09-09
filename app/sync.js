@@ -234,38 +234,106 @@
   // tracked per-record via a `pushedRev` shadow field so re-running sync is idempotent.
   function needsPush(rec) { return (rec.pushedRev || 0) < (rec.rev || 1); }
 
+  /* ------------------------------------------------------------------
+     A TABLE IS NOT ONE REQUEST.
+
+     Both of these used to move a whole table in a single call, and both were
+     wrong for the same reason at opposite ends.
+
+     THE PULL WAS THE DANGEROUS ONE. `select('*')` with no range gets whatever
+     PostgREST's max-rows setting allows — 1000 by default on Supabase — and says
+     nothing when it truncates. The run then wrote a NEW pull watermark, so the
+     next sync asked only for rows changed after that, and the rows past the
+     first thousand were never asked for again. They sit on the server, absent
+     from that device, while the status line reads "Synced just now". This is not
+     hypothetical at Nexley's shape: six subjects of imported syllabus is on the
+     order of a thousand rows on its own, before a single note, card or mark.
+
+     THE PUSH is milder — one upsert carrying every dirty row — but a first sync
+     after an import is exactly when that body is largest, and a request that is
+     too big fails as a unit and takes the whole table with it.
+
+     Page sizes are deliberately below the 1000 default so that hitting the cap is
+     never what ends a page.
+     ------------------------------------------------------------------ */
+  var PULL_PAGE = 500;
+  var PUSH_PAGE = 250;
+  // set by pullTable when it gave up before the end of a table; read by runSync,
+  // which must not move the watermark past rows it never asked for. Runs are
+  // serialised by the `syncing` latch, so one flag per module is one flag per run.
+  var truncated = false;
+  var MAX_PAGES = 200;   // 100k rows; a stop so a server that keeps answering
+                         // "here is a full page" can never spin forever.
+
   function pushTable(store, mapFn, remoteTable, userId) {
     return window.NexleyDB.all(store).then(function (recs) {
       var dirty = recs.filter(needsPush);
       if (!dirty.length) return;
-      var rows = dirty.map(function (r) { return mapFn(r, userId); });
-      return client().from(remoteTable).upsert(rows).then(function (res) {
-        if (res.error) throw res.error;
-        return Promise.all(dirty.map(function (r) {
-          r.pushedRev = r.rev;
-          return window.NexleyDB.put(store, r);
-        }));
-      });
+
+      function chunk(i) {
+        if (i >= dirty.length) return Promise.resolve();
+        var slice = dirty.slice(i, i + PUSH_PAGE);
+        var rows = slice.map(function (r) { return mapFn(r, userId); });
+        return client().from(remoteTable).upsert(rows).then(function (res) {
+          if (res.error) throw res.error;
+          /* Marked sent per chunk, not at the end. If chunk 3 fails, chunks 1 and
+             2 really did land and must not be pushed again; the ones that did not
+             land keep their old pushedRev and go up on the next run. */
+          return Promise.all(slice.map(function (r) {
+            r.pushedRev = r.rev;
+            return window.NexleyDB.put(store, r);
+          }));
+        }).then(function () { return chunk(i + PUSH_PAGE); });
+      }
+      return chunk(0);
     });
   }
 
   function pullTable(store, mapFn, remoteTable, userId, since) {
-    var q = client().from(remoteTable).select('*').eq('user_id', userId);
-    if (since) q = q.gt('updated_at', since);
-    return q.then(function (res) {
-      if (res.error) throw res.error;
-      return Promise.all((res.data || []).map(function (row) {
-        var incoming = mapFn(row);
-        return window.NexleyDB.get(store, incoming.id).then(function (local) {
-          // newest `updated` wins; a local edit made while offline beats a stale pull
-          if (local && local.updated >= incoming.updated) return 0;
-          incoming.pushedRev = incoming.rev; // just pulled, so it's already in sync
-          return window.NexleyDB.put(store, incoming).then(function () { return 1; });
-        });
-      })).then(function (writes) {
-        return writes.reduce(function (a, b) { return a + b; }, 0);
+    var written = 0;
+
+    function applyRow(row) {
+      var incoming = mapFn(row);
+      return window.NexleyDB.get(store, incoming.id).then(function (local) {
+        // newest `updated` wins; a local edit made while offline beats a stale pull
+        if (local && local.updated >= incoming.updated) return 0;
+        incoming.pushedRev = incoming.rev; // just pulled, so it's already in sync
+        return window.NexleyDB.put(store, incoming).then(function () { return 1; });
       });
-    });
+    }
+
+    function page(offset, n) {
+      var q = client().from(remoteTable).select('*').eq('user_id', userId);
+      if (since) q = q.gt('updated_at', since);
+      /* The order is not cosmetic — paging an UNORDERED result is undefined, and
+         two pages of it can repeat rows and skip others. Ordered by the same
+         column the watermark filters on, with id to break ties, so the sequence
+         is total and stable. */
+      q = q.order('updated_at', { ascending: true }).order('id', { ascending: true })
+           .range(offset, offset + PULL_PAGE - 1);
+      return q.then(function (res) {
+        if (res.error) throw res.error;
+        var rows = res.data || [];
+        if (!rows.length) return written;
+        return Promise.all(rows.map(applyRow)).then(function (writes) {
+          written += writes.reduce(function (a, b) { return a + b; }, 0);
+          // a short page is the last page
+          if (rows.length < PULL_PAGE) return written;
+          if (n + 1 >= MAX_PAGES) {
+            /* Stopping early is fine; advancing the watermark after stopping
+               early is not — that is the original bug, just further out. The
+               run records that it did not finish, and keeps the old watermark,
+               so the next run asks for the same range again. */
+            truncated = true;
+            console.warn('[sync] ' + remoteTable + ': stopped at ' + MAX_PAGES
+              + ' pages — watermark held so the next run picks up where this left off');
+            return written;
+          }
+          return page(offset + PULL_PAGE, n + 1);
+        });
+      });
+    }
+    return page(0, 0);
   }
 
   /* `cards` landed in app 0.10.0 but its table arrives in a separate hand-applied
@@ -373,6 +441,15 @@
     var pulled = 0;
     var ok = false;
     var settled = false;
+    truncated = false;
+    /* The watermark is stamped from when the run STARTED, not when it finished.
+       A row written by another device while this run was in flight has an
+       updated_at inside that window, and an end-stamped watermark would step
+       straight over it — the row exists on the server and never arrives here.
+       Starting-stamped means a small overlap gets pulled twice instead, which
+       costs nothing: the merge rule is newest-updated-wins and re-applying a row
+       we already have is a no-op. */
+    var startedAt = new Date().toISOString();
     var slowTimer = setTimeout(function () { setStatus({ state: 'syncing' }); }, SLOW_MS);
     var work = window.NexleyAuth.getSession().then(function (session) {
       if (!session) { setStatus({ state: 'signedout' }); return; }
@@ -390,7 +467,7 @@
         .then(function () { return syncCommitments(userId, since, count); })
         .then(function () { return syncFeedback(userId, since, count); })
         .then(function () {
-          localStorage.setItem(pullKey(userId), new Date().toISOString());
+          if (!truncated) localStorage.setItem(pullKey(userId), startedAt);
           ok = true;
           setStatus({ state: 'ok' });
         });

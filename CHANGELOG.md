@@ -23,6 +23,41 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.53.0 — 2026-09-09
+Sync silently stopped at a thousand rows, and six controls were wearing the wrong theme.
+**A table was one request, and PostgREST does not hand over a whole table.** `pullTable` did
+`select('*')` with no range. PostgREST caps a response at its max-rows setting — 1000 by
+default on Supabase — and says nothing when it truncates. The run then wrote a **new pull
+watermark**, so the next sync asked only for rows changed after that moment, and every row past
+the first thousand was never asked for again. It sat on the server, absent from that device,
+while the status line read "Synced just now". Reproduced before fixing, against a fake client
+that caps the way the real one does: **1000 of 1300 rows on the first sync, and 1000 again on
+the second** — the second sync is where they were lost for good rather than merely late.
+This is not a someday problem at Nexley's shape: six subjects of imported syllabus is on the
+order of a thousand rows before a single note, card or mark exists.
+Pulls now page (500 at a time, explicitly ordered — paging an *unordered* result is undefined
+and can repeat rows while skipping others), and a run that gives up early **holds the
+watermark** instead of stepping over what it never asked for, which was the original bug just
+further out. Pushes are chunked too (250), and marked sent per chunk rather than at the end, so
+a failure halfway does not re-send what already landed. The whole 700-row push previously went
+as one body and failed as one body.
+**The watermark is also stamped from when a run STARTED, not when it finished.** A row another
+device wrote mid-run has a timestamp inside that window, and an end-stamp steps straight over
+it. Start-stamping re-pulls a small overlap instead, which costs nothing — the merge rule is
+newest-wins and re-applying a row already held is a no-op.
+**Six native selects were painted in the machine's theme, not the app's.** `:root` carried
+`color-scheme: light dark`, which tells the browser "this page handles both" — so it paints
+selects, scrollbars and carets to the *operating system's* preference. Nexley has its own theme
+switch, so a reader on a dark-mode machine who chose the light theme got a light page with
+**#3B3B3B selects on it**, including the year picker on the sign-up form, sitting beside three
+correctly styled inputs. `color-scheme` now follows `data-theme` using the same three
+conditions the palette does. The second half of the same fault: `.field input` was styled and
+`.field select` was not, so a control was dressed or not depending on which tag it happened to
+be. They share one rule now. Verified in a browser across all three cases — forced light on a
+dark machine, forced dark, and no choice at all.
+Two suites added, `test_sync_paging.js` (9 of 13 red against v0.52.0) and
+`test_native_controls.js` (9 red). Suite is 30 files.
+
 ## v0.52.0 — 2026-09-09
 Every camera tap in the iOS build was a crash, and a distribution plan that is written down.
 **`ios/App/App/Info.plist` had no usage strings at all.** `app.html` has two
