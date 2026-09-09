@@ -21,6 +21,26 @@ or deployed changes.
     is no separate "start page" setting — so without this fix the native app would have
     opened on the marketing pitch instead of the app. Fixed: the same redirect now also
     fires when `window.Capacitor.isNativePlatform()` is true.
+- **A third bug the wrap would have shipped with, and this one was a guaranteed crash.**
+  `ios/App/App/Info.plist` had **no usage strings at all** — no
+  `NSCameraUsageDescription`, no `NSPhotoLibraryUsageDescription` — while `app/app.html`
+  has two `capture="environment"` file inputs (a photo attached to a note, and a photo of
+  a marked paper). Inside a WKWebView those open the system camera and photo picker, and
+  iOS does **not** show a permission prompt when the string is missing: it **terminates
+  the app**. Every camera tap in the iOS build would have killed it, the first time a
+  student tried to photograph a page. Both strings are in now, worded as reasons rather
+  than requests because a reviewer reads them and Apple rejects vague ones. Found from
+  the "justify every permission the native wrap requests" line on the App Store checklist
+  in `GROWTH_AND_LAUNCH.md` §11 — not from testing, because none of this can be tested
+  without a device.
+  `test/test_native_permissions.js` now holds the invariant in the direction the drift
+  actually goes: it reads what the *web* app does and asserts the *native* shells have
+  kept up. It also fails if either shell starts asking for something Nexley does not use.
+  🔲 **Still worth a look before submission, not changed here:**
+  `UIRequiredDeviceCapabilities` is still Capacitor's scaffold default of `armv7`, which
+  is 32-bit and wrong for an arm64-only modern iOS app. Left alone deliberately — it is a
+  build-and-upload concern, and changing device capabilities blind, with no way to run a
+  build, risks trading a cosmetic wrong for a real one.
 - `.github/workflows/android-debug-build.yml` — builds an unsigned debug APK on every
   push to main, no account or secret needed. **This is ready right now**: run it from
   the Actions tab (or wait for the next push to `app/`), download the APK artifact, and

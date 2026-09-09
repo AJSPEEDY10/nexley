@@ -23,6 +23,39 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.52.0 — 2026-09-09
+Every camera tap in the iOS build was a crash, and a distribution plan that is written down.
+**`ios/App/App/Info.plist` had no usage strings at all.** `app.html` has two
+`capture="environment"` file inputs — a photo attached to a note, a photo of a marked paper —
+and inside a WKWebView those open the system camera and photo picker. iOS does not show a
+permission prompt when the matching string is missing; it **terminates the app**. So the first
+time a student on the iOS build tapped "Take a photo", Nexley would have died. Not a rejection
+risk — a crash. `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` are in, worded
+as reasons rather than requests, because a reviewer reads them and Apple rejects strings that
+restate the permission instead of explaining it. This came out of a checklist line
+(*"justify every permission the native wrap requests"*, `GROWTH_AND_LAUNCH.md` §11) rather than
+from testing, because none of it can be tested without a device.
+`test/test_native_permissions.js` holds the invariant in the direction the drift actually goes:
+it reads what the **web** app does and asserts the two **native** shells have kept up — a
+feature ships in `app/`, and nobody opens the wrappers. It also fails if either shell starts
+asking for something Nexley does not use. Six of its assertions fail against v0.51.0.
+Left alone on purpose and flagged in `PHASE8.md`: `UIRequiredDeviceCapabilities` is still
+Capacitor's scaffold default of `armv7`, which is wrong for an arm64-only app — but changing
+build settings blind, with no way to run a build, risks trading a cosmetic wrong for a real one.
+**`GROWTH_AND_LAUNCH.md` §13 is the distribution plan**, from the marketing half of the reels
+batch rather than the design half. The three funnel stages with Nexley's real assets slotted
+into each (and the finding that the strongest one — Alec's own story, Year 11, built it because
+his notes had nowhere to go — is used in exactly zero places); two zero-budget top-of-funnel
+formats; ten captions written to the creator's own prompt and register; the cadence and the
+stop-doing list; and a scoreboard that is accounts created, not likes. Nothing in it has been
+tried yet and it says so.
+**`brand/nexley-qr.svg` and `.png`** — the site as a QR in Nexley's ink on its sheet colour,
+for the sticker format. Error correction is `q` and not the `h` a wall-mounted sticker wants,
+because `h` puts this URL at version 5 and the decoder here would not read it back at any
+scale: an asset that cannot be verified is not one to ship on faith. It is verified to decode
+to the live site. 🔴 It should not be printed yet — it encodes the GitHub Pages URL and the
+domain is about to move, and a printed sticker outlives the URL on it.
+
 ## v0.51.0 — 2026-09-09
 A privacy notice a fifteen-year-old will read, and the head tags nobody checks.
 **`legal.html` now opens with "The short version"** — eleven plain-English lines with their

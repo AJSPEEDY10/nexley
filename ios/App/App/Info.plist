@@ -24,6 +24,32 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- ============================================================
+	     THESE TWO ARE NOT OPTIONAL AND THEIR ABSENCE IS NOT A PROMPT.
+
+	     Nexley photographs a page in two places — a photo attached to a note
+	     (app/app.html #photoFile) and a photo of a marked paper (#pprPhotoFile),
+	     both `<input type="file" accept="image/*" capture="environment">`. Inside
+	     a WKWebView that opens the system camera and photo picker, and iOS
+	     TERMINATES an app that reaches either one without the matching usage
+	     string here. Not a denied permission — a crash, the first time a student
+	     taps "Take a photo". There were no usage strings in this file at all,
+	     which means every camera tap in the iOS build would have killed the app.
+	     Found 2026-09-09 from the "justify every permission the native wrap
+	     requests" line on the App Store checklist in GROWTH_AND_LAUNCH.md §11.
+
+	     The wording matters as much as the presence. Apple rejects vague strings,
+	     and the reviewer reads these — so each one says the specific thing the
+	     app does with it, not "we need access to your camera".
+
+	     Nothing else is requested: no microphone, no location, no contacts, no
+	     photo-library WRITE (nothing is ever saved back to the camera roll), and
+	     notifications need no key because iOS asks at runtime.
+	     ============================================================ -->
+	<key>NSCameraUsageDescription</key>
+	<string>So you can photograph a page of a textbook, the board, or a marked paper and attach it to the note or result it belongs to. Nexley only opens the camera when you tap the photo button.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>So you can attach a photo you have already taken — a page, the board, or a marked paper — to a note or a result. Nexley never browses your library on its own; you pick the photo.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
