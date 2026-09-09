@@ -41,14 +41,35 @@ offset maths was eyeballed and wrong, and is derived now). None of that is a
 substitute for opening it. It was held back for that reason and Alec said to
 push it anyway — a reasonable call, since everything is one revert away.
 
-**First job for whoever picks this up:** `python serve.py`, open
-`http://127.0.0.1:8770/index.html`, look at it at desktop width and at 390px.
-Specifically worth checking, because these are what cannot be read off the
-source: whether the screenshot bleeding off the right edge looks deliberate or
-looks clipped at 1000–1240px; whether the ruled-paper ground is too strong behind
-the headline; and whether the scroll reveal fires before a section is in view on
-a tall screen. If it is wrong, `git revert` the v0.54.0 commit — every other
-release this session is independent of it.
+**First job for whoever picks this up.** `python serve.py`, open
+`http://127.0.0.1:8770/index.html` — or the live site hard-refreshed, since the
+cache bump to v68 means a first load may still serve the old page. Three things
+cannot be read off the source, and each is a number picked **blind**, which is
+why they are written down rather than assumed fine. Also tracked as
+`nexley_landing_visual_check` in `.claude/open_items.json`.
+
+1. **Between 1000px and 1240px, does the screenshot running off the right edge
+   read as deliberate, or as clipped?** Under 1000px the hero stacks and the shot
+   is contained, so it cannot be wrong there. At 1240px+ the pull is
+   `calc(620px - clamp(20px,5vw,40px) - 50vw)`, which is derived and lands flush.
+   The risky band is the one between, where the rule is a flat
+   `margin-right:-gutter` and the shot only just clears the edge. If it looks
+   clipped, **raise the two-column breakpoint above 1000px** rather than changing
+   the offset.
+2. **Is the ruled-paper ground too strong behind the headline?** Hairlines of
+   `--rule-soft` every 30px at `opacity:.85`, masked to fade out by 62% down the
+   hero. The pitch, the opacity and the mask stop were all chosen blind. The
+   symptom is the page reading as a worksheet rather than as having one on the
+   desk behind it. Turn the opacity down first, then lift the mask stop.
+3. **On a tall screen, does the reveal fire before a section is in view?**
+   `rootMargin: '0px 0px -12% 0px'`, `threshold: 0.05` — both guesses. Too early
+   and the animation is invisible because it finished off screen; too late and
+   sections pop in after you have started reading them. Check on the tallest
+   screen available, and check with `prefers-reduced-motion` on, where there must
+   be no motion at all.
+
+If it is wrong, `git revert 2deed61` — every other release this session is
+independent of it and all four were browser-verified.
 
 ### What is genuinely still open after this session
 - **Side-load the Android APK.** Unchanged — it builds, it has never been on a
