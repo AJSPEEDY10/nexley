@@ -1498,7 +1498,7 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
   .ncard{padding:15px 14px;min-height:56px}
   .dp{padding:12px 8px;min-height:44px}
   .topic-head{padding:12px 8px;min-height:46px}
-  .nrow{padding:11px 8px;min-height:42px}
+  .nrow{padding:11px 8px;min-height:44px}
   .toolbar button{min-width:44px;min-height:44px;padding:9px 12px}
   .btn{padding:11px 18px;min-height:44px}
   .iconbtn{padding:9px 14px;min-height:44px}
@@ -1508,6 +1508,7 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
   .tab{padding:10px 12px;min-height:42px}
   .kindtoggle button{padding:9px 14px;min-height:42px}
   .sw{width:38px;height:38px}
+
   .rail-brand .phase{display:none}
   .paste{font-size:max(1rem, 16px)}
   /* iOS zooms the page when a focused field is under 16px — hence the 16px floor,
@@ -1770,3 +1771,33 @@ dialog h3{font-family:var(--display);font-weight:400;font-size:var(--t-2xl)}
 .estate p{margin:0;font-size:var(--t-base);line-height:1.7;color:var(--ink-2);
   text-wrap:pretty}
 .estate .btn{margin-top:var(--s-3)}
+
+
+/* ---------- touch targets ----------
+   Deliberately the LAST thing in this file. These rules lost to the base ones the
+   first time they were written, because they sat in the coarse block at ~line 1500
+   while `.toolbtn{width:32px}` is declared at ~1690 — equal specificity, later
+   wins, and the fix silently did nothing. A measurement caught it; reading the
+   diff would not have.
+
+   Apple's minimum is 44x44 and it is not a rounding suggestion: 32px is about the
+   width of a fingertip, so every tap is a small gamble on the device this app is
+   actually aimed at. `.edit` was the worst at 27x21 — and the coarse block was
+   already unhiding it on touch, which made it a live target without ever giving it
+   a size to be hit at.
+
+   Sizes are min-* with the painted box left alone, so nothing looks different; the
+   extra area is padding around the same mark. */
+@media (pointer:coarse){
+  .toolbtn{width:44px;height:44px}
+  .acct{min-height:44px;padding:6px 4px}
+  /* the app's primary navigation - Home, Notebook, Classwork, Review, Tasks,
+     Marks. These sit in .modes, not .rail-nav; the first selector written here
+     matched nothing at all, which a measurement caught and a read-through would
+     not have. */
+  .modes .mode{min-height:44px}
+  .snav .edit,.dp .edit,.topic-head .edit{min-width:44px;min-height:44px;
+    display:inline-flex;align-items:center;justify-content:center}
+  .nrow{min-height:44px}
+  #syncState{min-height:44px}
+}

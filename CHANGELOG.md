@@ -23,6 +23,42 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.47.0 — 2026-09-09
+Seven touch targets were under Apple's minimum, including every way into the inbox, comps
+and settings.
+Nexley is aimed at an iPad, and Apple's 44×44 minimum is not a rounding suggestion — 32px is
+roughly the width of a fingertip, so a 32px control makes every tap a small gamble. Measuring
+every visible control at phone width found **seven** below it: the three rail icon buttons
+(32×32 — and they are the *only* route into the inbox, comps and settings), the account button,
+the six primary nav items at 36px, the sync-state row, and `.edit` at **27×21**. That last one
+is the worst of them: the coarse block was already unhiding `.edit` on touch, which quietly made
+it a live target without ever giving it a size to be hit at.
+Only the touch layout changed. Verified on the same page with the coarse rules inactive: a
+mouse user still gets 32×32 icons, 36-high nav and the 27×21 edit affordance, exactly as before.
+The extra area is padding around the same painted mark, so nothing looks different — it is
+reach, not weight.
+**Three bugs happened while fixing this, and all three were invisible in a diff.**
+The first attempt went into the coarse block at ~line 1500, while `.toolbtn{width:32px}` is
+declared at ~1690 — equal specificity, later wins. The rule parsed, changed nothing, and read as
+correct. The touch rules now sit at the very end of the file and `test/test_touch.js` fails if
+anything is added after them.
+The nav fix was written `.rail-nav .mode`, but those buttons live in `.modes`. Valid CSS
+addressing an element that does not exist is the quietest possible failure.
+And this test's own first draft built its patterns with `new RegExp` from strings whose escapes
+did not survive into the file — `'\b'` became a literal backspace character, so seven checks
+failed against code that was perfectly correct.
+⚠️ The test is explicit about its own limits: it catches a class name that exists nowhere and it
+catches the ordering trap, but it **cannot** catch `.rail-nav .mode`, because both classes are
+real and only their relationship is wrong. That needs a live DOM, and this app builds most of
+its DOM at runtime. Measuring in a browser is still the only thing that confirms these rules.
+Also checked and clean, so it is recorded rather than re-derived later: no layout overflow and
+no horizontal scroll at 320, 390, 768, 834, 1024 or 1180; headings scale *down* on mobile
+(36px → 27.8px) rather than blowing up, which closes that item; and at **200% text size** —
+what Apple asks for, body going 14px → 28px — there is still no overflow at either phone or
+iPad width. The earlier viewport measurements that suggested otherwise were artifacts of
+resizing a fixed app shell; an iframe gets its own viewport and is the only honest way to test
+this locally.
+
 ## v0.46.0 — 2026-09-09
 A real screenshot of the real app, on the landing page.
 The audit list had "no real product demos" flagged as a genuine conversion problem — to a
