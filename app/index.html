@@ -205,9 +205,26 @@ try{
     letter-spacing:-.015em;line-height:1.2;max-width:20ch}
   .block p{font-family:var(--text);font-size:1.0625rem;line-height:1.65;color:var(--ink-2);
     max-width:58ch}
+  /* The left column is a MARGIN, not half a page. It held a two-line heading and
+     then 200-300px of nothing, which is what made every section read as a template
+     with the second half missing. Two changes, both of which pay twice:
+     the split moves off 1fr 1fr, so the heading sits in a margin and the prose gets
+     the width back (~40 characters a line at the old split, ~52 now, which is
+     inside the range you actually want to read); and the margin gets the one thing
+     that belongs in a margin here — a number. Nexley's whole structural device is
+     a code in the left margin of a page, so this is the app's own language rather
+     than an ornament, and a CSS counter cannot fall out of order the way eight
+     hand-typed numbers would. */
+  .page{counter-reset:blk}
+  .block{counter-increment:blk}
   @media (min-width:760px){
-    .block{grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+    .block{grid-template-columns:minmax(190px,0.66fr) minmax(0,1fr);gap:40px;align-items:start}
     .block h2{grid-row:span 2;margin-top:2px}
+    .block h2::after{
+      content:counter(blk,decimal-leading-zero);
+      display:block;margin-top:20px;
+      font-family:var(--code);font-size:.625rem;letter-spacing:.14em;color:var(--muted);
+    }
   }
 
   /* the log. Two columns of the same list — what exists, and what is being built —

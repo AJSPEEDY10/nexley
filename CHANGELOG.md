@@ -23,6 +23,40 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.51.0 — 2026-09-09
+A privacy notice a fifteen-year-old will read, and the head tags nobody checks.
+**`legal.html` now opens with "The short version"** — eleven plain-English lines with their
+own anchor and nav entry, ahead of the formal policy rather than instead of it. The OAIC
+Children's Online Privacy Code expects a notice in language the child it applies to can
+understand, and it earns its place regardless: Nexley's users are 15–18 and nobody that age
+reads three thousand words before signing up. It does not soften anything — deletion is
+irreversible, crash reports are sent, Groq is in the United States, and all of that is in the
+short version too. It also carries the line the privacy impact assessment asked for and the
+policy never had: **what you paste into AI marking is what gets sent**, your teacher's name on
+the criteria sheet included, and Nexley cannot take that out for you. Every claim was checked
+against the policy underneath it rather than written from memory, and the file carries a
+red-flagged instruction to do the same next time — this page has gone stale three times, and a
+summary that drifts from what it summarises is the worse kind of wrong, because it is the half
+people actually read.
+**Head tags.** The landing page and the app carried an identical title, which is the "unique
+page titles" line on every SEO checklist in `GROWTH_AND_LAUNCH.md` §11 failing in the most
+basic way. The app is now plain "Nexley" — better as a tab title for something open for hours
+anyway — and `noindex,follow`, saying to a crawler that arrives by link what the sitemap
+already says to one that reads it: a sign-in gate has nothing to show. `legal.html`, which
+*is* in the sitemap and is the page an assistant gets asked to read when a student wants to
+know whether their notes train an AI, had no description and no canonical at all. It has both.
+`test_head.js` locks the lot down — titles unique, descriptions present and a real sentence
+long, canonicals absolute and on the right origin, alt text on every image, one `h1` a page,
+no framework placeholder titles.
+**The landing page's left column is a margin now, not half a page.** It held a two-line
+heading and then 200–300px of nothing, which is what made each section read as a template with
+its second half missing. The split moved off `1fr 1fr`, which also gives the prose back the
+width it wanted (~40 characters a line before, ~52 now), and the margin gained the one thing
+that belongs in it: a number, set in the mono face, from a CSS counter. Nexley's whole
+structural device is a code in the left margin of a page, so this is the app's own language
+rather than decoration. Measured after: CLS 0.0008, no horizontal overflow at 390px, and the
+marker correctly does not render once the block stacks.
+
 ## v0.50.0 — 2026-09-09
 Four waits that could never end, on the four paths that matter most.
 v0.49.0 did the waiting pass for AI marking and named sync and cold boot as the surfaces still

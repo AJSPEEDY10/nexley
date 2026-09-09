@@ -6,7 +6,19 @@
      and double-tap-to-zoom adds a 300ms delay to every tap. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1E4D3E">
-<title>Nexley — a syllabus study notebook</title>
+<!-- Plain "Nexley", not the landing page's full line. Two reasons, and they agree:
+     the landing page and this one used to carry an identical title, which is the
+     "unique page titles" item on every SEO checklist failing in the most basic
+     way; and this is the tab title of an app someone has open for hours, where
+     short wins. (Don't write the tag name itself in here — test/test_head.js
+     reads these files with a regex and a comment containing it wins the match.) -->
+<title>Nexley</title>
+<!-- The sitemap already leaves this page out, with the reasoning written into it:
+     a sign-in gate has nothing to show a crawler. This says the same thing to the
+     crawler that arrives by following a link instead of reading the sitemap.
+     follow, not none — the links out of here to the landing page and legal.html
+     are still worth walking. -->
+<meta name="robots" content="noindex,follow">
 <meta name="description" content="Nexley is a study notebook that files your notes against the actual syllabus, so you can see what you've covered and what you haven't. Works offline.">
 
 <!-- Link previews. Absolute URLs are required here, so these are pinned to the current
