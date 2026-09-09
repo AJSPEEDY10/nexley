@@ -95,6 +95,55 @@ const sessionKeys = store => Object.keys(store).filter(k => /^sb-/.test(k));
     ok('the session is cleared on ' + mode, sessionKeys(store).length === 0);
   }
 
+  /* 4. Every OTHER auth call must end too.
+        Found while writing a handover note that claimed the waiting pass was
+        finished: only signOut was bounded. Each of these sits behind a button
+        app.js disables on click, so a hang is a permanently dead button — on the
+        sign-in screen, and on delete-account. */
+  {
+    const hang = () => new Promise(() => {});
+    let src = fs.readFileSync(SRC, 'utf8')
+      .replace('var AUTH_TIMEOUT_MS = 15000;', 'var AUTH_TIMEOUT_MS = 40;')
+      .replace('var DELETE_TIMEOUT_MS = 30000;', 'var DELETE_TIMEOUT_MS = 40;');
+    const auth = {
+      signUp: hang, signInWithPassword: hang, signInWithOAuth: hang,
+      updateUser: hang, getSession: hang, signOut: () => Promise.resolve({ error: null }),
+      onAuthStateChange: () => {}
+    };
+    const win = { supabase: { createClient: () => ({ auth }) },
+      location: { origin: 'https://example.test', pathname: '/nexley/app.html' },
+      NEXLEY_SUPABASE_URL: 'https://example.test', NEXLEY_SUPABASE_ANON_KEY: 'anon' };
+    const store = {};
+    const ls = { get length() { return Object.keys(store).length; }, key: i => Object.keys(store)[i],
+      getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; }, removeItem: k => { delete store[k]; } };
+    new Function('window', 'localStorage', 'fetch', 'console', src)
+      (win, ls, hang, { warn() {} });
+    const A = win.NexleyAuth;
+
+    const calls = [
+      ['signUpEmail', ['e', 'p', 'n', '11'], 'Creating your account'],
+      ['signInEmail', ['e', 'p'], 'Signing you in'],
+      ['signInGoogle', [], 'Taking you to Google'],
+      ['signInApple', [], 'Taking you to Apple'],
+      ['setSchoolYear', ['11'], 'Saving your school year'],
+      ['getSession', [], 'Checking your account'],
+      ['deleteAccount', [], 'Deleting your account']
+    ];
+    for (const [name, args, label] of calls) {
+      const r = await Promise.race([
+        A[name](...args).then(() => 'resolved', e => e),
+        new Promise(res => setTimeout(() => res('HUNG'), 500))
+      ]);
+      ok(name + ' ends rather than hanging', r !== 'HUNG');
+      if (r instanceof Error) {
+        ok(name + ' names its own action, not a generic failure',
+          r.message.startsWith(label), r.message.slice(0, 60));
+      }
+    }
+    ok('signOut is NOT double-wrapped — it keeps its own contract',
+      (await A.signOut()) === 'clean');
+  }
+
   console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

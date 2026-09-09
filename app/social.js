@@ -284,8 +284,15 @@
      newCode is deliberately NOT wrapped: it is crypto.getRandomValues and a
      lookup table, with no network in it. Wrapping a synchronous local call in a
      15-second race would be noise. */
+  /* try/catch as well as the race: fn can throw SYNCHRONOUSLY before returning
+     a promise, and a synchronous throw sails past the caller's .catch(), which
+     here means the button stays disabled forever. One failure shape only. */
   function netted(fn, label) {
-    return function () { return within(fn.apply(null, arguments), label); };
+    return function () {
+      var p;
+      try { p = fn.apply(null, arguments); } catch (e) { return Promise.reject(e); }
+      return within(p, label);
+    };
   }
 
   window.NexleySocial = {

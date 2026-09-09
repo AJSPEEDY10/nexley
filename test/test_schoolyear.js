@@ -68,8 +68,14 @@ ok('the question is asked from enterApp(), not only on the sign-up form',
 
 ok('the sign-up form asks for a year', /id="fSchoolYear"/.test(html));
 ok('the dialog asks for a year', /id="ySchoolYear"/.test(html));
+/* Deliberately tolerant of a wrapper. This asserted `setSchoolYear: setSchoolYear`
+   exactly, and went red in v0.56.0 when the export became
+   `setSchoolYear: bound(setSchoolYear, …)` — a timeout wrapper that changes
+   nothing about what this test is for. The property that matters is that auth.js
+   exports the call and that it writes school_year; how the export is spelled is
+   not this file's business. */
 ok('auth.js can record it for accounts the form never saw',
-  /setSchoolYear:\s*setSchoolYear/.test(auth) && /school_year/.test(auth));
+  /setSchoolYear:[^,\n]*setSchoolYear/.test(auth) && /school_year/.test(auth));
 
 // ---------------------------------------------------------------------------
 // 3 · It is a question, not a toll  — the invariant that matters most

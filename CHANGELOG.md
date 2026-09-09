@@ -23,6 +23,33 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.56.0 — 2026-09-09
+Seven more, on the sign-in screen and the delete button — found by not believing my own handover.
+v0.55.0's note said the waiting pass was finished. Before publishing that, I ran a mechanical
+check over every module that touches the network, and it immediately contradicted the note:
+**`auth.js` had nine network calls and one bound** — `signOut`, written the same morning. The
+other seven could hang for the life of the tab, and every one sits behind a button `app.js`
+disables on click:
+- **`signInEmail` / `signUpEmail`** — "Signing in…" forever, on the one screen a new user cannot
+  get past.
+- **`deleteAccount`** — a dead button on the single most consequential action in the app.
+- **`setSchoolYear`** — a dialog that can neither be completed nor dismissed.
+- **`signInGoogle` / `signInApple`** — and this one is self-inflicted: the busy-lock added in
+  v0.50.0 turned a hang from "nothing happened, press it again" into a *permanently* dead button.
+  That change made this case worse, and the timeout is what makes it safe.
+Bounded at the export, as in `social.js`, so an eighth call cannot quietly arrive without one.
+15s, except `deleteAccount` at 30s because it is the only one going through an Edge Function
+rather than straight to Auth. `signOut` is **not** wrapped — it has its own guard and its own
+contract (resolves `'clean'` or `'local'`, never rejects) and racing it again would break that.
+Both wrappers also catch **synchronous** throws. A function can throw before it ever returns a
+promise, and a synchronous throw sails straight past the caller's `.catch()` — which for all of
+these means the button stays disabled. Now there is exactly one failure shape. Found because a
+test stub without `window.location` made `signInGoogle` throw synchronously, which is not
+reachable in a browser but proved the wrapper had a hole.
+`test_schoolyear.js` went red on this and was right to: it pinned the export's exact spelling.
+Loosened to assert the property it actually cares about — that `auth.js` exports the call and
+writes `school_year` — rather than how the export is written.
+
 ## v0.55.0 — 2026-09-09
 The last eleven calls that could hang forever.
 `app/social.js` — everything in Nexley that talks to another person — had **eleven network

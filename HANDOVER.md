@@ -74,9 +74,23 @@ independent of it and all four were browser-verified.
 ### What is genuinely still open after this session
 - **Side-load the Android APK.** Unchanged — it builds, it has never been on a
   device, and it needs no account.
-- **The waiting pass is finished.** Sync and cold boot were the two surfaces
-  v0.49.0 left owed; both are done. Nothing else in the app waits on a network
-  call without an ending.
+- **The waiting pass — and the reason to distrust a claim like this one.** It
+  was declared finished twice and was wrong both times. v0.49.0 owed sync and
+  cold boot; v0.50.0 did those plus lock and OAuth, and I wrote here that
+  nothing else waited without an ending. `social.js` then turned out to have
+  **eleven** unbounded network calls (v0.55.0). I wrote the same claim again —
+  and the mechanical check I ran *before publishing it* found `auth.js` with
+  **nine network calls and one bound** (v0.56.0), including sign-in, sign-up and
+  delete-account.
+  The lesson is worth more than either fix: **"I have done the surfaces I
+  thought of" is not the same sentence as "no surface is left"**, and I wrote
+  the second twice while having only earned the first. The check that worked
+  takes one command — count network calls against timeout guards, per module,
+  and look at any file where those numbers differ.
+  As of v0.56.0: `sync.js`, `auth.js`, `social.js` and the marking call in
+  `app.js` are all bounded; `photo.js`, `notifications.js`, `widget.js`,
+  `analytics.js`, `ink.js`, `marking.js`, `errors.js` and `config.js` contain no
+  network calls at all. **Re-run the count rather than trusting this list.**
 - Alec's eight account-gated items, unchanged — see `.claude/open_items.json`.
 - Landing page: a case-study section, testimonials and a real founder photo are
   all still missing, and all three need real content from Alec rather than
