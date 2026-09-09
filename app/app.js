@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '0.49.0';
+  var APP_VERSION = '0.50.0';
   // errors.js loads before this and stamps crash reports with it
   window.NEXLEY_APP_VERSION = APP_VERSION;
   var DB_NAME = 'nexley';
@@ -544,9 +544,13 @@
     // a sign-in that just failed outranks the first-run pitch — showing the carousel
     // here would bury the reason it failed behind three taps
     if (mode === 'create' && !introSeen() && !authUrlError() && $('intro')) return showIntro();
-    // whenever the gate is genuinely being shown, drop the pre-paint guard — otherwise
-    // signing out on a device that skipped the intro leaves the card display:none
+    // whenever the gate is genuinely being shown, drop the pre-paint guards — otherwise
+    // signing out on a device that skipped the intro leaves the card display:none.
+    // pre-session is the same hazard from the other side: a stored session key can
+    // outlive the session it describes, and without this the sign-in card it is
+    // hiding would never come back.
     document.documentElement.classList.remove('pre-intro');
+    document.documentElement.classList.remove('pre-session');
     $('intro').hidden = true;
     $('gate').hidden = false;
     $('app').hidden = true;
@@ -1882,6 +1886,15 @@
       txt.textContent = lastSync.lastOkAt
         ? 'Not syncing since ' + when(lastSync.lastOkAt).toLowerCase()
         : 'Never synced — tap to see why';
+    } else if (lastSync.state === 'syncing') {
+      // sync.js only emits this once a run has been going 1.2s, so this is a real
+      // "it is taking a moment", not the every-five-minutes blink it would be if
+      // every run announced itself.
+      txt.textContent = 'Syncing…';
+    } else if (lastSync.state === 'idle') {
+      // nothing has been attempted yet. An honest nothing beats "Checking…",
+      // which is what this line used to sit on forever when a run wedged.
+      el.hidden = true;
     } else {
       txt.textContent = 'Checking…';
     }
@@ -1910,7 +1923,15 @@
       }
       lines.push('Export all (in the sidebar) writes a full copy to a file you keep. '
         + 'Worth doing now if this persists.');
+    } else if (lastSync.state === 'syncing') {
+      lines.push('Sending this device’s changes up and pulling anything new down. '
+        + 'It is taking longer than usual, which normally just means a slow '
+        + 'connection. Nothing is lost either way — your work is already saved '
+        + 'on this device.');
     }
+    // Tapping the line used to be able to open an empty alert, because only three
+    // of the states wrote anything into `lines`.
+    if (!lines.length) return;
     alert(lines.join('\n\n'));
   }
 
@@ -7457,8 +7478,27 @@
       e.preventDefault();
       showGate($('gateForm').dataset.mode === 'create' ? 'unlock' : 'create');
     });
+    /* A tap has to be answered before the redirect, or it reads as a dead button.
+       signInWithOAuth is a network round trip that only THEN navigates away, so on
+       a slow connection nothing visibly happened and the obvious response was to
+       press it again — starting a second OAuth flow on top of the first. The email
+       form has had `gateBusy` guarding exactly this since it was written; these two
+       buttons, which are the whole point of having social sign-in, had nothing.
+       The button is never re-enabled on success on purpose: success is a page
+       navigation, and putting the label back would flash "Continue with Google"
+       one frame before the browser leaves. */
+    function oauth(btn, fn, label) {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = 'Taking you to ' + label + '…';
+      fn().catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Continue with ' + label;
+        gateError((err && err.message) || ('Could not sign in with ' + label + '.'));
+      });
+    }
     $('googleBtn').addEventListener('click', function () {
-      window.NexleyAuth.signInGoogle().catch(function (err) { gateError(err.message || 'Could not sign in with Google.'); });
+      oauth(this, window.NexleyAuth.signInGoogle, 'Google');
     });
     /* Hidden until Apple is actually enabled as a provider in Supabase Auth
        (window.NEXLEY_APPLE_SIGNIN in config.js says whether it is). The button
@@ -7468,7 +7508,7 @@
        flag is the whole change. */
     $('appleBtn').hidden = !window.NEXLEY_APPLE_SIGNIN;
     $('appleBtn').addEventListener('click', function () {
-      window.NexleyAuth.signInApple().catch(function (err) { gateError(err.message || 'Could not sign in with Apple.'); });
+      oauth(this, window.NexleyAuth.signInApple, 'Apple');
     });
 
     $('newNote').addEventListener('click', function () { newNote(state.activeNode); });
@@ -7685,8 +7725,20 @@
     $('fbSend').addEventListener('click', sendFeedback);
 
     $('lockBtn').addEventListener('click', function () {
+      var btn = this;
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = 'Locking…';
       if (state.dirty) saveNow();
-      window.NexleyAuth.signOut().then(function () { showGate('unlock'); });
+      // signOut() is guaranteed to resolve now (see auth.js) — 'local' means the
+      // server could not be reached and the session was dropped here instead, so
+      // reload to be certain nothing is still signed in inside this page.
+      window.NexleyAuth.signOut().then(function (how) {
+        if (how === 'local') { location.reload(); return; }
+        btn.disabled = false;
+        btn.textContent = 'Lock this device';
+        showGate('unlock');
+      });
     });
 
     $('deleteAccountBtn').addEventListener('click', function () {
@@ -8035,16 +8087,58 @@
       }
     });
 
-    return window.NexleyAuth.getSession();
-  }).then(function (session) {
-    if (!session) { showGate('create'); return; }
-    return enterApp(session.user);
+    /* Boot must always end somewhere.
+       getSession() looks local but is not: supabase-js refreshes an expired token
+       over the network, and on a connection that is up without passing traffic
+       (school Wi-Fi on a sign-in page) that request never settles. The whole boot
+       chain then stopped here — no app, no gate, no message, forever.
+       Ten seconds, then fall through to the sign-in card and say why. The real
+       promise is kept alive: if the network answers late and there IS a session,
+       the student is let straight in rather than made to sign in again. */
+    var TIMED_OUT = { timedOut: true };
+    var live = window.NexleyAuth.getSession();
+    var timed = new Promise(function (resolve) {
+      setTimeout(function () { resolve(TIMED_OUT); }, 10000);
+    });
+    /* This whole block carries its own catch on purpose. Everything from here on
+       is an account or network problem, and the chain's outer catch answers with
+       "Could not open local storage" — a confident wrong answer, since storage is
+       how we got this far. */
+    return Promise.race([live, timed]).then(function (session) {
+      if (session !== TIMED_OUT) return session;
+      /* Show the sign-in card now so the student is never stranded — but keep the
+         real request alive. If the network answers late and there is a session,
+         let them straight in rather than making them sign in again. */
+      showGate('unlock');
+      gateError('Could not reach your account — the connection is up but not '
+        + 'answering. Nothing here is lost. Sign in below, or just try again on a '
+        + 'network that works.');
+      live.then(function (late) {
+        if (late && $('gate') && !$('gate').hidden) enterApp(late.user);
+      }).catch(function () {});
+      return TIMED_OUT;
+    }).then(function (session) {
+      if (session === TIMED_OUT) return;    // gate is already up, with a reason
+      if (!session) { showGate('create'); return; }
+      return enterApp(session.user);
+    }).catch(function (err) {
+      console.warn('[boot] session check failed', err);
+      showGate('unlock');
+      gateError('Could not check your account: ' + ((err && err.message) || 'unknown error')
+        + '. Your notes are still on this device.');
+    });
   }).then(function () {
     checkStorage();
     /* Not awaited, and its failure is swallowed inside refreshMe: the notebook
        does not need a username to work, and a network hiccup on boot must not
-       be able to stop the app opening. */
-    refreshMe();
+       be able to stop the app opening.
+       The try/catch is not belt-and-braces — refreshMe only swallows REJECTIONS,
+       so anything that threw synchronously (a missing dependency, an auth client
+       that never finished constructing) escaped, hit the chain's outer catch, and
+       replaced the entire app with "Could not open local storage". Observed on
+       2026-09-09 in a boot harness. The comment above was true of one failure
+       mode and not the other; now it is true of both. */
+    try { refreshMe(); } catch (e) { console.warn('[boot] refreshMe threw', e); }
     return maybeAutoBackup();
   }).catch(function (err) {
     var msg = (err && err.message) || 'Unknown error';

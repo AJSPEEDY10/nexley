@@ -100,10 +100,52 @@
     });
   }
 
+  /* Locking must always lock.
+   *
+   * signOut() is a network call — it revokes the refresh token server-side. The
+   * caller was `signOut().then(showGate)` with no catch and no timeout, so on a
+   * connection that failed the gate never appeared, and on one that hung nothing
+   * happened at all: "Lock this device" did nothing, and the student handed over
+   * an unlocked iPad. Supabase's own scope:'local' is not the escape hatch it
+   * looks like — read the vendored source, it still calls admin.signOut first and
+   * can hang the same way.
+   *
+   * So: five seconds for a clean revoke, then forget the session here instead.
+   * That leaves the server-side token alive until it expires on its own, which is
+   * worse than a clean revoke and enormously better than not locking. Resolves
+   * with 'local' when it had to fall back, so the caller can reload and drop the
+   * in-memory session too. It never rejects — a lock that throws is a lock that
+   * did not happen. */
+  function forgetSessionLocally() {
+    try {
+      var kill = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (/^sb-.+-auth-token/.test(k)) kill.push(k);
+      }
+      kill.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {}
+  }
+
   function signOut() {
-    return client.auth.signOut().then(function (r) {
-      if (r.error) throw r.error;
+    var settled = false;
+    var live = client.auth.signOut().then(function (r) {
+      settled = true;
+      if (r.error) { forgetSessionLocally(); return 'local'; }
+      return 'clean';
+    }, function () {
+      settled = true;
+      forgetSessionLocally();
+      return 'local';
     });
+    var guard = new Promise(function (resolve) {
+      setTimeout(function () {
+        if (settled) return resolve('clean');
+        forgetSessionLocally();
+        resolve('local');
+      }, 5000);
+    });
+    return Promise.race([live, guard]);
   }
 
   function getSession() {

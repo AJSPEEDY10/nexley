@@ -313,6 +313,10 @@ button:disabled:active{transform:none;filter:none}
 /* set by the head script for a visitor who has never seen the intro — keeps the
    sign-in card from flashing for the moment before boot decides */
 :root.pre-intro .gate{display:none}
+/* the same guard from the other end: a stored session exists, so the returning
+   student is signed in and must not be shown "Create your account" while boot
+   confirms it. Dropped by showGate() the moment the gate is genuinely wanted. */
+:root.pre-session .gate{display:none}
 
 /* ---------- what this is ----------
    Sits above the gate (z 60 vs 50) so it covers the sign-in card that paints on first

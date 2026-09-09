@@ -37,6 +37,16 @@
   var syncing = false;
   var pending = false;
 
+  /* Every wait needs an ending — including this one, which had none.
+     A run is a dozen sequential round trips, so it needs a longer leash than the
+     45s on a single AI-marking call; 60s is the point past which a run is not
+     slow, it is stuck. SLOW_MS is the opposite guard: a healthy sync finishes in
+     well under a second and runs every five minutes, so announcing "Syncing…"
+     immediately would just make the status line blink at the student forever.
+     Say nothing until it is slow enough to be worth saying. */
+  var RUN_TIMEOUT_MS = 60000;
+  var SLOW_MS = 1200;
+
   function client() { return window.NexleyAuth.client; }
 
   /* Sync state is REPORTED, not swallowed.
@@ -362,7 +372,9 @@
     syncing = true;
     var pulled = 0;
     var ok = false;
-    return window.NexleyAuth.getSession().then(function (session) {
+    var settled = false;
+    var slowTimer = setTimeout(function () { setStatus({ state: 'syncing' }); }, SLOW_MS);
+    var work = window.NexleyAuth.getSession().then(function (session) {
       if (!session) { setStatus({ state: 'signedout' }); return; }
       var userId = session.user.id;
       var since = localStorage.getItem(pullKey(userId));
@@ -395,7 +407,42 @@
           hint: (err && err.hint) || null
         }
       });
-    }).then(function () {
+    });
+
+    /* THE BUG THIS EXISTS FOR: `navigator.onLine` answers true on a network that
+       is up but not passing traffic — the school Wi-Fi sitting on a sign-in page
+       is the everyday case. The request then never settles, so the chain above
+       never reached its finaliser, `syncing` stayed latched for the life of the
+       tab, and EVERY later trigger (the five-minute timer, a tab focus, coming
+       back online) short-circuited on that latch. Sync was dead for the session
+       while the status line still read "Checking…" — the app claiming to be doing
+       something it had permanently stopped doing. Reproduced before fixing; see
+       test/test_sync_timeout.js. */
+    var timeout = new Promise(function (resolve) {
+      setTimeout(function () {
+        if (settled) return resolve();
+        setStatus({
+          state: 'error',
+          error: {
+            code: 'timeout',
+            message: 'Sync did not answer within ' + (RUN_TIMEOUT_MS / 1000) + ' seconds.',
+            hint: 'Usually a connection that is up but not letting traffic through — '
+              + 'a school or cafe network waiting on a sign-in page. Nothing is lost, '
+              + 'and it will try again on its own.'
+          }
+        });
+        resolve();
+      }, RUN_TIMEOUT_MS);
+    });
+
+    /* Whichever lands first releases the latch, once. A run that finishes AFTER
+       its timeout still gets to correct the status through its own chain above —
+       it knows more than the timeout did — but it must not release the latch a
+       second time or fire a queued run twice. */
+    function finish() {
+      if (settled) return { ok: ok, pulled: pulled };
+      settled = true;
+      clearTimeout(slowTimer);
       syncing = false;
       // a pull that changed nothing on screen is not worth a repaint
       if (pulled) {
@@ -403,7 +450,9 @@
       }
       if (pending) { pending = false; return runSync(); }
       return { ok: ok, pulled: pulled };
-    });
+    }
+
+    return Promise.race([work, timeout]).then(finish);
   }
 
   window.NexleySync = { run: runSync, status: describe };

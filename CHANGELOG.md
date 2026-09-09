@@ -23,6 +23,53 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.50.0 — 2026-09-09
+Four waits that could never end, on the four paths that matter most.
+v0.49.0 did the waiting pass for AI marking and named sync and cold boot as the surfaces still
+owed one. They turned out to owe more than polish. The common fault is the same in all four:
+**a network call that is up but not answering**. `navigator.onLine` reports true on school Wi-Fi
+parked behind a sign-in page, so none of the offline handling fires and the request simply never
+settles. Each of these was reproduced before it was fixed.
+**Sync wedged permanently, and said it was fine.** A hung run left the module's `syncing` latch
+stuck true for the life of the tab, so every later trigger — the five-minute timer, a tab focus,
+an `online` event — returned instantly without doing anything. Sync was dead for the session
+while the status line still read "Checking…", which was its *idle* text and therefore a claim
+that something was happening when nothing was. A run now gives up at 60s (a dozen sequential
+round trips, so a longer leash than marking's single request) with an error that names the
+cause, and the latch is released exactly once even if the original request answers later. The
+status line gained a real "Syncing…", emitted only after 1.2s — a healthy sync finishes in well
+under a second and runs every five minutes, so announcing every one of them would just make the
+rail blink at the student forever.
+**Boot could stop dead before the app existed.** `getSession()` looks local but refreshes an
+expired token over the network, and the whole boot chain waited on it — no app, no sign-in card,
+no message, no end. It now gives up at 10s and shows the sign-in card with the reason, while
+keeping the real request alive so a late answer lets the student straight in instead of making
+them sign in again. A related wrong answer went with it: anything failing from the session check
+onward was caught by the chain's outer handler and reported as **"Could not open local storage"**
+— confidently wrong, since storage is how it got that far.
+**A returning student was told they had no account, on every cold open.** The gate markup is
+visible by default so that a JS failure still shows a sign-in — but that meant "Create your
+account" sat on screen for the whole session check, to someone who was already signed in. A
+pre-paint check for a stored session hides the card until boot has decided. Presence of the key
+is all that is read, never its contents, and it is dropped the moment the gate is genuinely
+wanted, so a stale key cannot hide the sign-in card forever.
+**"Lock this device" did not always lock.** `signOut()` is a network call, and the caller had no
+catch and no timeout: a failing connection meant the gate never appeared, a hanging one meant
+the button did nothing at all — the student handing over an unlocked iPad. Supabase's own
+`scope:'local'` is not the escape hatch it looks like; the vendored source still calls
+`admin.signOut()` first and hangs identically. Five seconds for a clean revoke, then the session
+is forgotten locally and the page reloads. That leaves the server-side token alive until it
+expires, which is worse than a clean revoke and far better than not locking.
+**And the sign-in buttons answered a tap with nothing.** Google and Apple sign-in ran a network
+round trip *before* navigating away, with no disable and no label change, so the natural
+response to a slow connection was to press again and start a second OAuth flow. The email form
+has guarded exactly this since it was written. Three taps now produce one flow.
+Two suites added, both of which fail against the previous release: `test_sync_timeout.js` (6 of
+10 red before, 10 green after) and `test_auth_lock.js` (10 of 12 red before, 12 green after).
+Also fixed while proving the boot path in a real browser: a synchronous throw inside
+`refreshMe()` escaped the "its failure is swallowed" comment above its call site and replaced
+the entire app with the storage error. The comment was true of rejections and not of throws.
+
 ## v0.49.0 — 2026-09-09
 The design audit, and a spinner that can end.
 From `GROWTH_AND_LAUNCH.md` §12, written after Alec's own read: *"nexley looks like ai slop

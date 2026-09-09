@@ -38,6 +38,13 @@
    storage is unreadable we set nothing, matching introSeen()'s fail-closed default. */
 try{var t=localStorage.getItem('nexley-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}
 try{if(localStorage.getItem('nexley-intro-seen')!=='1')document.documentElement.classList.add('pre-intro');}catch(e){}
+/* pre-session: the gate markup is visible by default so a JS failure still shows a
+   sign-in — but that means a RETURNING, SIGNED-IN student saw "Create your account"
+   on every cold open, for as long as the session check took. The app telling someone
+   they have no account is a claim, and it was false. If a stored Supabase session
+   exists we know better than the default, so hide the card until boot has decided.
+   Presence of the key is all that is checked — never its contents. */
+try{for(var i=0;i<localStorage.length;i++){if(/^sb-.+-auth-token$/.test(localStorage.key(i))){document.documentElement.classList.add('pre-session');break;}}}catch(e){}
 </script>
 <link rel="stylesheet" href="app.css">
 </head>
