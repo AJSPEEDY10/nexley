@@ -23,6 +23,40 @@ which code produced it — but only if the number moved when the code did.
 
 Newest first.
 
+## v0.54.0 — 2026-09-09
+The landing page gets the product, the viewport, and some scale.
+Alec, looking at the landing pages in the reels next to this one: *"that's what we need to be
+aiming and striving for."* Read off the frames rather than guessed, what separates them is **not**
+neon, gradients, glass or 3D — all four are on the "looks vibecoded" list the same batch supplied.
+It is three structural things, and the clearest evidence is the `jake.hacks` reel, which puts the
+bad and the good side by side: the "ugly" examples are a white SaaS page with a form and an
+SEO-checker page — heading, paragraph, small mock, flat ground, which was structurally *this* page.
+1. **Something real owns the first screen.** This page opened with a headline, a paragraph and two
+   buttons. The product was section two, below the fold, and `loading="lazy"` — lazy-loading the
+   thing the page is about, which cost the one impression that matters. The screenshot is now in
+   the hero at `fetchpriority="high"`.
+2. **Scale is a tool.** The h1 stopped at 3.6rem and now runs to 5.25rem, with the leading and
+   tracking tightened to match.
+3. **The page uses the viewport.** Everything lived in a 760px column, which is a blog-post shape,
+   not a product-page shape. The hero is full-bleed and the screenshot runs off the right edge —
+   a screenshot that is fully contained reads as a thumbnail however large it is. The **body stays
+   at 760px on purpose**: a wide opener over a narrow reading column is an editorial move, not an
+   inconsistency.
+The ground under the hero is ruled paper, drawn in CSS at exactly the `--rule` token and masked out
+before it reaches the text. Depth from Nexley's own material rather than from a radial orb.
+**Sections arrive on scroll** (`IntersectionObserver`, no library). Three rules it obeys: nothing is
+hidden unless the script runs — the hiding class is added to `<html>` from JS, so a script failure,
+an old browser or a crawler gets the whole page rather than a blank one; transform and opacity only,
+so it cannot cost a fraction of CLS; and `prefers-reduced-motion` gets **no** motion, not a shorter
+one. The reels' own rule for this was *"don't animate just because you can — animate with purpose"*,
+and the purpose is pacing: eight sections of equal weight all present at once give the eye nothing
+to follow.
+Two errors caught by reading before any of it ran: `rgba(var(--shade),.35)` is invalid, because
+`--shade` is three space-separated components — the whole declaration would have been dropped in
+silence, which is how a shadow quietly never appears. And the full-bleed offset was eyeballed and
+wrong; it is derived now, and resolves to exactly `−gutter` at the container width so the two rules
+are continuous with no jump. Dead `.shot` / `.shot-cap` CSS removed with the section it styled.
+
 ## v0.53.0 — 2026-09-09
 Sync silently stopped at a thousand rows, and six controls were wearing the wrong theme.
 **A table was one request, and PostgREST does not hand over a whole table.** `pullTable` did

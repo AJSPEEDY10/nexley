@@ -153,21 +153,115 @@ try{
   a.btn{text-decoration:none;display:inline-block}
 
   .page{max-width:760px;margin:0 auto;padding:0 clamp(20px,5vw,40px) 80px}
+  /* the header spans the hero's width, not the reading column's, so the wordmark
+     lines up with the headline underneath it rather than floating inboard */
+  .topbar{max-width:1240px;margin:0 auto;padding:0 clamp(20px,5vw,40px)}
   .top{display:flex;align-items:center;gap:10px;padding:26px 0 0}
   .top b{font-family:var(--display);font-weight:400;font-size:1.15rem}
   .top .spacer{flex:1}
   .signin{font-size:.8125rem;color:var(--ink-2);text-decoration:none;padding:8px 4px}
   .signin:hover{color:var(--structure);text-decoration:underline}
 
-  .hero{padding:clamp(48px,10vw,96px) 0 clamp(32px,6vw,56px)}
+  /* ============================================================
+     THE HERO — rebuilt 2026-09-09.
+
+     The complaint, from Alec, looking at the landing pages in the reels next to
+     this one: "that's what we need to be aiming and striving for."
+
+     What actually separated them, read off the frames rather than guessed: NOT
+     neon, gradients or 3D — every one of those is on the "looks vibecoded" list
+     the same batch supplied. Three things:
+       1. Something REAL owns the first screen. This page opened with a headline,
+          a paragraph and two buttons; the product was section two, below the
+          fold, and lazy-loaded.
+       2. Scale is used as a tool. This h1 stopped at 3.6rem.
+       3. The page uses the viewport. Everything here lived in a 760px column,
+          which is a blog post shape, not a product page shape.
+
+     So: the hero goes full-bleed, the screenshot comes up to sit beside the
+     headline and runs off the right edge, and the type gets to be big. The
+     BODY stays at 760px on purpose — a wide opener over a narrow reading column
+     is an editorial move, not an inconsistency.
+
+     The ground is ruled paper. Nexley's own material, drawn in CSS at exactly
+     the --rule token, faded out before the content starts. That is where depth
+     comes from here rather than from a radial orb.
+     ============================================================ */
+  .hero{position:relative;padding:clamp(40px,7vw,76px) 0 clamp(36px,6vw,64px);overflow:hidden}
+  .hero::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(to bottom,
+      var(--rule-soft) 0 1px, transparent 1px 30px);
+    /* the ruling has to stop before it reaches the text, or the page reads as a
+       worksheet instead of having one on the desk behind it */
+    -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 62%);
+    mask-image:linear-gradient(to bottom, #000 0%, transparent 62%);
+    opacity:.85;
+  }
+  .hero-inner{position:relative;max-width:1240px;margin:0 auto;
+    padding:0 clamp(20px,5vw,40px);display:grid;gap:clamp(28px,4vw,44px)}
   .hero h1{font-family:var(--display);font-weight:400;
-    font-size:clamp(2.1rem, 1.4rem + 3.4vw, 3.6rem);letter-spacing:-.02em;line-height:1.08;
-    max-width:16ch}
-  .hero .lede{font-family:var(--text);font-size:clamp(1.0625rem, 1rem + .35vw, 1.25rem);
-    line-height:1.6;color:var(--ink-2);max-width:52ch;margin-top:20px}
-  .hero .cta{display:flex;align-items:center;gap:16px;margin-top:30px;flex-wrap:wrap}
+    font-size:clamp(2.4rem, 1.1rem + 5.6vw, 5.25rem);letter-spacing:-.028em;
+    line-height:1.02;max-width:15ch;text-wrap:balance}
+  .hero .lede{font-family:var(--text);font-size:clamp(1.0625rem, 1rem + .4vw, 1.3rem);
+    line-height:1.55;color:var(--ink-2);max-width:46ch;margin-top:clamp(16px,2vw,24px)}
+  .hero .cta{display:flex;align-items:center;gap:16px;margin-top:clamp(22px,3vw,34px);
+    flex-wrap:wrap}
   .hero .cta .note{font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
     text-transform:uppercase;color:var(--muted)}
+
+  /* The frame, not a mockup: one hairline and the page's own corner radius, so it
+     reads as a window onto the app rather than a picture of a laptop. */
+  .hero-shot{position:relative}
+  .hero-shot picture{display:block}
+  /* rgb(var(--shade)/.35), NOT rgba(var(--shade),.35) — --shade is three
+     space-separated components (26 24 21), so the legacy comma form is invalid
+     and the whole declaration is dropped without a word. Same spelling the rest
+     of app.css uses. */
+  .hero-shot img{display:block;width:100%;height:auto;
+    border:1px solid var(--rule);border-radius:var(--r-lg);
+    box-shadow:0 24px 56px -34px rgb(var(--shade)/.45)}
+  .hero-cap{margin:14px 0 0;font-family:var(--code);font-size:.625rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted)}
+
+  @media (min-width:1000px){
+    .hero-inner{grid-template-columns:minmax(0,0.86fr) minmax(0,1fr);
+      align-items:center;gap:clamp(32px,4vw,56px)}
+    /* runs off the right edge on purpose — a screenshot that is fully contained
+       reads as a thumbnail no matter how large it is */
+    .hero-shot{margin-right:calc(-1 * clamp(20px,5vw,40px))}
+    .hero-shot img{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
+  }
+  /* Past the container's own width the shot has to reach FURTHER than the gutter
+     to still touch the viewport edge. The gap from the inner content edge to the
+     viewport is (50vw − 620px + gutter), so the pull is the negative of that.
+     Worked out rather than eyeballed: at 1240px it resolves to exactly −gutter,
+     which is the rule above, so the two are continuous with no jump. */
+  @media (min-width:1240px){
+    .hero-shot{margin-right:calc(620px - clamp(20px,5vw,40px) - 50vw)}
+  }
+
+  /* Paired with the reveal script at the bottom. Scoped to .js-reveal, which that
+     script adds to <html> before it hides anything, so with no JS every section is
+     simply visible — the failure direction has to be "shown", never "blank". */
+  .js-reveal .block,
+  .js-reveal .log,
+  .js-reveal .status,
+  .js-reveal .faq,
+  .js-reveal .hero-shot{
+    opacity:0;transform:translate3d(0,18px,0);
+    transition:opacity .62s cubic-bezier(.22,.61,.36,1),
+               transform .62s cubic-bezier(.22,.61,.36,1);
+    will-change:opacity,transform;
+  }
+  .js-reveal .is-in{opacity:1;transform:none;will-change:auto}
+  /* Belt and braces: even inside .js-reveal, a reader who has asked for less
+     motion gets none. The script bails before adding the class, so this only
+     fires if the preference changes after load. */
+  @media (prefers-reduced-motion:reduce){
+    .js-reveal .block,.js-reveal .log,.js-reveal .status,.js-reveal .faq,
+    .js-reveal .hero-shot{opacity:1;transform:none;transition:none}
+  }
 
   .rule{height:1px;background:var(--rule);margin:0}
 
@@ -249,12 +343,9 @@ try{
   /* The product shot. Bordered and inset like a page on a desk, matching the app's
      own card treatment, so it reads as a window into Nexley rather than a floating
      rectangle. Width is capped below the image's natural 944 so it stays crisp. */
-  .shot{margin:0 auto;padding:0 var(--gutter);max-width:860px;text-align:center}
-  .shot picture{display:block}
-  .shot img{width:100%;height:auto;border:1px solid var(--rule);border-radius:var(--r-lg);
-    box-shadow:0 30px 60px -40px rgb(var(--shade)/.45);background:var(--card)}
-  .shot-cap{margin:14px auto 0;max-width:52ch;font-size:.875rem;line-height:1.6;
-    color:var(--muted)}
+  /* .shot / .shot-cap deleted 09-09 — the screenshot moved into the hero and this
+     rule had nothing left to style. Dead CSS is how a stylesheet stops being
+     readable; there is one screenshot on this page and it has one rule. */
   .soonnote{margin:14px 0 0;font-size:.82rem;line-height:1.6;color:var(--muted)}
   .log .caveat{font-family:var(--text);font-size:.9375rem;line-height:1.6;
     color:var(--muted);max-width:58ch;margin-top:22px}
@@ -273,7 +364,10 @@ try{
 </style>
 </head>
 <body>
-<div class="page">
+<!-- The header sits in its own container, not in .page. .page carries 80px of
+     bottom padding for the end of the document, and wrapping only the header in a
+     second one put that 80px of nothing between the logo and the hero. -->
+<div class="topbar">
 
   <header class="top">
     <svg class="glyph" viewBox="0 0 26 26" aria-hidden="true">
@@ -288,33 +382,41 @@ try{
     <a class="btn" href="app.html">Open Nexley</a>
   </header>
 
-  <section class="hero">
-    <span class="eyebrow">A study notebook</span>
-    <h1>Your notes belong to the syllabus.</h1>
-    <p class="lede">Nexley files every note against the actual dot point it answers.
-      A year of work stays findable, and the parts you have never written up stop being
-      invisible.</p>
-    <div class="cta">
-      <a class="btn primary" href="app.html">Open Nexley</a>
-      <a class="signin" href="app.html">Already have an account? Sign in</a>
-      <span class="note">Free · works offline · no app store</span>
-    </div>
-  </section>
+</div>
 
-  <!-- A real screenshot of the real app, not a mockup. "No product demo" reads to a
-       visitor as "there might be no product" — and every claim below this point is
-       easier to believe once you have seen the thing making it. Taken from a demo
-       account: the syllabus, the coverage figure and the filed notes are genuine
-       app output, not drawn. -->
-  <section class="shot">
-    <picture>
-      <source srcset="shot-notebook.webp" type="image/webp">
-      <img src="shot-notebook.png" width="928" height="889" loading="lazy" decoding="async"
-        alt="Nexley open on a Biology subject. A syllabus tree shows Module 1 with dot points BIO-11-01 to BIO-11-03, two of them filled in and holding notes titled Cell membrane transport and Enzymes and rate. A bar across the top reads 3 of 9 written, 33 per cent.">
-    </picture>
-    <p class="shot-cap">Biology, part way through Module 1. The filled dots are written up;
-      the hollow ones are not. That is the whole idea.</p>
-  </section>
+<!-- The screenshot moved UP here from its own section below the fold. A real
+     screenshot of the real app, not a mockup: "no product demo" reads to a visitor
+     as "there might be no product", and every claim further down is easier to
+     believe once you have seen the thing making it. Taken from a demo account —
+     the syllabus, the coverage figure and the filed notes are genuine app output.
+     eager + fetchpriority now that it is the first screen: lazy-loading the thing
+     the page is about was costing the one impression that matters. -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-say">
+      <span class="eyebrow">A study notebook</span>
+      <h1>Your notes belong to the syllabus.</h1>
+      <p class="lede">Nexley files every note against the actual dot point it answers.
+        A year of work stays findable, and the parts you have never written up stop being
+        invisible.</p>
+      <div class="cta">
+        <a class="btn primary" href="app.html">Open Nexley</a>
+        <a class="signin" href="app.html">Already have an account? Sign in</a>
+        <span class="note">Free · works offline · no app store</span>
+      </div>
+    </div>
+    <div class="hero-shot">
+      <picture>
+        <source srcset="shot-notebook.webp" type="image/webp">
+        <img src="shot-notebook.png" width="928" height="889" fetchpriority="high" decoding="async"
+          alt="Nexley open on a Biology subject. A syllabus tree shows Module 1 with dot points BIO-11-01 to BIO-11-03, two of them filled in and holding notes titled Cell membrane transport and Enzymes and rate. A bar across the top reads 3 of 9 written, 33 per cent.">
+      </picture>
+      <p class="hero-cap">Biology, part way through Module 1 · filled dots are written up</p>
+    </div>
+  </div>
+</section>
+
+<div class="page">
 
   <div class="rule"></div>
 
@@ -613,6 +715,41 @@ try{
     }, { rootMargin: '0px 0px -10% 0px' });
     io.observe(hero);
     io.observe(foot);
+  })();
+
+  /* ------------------------------------------------------------------
+     Sections arrive rather than being already there.
+
+     The reels' own rule for this, from the animation reel in batch 3: "don't
+     animate just because you can — animate with purpose." The purpose here is
+     narrow and it is the reason the page reads as static: eight sections of
+     equal weight, all present at once, give the eye nothing to follow. Arriving
+     one at a time is pacing, and pacing is most of what separates the reference
+     pages from a stack of divs.
+
+     Three rules it obeys:
+     1. NOTHING IS HIDDEN UNLESS THIS SCRIPT RUNS. The hiding class goes on
+        <html> from here, so a JS failure, an old browser or a crawler gets the
+        full page. Hiding content in CSS and revealing it in JS is how a page
+        ends up invisible to the one visitor who mattered.
+     2. TRANSFORM AND OPACITY ONLY. Nothing here can move layout, so it cannot
+        cost a fraction of CLS.
+     3. prefers-reduced-motion means no motion at all — not a shorter one.
+     ------------------------------------------------------------------ */
+  (function () {
+    if (!('IntersectionObserver' in window)) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var targets = document.querySelectorAll('.block, .log, .status, .faq, .hero-shot');
+    if (!targets.length) return;
+    document.documentElement.classList.add('js-reveal');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('is-in');
+        io.unobserve(e.target);      // it has arrived; stop paying for it
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.05 });
+    for (var i = 0; i < targets.length; i++) io.observe(targets[i]);
   })();
   </script>
 

@@ -1,8 +1,10 @@
 # Nexley - session handover
 
-**Session:** 2026-09-09 (second session of the day) · **Ended at:** v0.53.0, SW
-cache `nexley-v67` — working tree clean, 16 tags pushed, **30 test suites**
-green, live and verified in a real browser at `ajspeedy10.github.io/nexley`.
+**Session:** 2026-09-09 (second session of the day) · **Ended at:** v0.54.0, SW
+cache `nexley-v68` — working tree clean, 17 tags pushed, **30 test suites**
+green, live at `ajspeedy10.github.io/nexley`.
+v0.50.0–v0.53.0 were verified in a real browser. **v0.54.0 was not** — see the
+warning below before you trust the landing page.
 
 ---
 
@@ -26,6 +28,27 @@ run against the *previous* release to confirm it goes red there.
 past the first thousand *permanently* (1000 of 1300 on the first run, 1000 again
 on the second — the second run is where they died), and the iOS build would have
 crashed on the first photo any student ever took.
+
+### ⚠️ v0.54.0 SHIPPED WITHOUT A VISUAL CHECK — LOOK AT IT
+
+The landing-page hero rebuild (v0.54.0) is **live**, and it is the one thing this
+session shipped that **nobody has actually looked at**. The browser tool was
+blocked by a safety classifier partway through, so it was verified by reading:
+markup balance, inline JS syntax, dead-CSS removal, all 30 suites green, and two
+real errors caught that way (`rgba(var(--shade),…)` is invalid for a
+space-separated token and would have been dropped in silence; the full-bleed
+offset maths was eyeballed and wrong, and is derived now). None of that is a
+substitute for opening it. It was held back for that reason and Alec said to
+push it anyway — a reasonable call, since everything is one revert away.
+
+**First job for whoever picks this up:** `python serve.py`, open
+`http://127.0.0.1:8770/index.html`, look at it at desktop width and at 390px.
+Specifically worth checking, because these are what cannot be read off the
+source: whether the screenshot bleeding off the right edge looks deliberate or
+looks clipped at 1000–1240px; whether the ruled-paper ground is too strong behind
+the headline; and whether the scroll reveal fires before a section is in view on
+a tall screen. If it is wrong, `git revert` the v0.54.0 commit — every other
+release this session is independent of it.
 
 ### What is genuinely still open after this session
 - **Side-load the Android APK.** Unchanged — it builds, it has never been on a
