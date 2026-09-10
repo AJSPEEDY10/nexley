@@ -12,7 +12,7 @@
 # navigate fallback, which serves index.html. The result is that opening the
 # installed app offline lands you on the marketing page. Nothing errors.
 #
-# A 200 here is a REWRITE, not a redirect: Cloudflare serves the file at that
+# A 200 here is a REWRITE, not a redirect. The target must NOT be the same path:
 # path directly and never runs the .html-stripping step, so /app.html stays a
 # real 200 and every cache key, the start_url and the navigate fallback keep
 # agreeing with each other.
@@ -20,8 +20,8 @@
 # One line per page in app/. Adding a new .html page means adding a line here —
 # test/test_redirects.js fails if you forget.
 
-/index.html    /index.html    200
-/app.html      /app.html      200
-/legal.html    /legal.html    200
-/compare.html  /compare.html  200
-/404.html      /404.html      200
+/index.html    /            200
+/app.html      /app         200
+/legal.html    /legal       200
+/compare.html  /compare     200
+/404.html      /404         200
