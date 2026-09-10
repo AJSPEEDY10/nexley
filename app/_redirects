@@ -1,0 +1,27 @@
+# Cloudflare Pages only. GitHub Pages and serve.py ignore this file entirely.
+#
+# WHY THIS EXISTS. Cloudflare Pages "cleans" URLs by default: a request for
+# /app.html gets a 308 to /app. That quietly breaks the installed PWA, and it
+# breaks it in the least obvious way possible:
+#
+#   manifest.webmanifest declares  start_url: ./app.html
+#   sw.js precaches                ./app.html  (and the four other pages)
+#
+# so the launch redirects to /app, the service worker looks for /app in the
+# cache, does not find it — it cached /app.html — and falls through to its
+# navigate fallback, which serves index.html. The result is that opening the
+# installed app offline lands you on the marketing page. Nothing errors.
+#
+# A 200 here is a REWRITE, not a redirect: Cloudflare serves the file at that
+# path directly and never runs the .html-stripping step, so /app.html stays a
+# real 200 and every cache key, the start_url and the navigate fallback keep
+# agreeing with each other.
+#
+# One line per page in app/. Adding a new .html page means adding a line here —
+# test/test_redirects.js fails if you forget.
+
+/index.html    /index.html    200
+/app.html      /app.html      200
+/legal.html    /legal.html    200
+/compare.html  /compare.html  200
+/404.html      /404.html      200
