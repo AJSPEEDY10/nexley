@@ -441,14 +441,17 @@ usernames, note sharing, comps, the privilege revoke, and `notes.ink`).
 **Edge function:** `ai` deployed to prod and **WORKING** — Groq key is in. **Sync verified working.**
 **Repo:** `C:\Users\PC\Nexley` · deploy = `git push origin main`
 **Live:** landing `https://ajspeedy10.github.io/nexley/` · app `.../nexley/app.html`
-**Tests:** thirteen files, all green (329 assertions) — `test_parser.js`,
-`test_matcher.js`, `test_confidence.js`, `test_feedback.js`, `test_marks.js`,
-`test_plan.js`, `test_events.js`, `test_marking.js`, `test_pastyou.js`,
-`test_streak.js`, `test_title.js`, `test_crosslinks.js`, `test_comps.js`.
+**Tests:** 32 suites, all green (as of 2026-09-10 — count them with
+`ls test/test_*.js | wc -l` rather than trusting this number, it has been stale before).
 `for f in test/test_*.js; do node "$f"; done` runs the lot.
-`test/probe_marking.js` is NOT one of them: it spends real Groq quota against
-the live model and is judged by a human. Read its log before changing the
-marking prompt.
+Two files in `test/` are deliberately NOT in that loop, and both matter:
+`test/probe_marking.js` spends real Groq quota against the live model and is
+judged by a human — read its log before changing the marking prompt.
+`test/probe_deploy_drift.js` asks the LIVE Supabase project whether the deployed
+edge functions match this repo, which no other test can do because they all read
+the repo and none of them ask the server. **Run it after touching
+`supabase/functions/`** — that gap let a security fix sit committed-but-undeployed
+for two days with the suite fully green. It needs no credential. See DEPLOY.md.
 Plus `node test/measure_matcher.js`, which is a MEASUREMENT, not a test: it prints
 coverage/precision for auto-filing and never fails.
 

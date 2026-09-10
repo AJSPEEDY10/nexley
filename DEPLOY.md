@@ -16,6 +16,37 @@ renewed.
 
 ---
 
+## ⚠️ Edge functions are the one thing `git push` does NOT deploy
+
+The app is GitHub Pages, so pushing **is** deploying. `supabase/functions/` is not: those are
+deployed separately and otherwise sit on whatever build was last pushed to Supabase, silently,
+with every test still green — because every test reads the repo and none of them ask the server.
+
+**This has already cost two days.** On 08-09 both functions were fixed to stop answering
+`Access-Control-Allow-Origin: *` to any origin on the internet, committed and pushed. Nothing
+deployed them. On 10-09 production was still serving `*`.
+
+So after changing anything under `supabase/functions/`:
+
+```
+node test/probe_deploy_drift.js          # PROD  — exit 1 means deploy it
+node test/probe_deploy_drift.js --dev    # dev
+```
+
+It needs no credential (a CORS preflight is public and unauthenticated), so it is safe to run
+any time, and it distinguishes **DRIFT** (old build deployed) from **ABSENT** (404 — never
+deployed here; the `*` on that response is Cloudflare's, not ours).
+
+**To deploy one:** Supabase dashboard → Edge Functions → the function → **Code** → paste
+`supabase/functions/<name>/index.ts` → **Deploy updates**. No CLI needed. `npx supabase login`
+once would also let `npx supabase functions deploy <name>` do it from here.
+
+`test/test_edge_cors.js` is the other half — it proves the *source* fails closed, and runs in
+the normal suite. Neither test replaces the other: one stops the code regressing, the other
+stops the deploy being forgotten.
+
+---
+
 ## Install it on an iPad or phone (PWA)
 
 1. Open **`https://ajspeedy10.github.io/nexley/app.html`** in **Safari** (iOS) or Chrome
